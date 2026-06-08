@@ -45,6 +45,9 @@ std::string OffsetsManager::http_get(const wchar_t* host, const wchar_t* path) {
         throw std::runtime_error("WinHttpOpenRequest failed");
     }
 
+    // Set timeouts: resolve=5s, connect=5s, send=5s, receive=5s
+    WinHttpSetTimeouts(hRequest, 5000, 5000, 5000, 5000);
+
     BOOL ok = WinHttpSendRequest(
         hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
         WINHTTP_NO_REQUEST_DATA, 0, 0, 0);
