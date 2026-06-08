@@ -42,16 +42,16 @@ namespace sdk {
         uintptr_t childStart = drive->read<uintptr_t>(Address + offset::instance::ChildrenStart);
         if (!childStart) return Container;
 
-        // FIX: ChildrenEnd is relative to the instance, not the children array.
-        // Read end pointer from: Address + ChildrenStart + ChildrenEnd
-        uintptr_t childEnd = drive->read<uintptr_t>(Address + offset::instance::ChildrenStart + offset::instance::ChildrenEnd);
+        // ChildrenEnd is the offset from childStart to the end pointer (stride)
+        uintptr_t childEnd = drive->read<uintptr_t>(childStart + offset::instance::ChildrenEnd);
         if (!childEnd || childEnd <= childStart) return Container;
 
         // Diagnostic
-        printf("[CHILDREN] inst=0x%llx start=0x%llx end=0x%llx\n",
+        printf("[CHILDREN] inst=0x%llx start=0x%llx end=0x%llx diff=%llu\n",
             (unsigned long long)Address,
             (unsigned long long)childStart,
-            (unsigned long long)childEnd);
+            (unsigned long long)childEnd,
+            (unsigned long long)(childEnd - childStart) / 0x10);
 
         // Safety cap: never iterate more than 5000 entries
         const int MAX_CHILDREN = 5000;
