@@ -120,25 +120,24 @@ namespace
 
 std::int32_t main(std::int32_t argc, char** argv[])
 {
-    // Hide console immediately
-    ShowWindow(GetConsoleWindow(), SW_HIDE);
-
     // Load offsets with try-catch: remote fetch -> fallback to local file
     try {
         OffsetsManager::instance().load();
     }
     catch (...) {
-        // OffsetsManager handles its own errors internally
+        printf("[AUTOPSY] OffsetsManager exception.\n");
     }
 
     // Apply loaded offsets to the runtime offset:: namespace
     offset::init();
+    printf("[AUTOPSY] Offsets initialized\n");
 
     static constexpr const char* BINARY_NAME = { "RobloxPlayerBeta.exe" };
     const bool alreadyRunning = process(BINARY_NAME);
 
     if (!alreadyRunning)
     {
+        printf("[AUTOPSY] Waiting for Roblox...\n");
         while (!process(BINARY_NAME))
         {
             Sleep(500);
@@ -148,6 +147,7 @@ std::int32_t main(std::int32_t argc, char** argv[])
     if (!alreadyRunning)
         Sleep(5000);
 
+    printf("[AUTOPSY] Roblox found, attaching...\n");
     std::thread(watch, BINARY_NAME).detach();
 
     drive->process(BINARY_NAME);
