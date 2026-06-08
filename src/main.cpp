@@ -194,10 +194,36 @@ std::int32_t main(std::int32_t argc, char** argv[])
     auto workspacetoworld = drive->read<uintptr_t>(global::workspace.Address + offset::workspace::world);
     drive->write<float>(workspacetoworld + offset::world::GravityOverride, 200 * 4.f);
 
-    screen->window();
-    screen->device();
-    screen->imgui();
+    if (!screen->window())
+    {
+        std::cout << "[AUTOPSY.lol] ERROR: Failed to create overlay window!" << std::endl;
+        std::cout << "[AUTOPSY.lol] Press any key to exit..." << std::endl;
+        system("pause > nul");
+        return 1;
+    }
+    std::cout << "[AUTOPSY.lol] Overlay window created" << std::endl;
 
+    if (!screen->device())
+    {
+        std::cout << "[AUTOPSY.lol] ERROR: Failed to create D3D11 device!" << std::endl;
+        std::cout << "[AUTOPSY.lol] Press any key to exit..." << std::endl;
+        system("pause > nul");
+        return 1;
+    }
+    std::cout << "[AUTOPSY.lol] D3D11 device created" << std::endl;
+
+    if (!screen->imgui())
+    {
+        std::cout << "[AUTOPSY.lol] ERROR: Failed to initialize ImGui!" << std::endl;
+        std::cout << "[AUTOPSY.lol] Press any key to exit..." << std::endl;
+        system("pause > nul");
+        return 1;
+    }
+    std::cout << "[AUTOPSY.lol] ImGui initialized" << std::endl;
+
+    std::cout << "[AUTOPSY.lol] Overlay ready - press menu key to open" << std::endl;
+    std::cout << "[AUTOPSY.lol] Hiding console in 3 seconds..." << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(3));
     ShowWindow(GetConsoleWindow(), SW_HIDE);
 
     for (;;)
