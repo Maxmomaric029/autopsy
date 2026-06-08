@@ -245,7 +245,11 @@ bool OffsetsManager::parse_json(const json& data) {
 
                 uintptr_t val = static_cast<uintptr_t>(offset_value.get<uint64_t>());
 
-                std::string key = group_lower + "/" + offset_name;
+                // Lowercase field name too for case-insensitive matching
+                std::string field_lower = offset_name;
+                for (auto& c : field_lower) c = (char)tolower(c);
+
+                std::string key = group_lower + "/" + field_lower;
                 OffsetsEntry entry;
                 entry.value = val;
 
@@ -283,7 +287,9 @@ bool OffsetsManager::parse_json(const json& data) {
 uintptr_t OffsetsManager::get_offset(const std::string& cls, const std::string& field) const {
     std::string cls_lower = cls;
     for (auto& c : cls_lower) c = (char)tolower(c);
-    std::string key = cls_lower + "/" + field;
+    std::string fld_lower = field;
+    for (auto& c : fld_lower) c = (char)tolower(c);
+    std::string key = cls_lower + "/" + fld_lower;
     auto it = cache_.find(key);
     if (it != cache_.end()) {
         return it->second.value;
@@ -297,7 +303,9 @@ uintptr_t OffsetsManager::get_offset(const std::string& cls, const std::string& 
 std::string OffsetsManager::get_hex_offset(const std::string& cls, const std::string& field) const {
     std::string cls_lower = cls;
     for (auto& c : cls_lower) c = (char)tolower(c);
-    std::string key = cls_lower + "/" + field;
+    std::string fld_lower = field;
+    for (auto& c : fld_lower) c = (char)tolower(c);
+    std::string key = cls_lower + "/" + fld_lower;
     auto it = cache_.find(key);
     if (it != cache_.end()) {
         return it->second.hex;
