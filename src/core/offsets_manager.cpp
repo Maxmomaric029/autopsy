@@ -233,12 +233,16 @@ bool OffsetsManager::parse_json(const json& data) {
         for (auto& [group_name, group_obj] : offsets_obj.items()) {
             if (!group_obj.is_object()) continue;
 
+            // Normalize group name to lowercase for case-insensitive matching
+            std::string group_lower = group_name;
+            for (auto& c : group_lower) c = (char)tolower(c);
+
             for (auto& [offset_name, offset_value] : group_obj.items()) {
                 if (!offset_value.is_number()) continue;
 
                 uintptr_t val = static_cast<uintptr_t>(offset_value.get<uint64_t>());
 
-                std::string key = group_name + "/" + offset_name;
+                std::string key = group_lower + "/" + offset_name;
                 OffsetsEntry entry;
                 entry.value = val;
 
@@ -274,7 +278,9 @@ bool OffsetsManager::parse_json(const json& data) {
 // get_offset - Lookup uintptr_t value by class/field name
 // ------------------------------------------------------------------
 uintptr_t OffsetsManager::get_offset(const std::string& cls, const std::string& field) const {
-    std::string key = cls + "/" + field;
+    std::string cls_lower = cls;
+    for (auto& c : cls_lower) c = (char)tolower(c);
+    std::string key = cls_lower + "/" + field;
     auto it = cache_.find(key);
     if (it != cache_.end()) {
         return it->second.value;
@@ -286,7 +292,9 @@ uintptr_t OffsetsManager::get_offset(const std::string& cls, const std::string& 
 // get_hex_offset - Lookup hex string for debug
 // ------------------------------------------------------------------
 std::string OffsetsManager::get_hex_offset(const std::string& cls, const std::string& field) const {
-    std::string key = cls + "/" + field;
+    std::string cls_lower = cls;
+    for (auto& c : cls_lower) c = (char)tolower(c);
+    std::string key = cls_lower + "/" + field;
     auto it = cache_.find(key);
     if (it != cache_.end()) {
         return it->second.hex;
