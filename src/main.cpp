@@ -147,8 +147,8 @@ namespace
         }
     }
 
-    // Separate function for SEH-safe risky memory operations
-    // (__try/__except cannot coexist with C++ objects needing unwinding)
+    // SEH helper: only use C functions (printf) and POD types
+    // __try/__except CANNOT coexist with C++ objects needing unwinding
     bool resolve_addresses()
     {
         __try
@@ -157,21 +157,21 @@ namespace
             drive->attach("RobloxPlayerBeta.exe");
             drive->module("RobloxPlayerBeta.exe");
 
-            auto fakemodel = drive->read<std::uint64_t>(drive->modulebase() + offset::fakemodel::Pointer);
+            uint64_t fakemodel = drive->read<uint64_t>(drive->modulebase() + offset::fakemodel::Pointer);
             if (!fakemodel)
             {
-                std::cout << "[AUTOPSY.lol] ERROR: fakemodel::Pointer returned 0" << std::endl;
+                printf("[AUTOPSY.lol] ERROR: fakemodel::Pointer returned 0\n");
                 return false;
             }
 
-            global::model.Address = drive->read<std::uint64_t>(fakemodel + offset::fakemodel::RealDataModel);
-            global::render.Address = drive->read<std::uint64_t>(drive->modulebase() + offset::render::Pointer);
+            global::model.Address = drive->read<uint64_t>(fakemodel + offset::fakemodel::RealDataModel);
+            global::render.Address = drive->read<uint64_t>(drive->modulebase() + offset::render::Pointer);
 
-            std::cout << "[AUTOPSY.lol] model.Address = 0x" << std::hex << global::model.Address << std::dec << std::endl;
+            printf("[AUTOPSY.lol] model.Address = 0x%llx\n", (unsigned long long)global::model.Address);
 
             if (!global::model.Address)
             {
-                std::cout << "[AUTOPSY.lol] ERROR: Could not find DataModel" << std::endl;
+                printf("[AUTOPSY.lol] ERROR: Could not find DataModel\n");
                 return false;
             }
 
@@ -180,20 +180,22 @@ namespace
 
             if (!global::workspace.Address)
             {
-                std::cout << "[AUTOPSY.lol] ERROR: Could not find Workspace" << std::endl;
+                printf("[AUTOPSY.lol] ERROR: Could not find Workspace\n");
                 return false;
             }
 
             global::camera.Address = global::workspace.childclass("Camera").Address;
-            auto Lightin = global::model.childclass("Lighting");
-            global::light = sdk::light(Lightin.Address);
+            {
+                uintptr_t lightAddr = global::model.childclass("Lighting").Address;
+                global::light = sdk::light(lightAddr);
+            }
 
-            std::cout << "[AUTOPSY.lol] All addresses resolved successfully!" << std::endl;
+            printf("[AUTOPSY.lol] All addresses resolved successfully!\n");
             return true;
         }
         __except (EXCEPTION_EXECUTE_HANDLER)
         {
-            std::cout << "[AUTOPSY.lol] CRASH: Exception while reading offsets" << std::endl;
+            printf("[AUTOPSY.lol] CRASH: Exception while reading offsets\n");
             return false;
         }
     }
