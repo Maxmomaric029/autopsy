@@ -9,16 +9,16 @@ extern "C" intptr_t readvm(
     HANDLE ProcessHandle,
     PVOID BaseAddress,
     PVOID Buffer,
-    ULONG NumberOfBytesToRead,
-    PULONG NumberOfBytesRead
+    SIZE_T NumberOfBytesToRead,
+    PSIZE_T NumberOfBytesRead
 );
 
 extern "C" intptr_t writevm(
     HANDLE ProcessHandle,
     PVOID BaseAddress,
     PVOID Buffer,
-    ULONG NumberOfBytesToWrite,
-    PULONG NumberOfBytesWritten
+    SIZE_T NumberOfBytesToWrite,
+    PSIZE_T NumberOfBytesWritten
 );
 
 union rbxdata {

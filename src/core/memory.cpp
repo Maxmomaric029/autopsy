@@ -84,7 +84,7 @@ bool driver::attach(const std::string& Process_Name)
 
 std::string driver::readstring(std::uint64_t Address)
 {
-    std::int32_t String_Length = read<std::int32_t>(Address + offset::misc::StringLength);
+    std::uint32_t String_Length = read<std::uint32_t>(Address + offset::misc::StringLength);
     std::uint64_t String_Address = (String_Length >= 16) ? read<std::uint64_t>(Address) : Address;
 
     if (String_Length == 0 || String_Length > 255)
@@ -93,7 +93,7 @@ std::string driver::readstring(std::uint64_t Address)
     }
 
     std::vector<char> Buffer(String_Length + 1, 0);
-    readvm(handle, reinterpret_cast<void*>(String_Address), Buffer.data(), static_cast<ULONG>(Buffer.size()), nullptr);
+    readvm(handle, reinterpret_cast<void*>(String_Address), Buffer.data(), Buffer.size(), nullptr);
 
     return std::string(Buffer.data(), String_Length);
 }
@@ -101,11 +101,16 @@ std::string driver::readstring(std::uint64_t Address)
 void driver::writestring(std::uint64_t Address, const std::string& Value)
 {
     auto Str = read<rbxstring>(Address);
+    std::uint64_t OldDataPointer = (Str.Length > 15) ? Str.Data.Pointer : 0;
 
     if (Value.length() > Str.Capacity)
     {
         while (Value.length() > Str.Capacity)
             Str.Capacity = Str.Capacity * 2 + 1;
+
+        // Free old heap allocation before allocating new one
+        if (OldDataPointer)
+            VirtualFreeEx(handle, reinterpret_cast<LPVOID>(OldDataPointer), 0, MEM_RELEASE);
 
         Str.Data.Pointer = reinterpret_cast<std::uint64_t>(
             VirtualAllocEx(
@@ -117,6 +122,8 @@ void driver::writestring(std::uint64_t Address, const std::string& Value)
             )
             );
     }
+    // else: no reallocation needed, keep OldDataPointer for cleanup below
+    // (it will be freed in the short-branch if switching from heap→inline)
 
     Str.Length = Value.length();
 
@@ -127,19 +134,23 @@ void driver::writestring(std::uint64_t Address, const std::string& Value)
             handle,
             reinterpret_cast<void*>(Str.Data.Pointer),
             (void*)Value.data(),
-            static_cast<ULONG>(Value.length()),
+            Value.length(),
             nullptr
         );
     }
     else
     {
+        // Switching from long to short: free old heap allocation
+        if (OldDataPointer)
+            VirtualFreeEx(handle, reinterpret_cast<LPVOID>(OldDataPointer), 0, MEM_RELEASE);
+
         Str.Capacity = 15;
         write<rbxstring>(Address, Str);
         writevm(
             handle,
             reinterpret_cast<void*>(Address),
             (void*)Value.data(),
-            static_cast<ULONG>(Value.length()),
+            Value.length(),
             nullptr
         );
     }
