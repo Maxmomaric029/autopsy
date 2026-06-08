@@ -4,7 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include <filesystem>
-#include <nlohmann/json.hpp>
+#include "nlohmann_json.hpp"
 
 #define NOMINMAX
 #include <windows.h>
