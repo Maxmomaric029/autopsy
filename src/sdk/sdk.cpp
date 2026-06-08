@@ -62,13 +62,13 @@ namespace sdk {
             (unsigned long long)Address,
             (unsigned long long)childStart,
             (unsigned long long)childEnd,
-            (unsigned long long)(childEnd - childStart) / sizeof(uintptr_t));
+            (unsigned long long)(childEnd - childStart) / 0x10);
 
         // Safety cap: never iterate more than 5000 entries
         const int MAX_CHILDREN = 5000;
         int count = 0;
 
-        for (uintptr_t ptr = childStart; ptr < childEnd && count < MAX_CHILDREN; ptr += sizeof(uintptr_t))
+        for (uintptr_t ptr = childStart; ptr < childEnd && count < MAX_CHILDREN; ptr += 0x10)
         {
             uintptr_t child = drive->read<uintptr_t>(ptr);
             if (is_valid_instance_address(child))
