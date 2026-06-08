@@ -146,60 +146,6 @@ namespace
             }
         }
     }
-
-    // SEH helper: only use C functions (printf) and POD types
-    // __try/__except CANNOT coexist with C++ objects needing unwinding
-    bool resolve_addresses()
-    {
-        __try
-        {
-            drive->process("RobloxPlayerBeta.exe");
-            drive->attach("RobloxPlayerBeta.exe");
-            drive->module("RobloxPlayerBeta.exe");
-
-            uint64_t fakemodel = drive->read<uint64_t>(drive->modulebase() + offset::fakemodel::Pointer);
-            if (!fakemodel)
-            {
-                printf("[AUTOPSY.lol] ERROR: fakemodel::Pointer returned 0\n");
-                return false;
-            }
-
-            global::model.Address = drive->read<uint64_t>(fakemodel + offset::fakemodel::RealDataModel);
-            global::render.Address = drive->read<uint64_t>(drive->modulebase() + offset::render::Pointer);
-
-            printf("[AUTOPSY.lol] model.Address = 0x%llx\n", (unsigned long long)global::model.Address);
-
-            if (!global::model.Address)
-            {
-                printf("[AUTOPSY.lol] ERROR: Could not find DataModel\n");
-                return false;
-            }
-
-            global::actor.Address = global::model.childclass("Players").Address;
-            global::workspace.Address = global::model.childclass("Workspace").Address;
-
-            if (!global::workspace.Address)
-            {
-                printf("[AUTOPSY.lol] ERROR: Could not find Workspace\n");
-                return false;
-            }
-
-            global::camera.Address = global::workspace.childclass("Camera").Address;
-            {
-                uintptr_t lightAddr = global::model.childclass("Lighting").Address;
-                global::light = sdk::light(lightAddr);
-            }
-
-            printf("[AUTOPSY.lol] All addresses resolved successfully!\n");
-            return true;
-        }
-        __except (EXCEPTION_EXECUTE_HANDLER)
-        {
-            printf("[AUTOPSY.lol] CRASH: Exception while reading offsets\n");
-            return false;
-        }
-    }
-
 }
 
 std::int32_t main(std::int32_t argc, char** argv[])
@@ -225,12 +171,18 @@ std::int32_t main(std::int32_t argc, char** argv[])
 
     std::thread(watch, BINARY_NAME).detach();
 
-    if (!resolve_addresses())
-    {
-        std::cout << "[AUTOPSY.lol] Failed to initialize. Press any key to exit..." << std::endl;
-        system("pause > nul");
-        return 1;
-    }
+    drive->process(BINARY_NAME);
+    drive->attach(BINARY_NAME);
+    drive->module(BINARY_NAME);
+
+    auto fakemodel = drive->read<std::uint64_t>(drive->modulebase() + offset::fakemodel::Pointer);
+    global::model.Address = drive->read<std::uint64_t>(fakemodel + offset::fakemodel::RealDataModel);
+    global::render.Address = drive->read<std::uint64_t>(drive->modulebase() + offset::render::Pointer);
+    global::actor.Address = global::model.childclass("Players").Address;
+    global::workspace.Address = global::model.childclass("Workspace").Address;
+    global::camera.Address = global::workspace.childclass("Camera").Address;
+    auto Lightin = global::model.childclass("Lighting");
+    global::light = sdk::light(Lightin.Address);
 
     std::thread(cache::run).detach();
     std::thread(world::run).detach();
