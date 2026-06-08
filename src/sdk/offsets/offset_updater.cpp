@@ -11,7 +11,7 @@
 #include <winhttp.h>
 #pragma comment(lib, "winhttp.lib")
 
-#include "../../Dependencies/nlohmann_json.hpp"
+#include "nlohmann_json.hpp"
 
 namespace Offsets
 {
