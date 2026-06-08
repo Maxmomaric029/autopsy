@@ -37,17 +37,28 @@ namespace sdk {
 
     std::vector<instance> instance::children() const {
         std::vector<instance> Container;
-        if (!Address) return Container;
+        printf("[CHILDREN] called inst=0x%llx\n", (unsigned long long)Address);
+        if (!Address) { printf("[CHILDREN] Address=0 -> EMPTY\n"); return Container; }
 
         uintptr_t childStart = drive->read<uintptr_t>(Address + offset::instance::ChildrenStart);
-        if (!childStart) return Container;
+        printf("[CHILDREN] childStart=0x%llx (read from Address+0x%llx)\n",
+            (unsigned long long)childStart,
+            (unsigned long long)offset::instance::ChildrenStart);
+        if (!childStart) { printf("[CHILDREN] childStart=0 -> EMPTY\n"); return Container; }
 
-        // ChildrenEnd is the offset from childStart to the end pointer (stride)
+        // ChildrenEnd is the offset from childStart to the end pointer
         uintptr_t childEnd = drive->read<uintptr_t>(childStart + offset::instance::ChildrenEnd);
-        if (!childEnd || childEnd <= childStart) return Container;
+        printf("[CHILDREN] childEnd=0x%llx (read from childStart+0x%llx)\n",
+            (unsigned long long)childEnd,
+            (unsigned long long)offset::instance::ChildrenEnd);
+        if (!childEnd || childEnd <= childStart) {
+            printf("[CHILDREN] childEnd=0x%llx <= childStart=0x%llx -> EMPTY\n",
+                (unsigned long long)childEnd, (unsigned long long)childStart);
+            return Container;
+        }
 
         // Diagnostic
-        printf("[CHILDREN] inst=0x%llx start=0x%llx end=0x%llx diff=%llu\n",
+        printf("[CHILDREN] OK inst=0x%llx start=0x%llx end=0x%llx diff=%llu\n",
             (unsigned long long)Address,
             (unsigned long long)childStart,
             (unsigned long long)childEnd,
