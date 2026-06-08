@@ -13,8 +13,8 @@
 
 #include "../features/ball.h"
 #include "global.h"
-#include "../sdk/engine.h"
-#include "../sdk/offset.h"
+#include "../sdk/sdk.h"
+#include "../sdk/offsets/offset.h"
 #include "imgui/imgui.h"
 
 namespace ball

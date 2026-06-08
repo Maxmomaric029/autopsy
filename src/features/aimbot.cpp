@@ -8,11 +8,10 @@
 #include <utility>
 #include <vector>
 
-#include "../features/aim.h"
-#include "../features/cache.h"
-#include "../sdk/engine.h"
+#include "../core/cache.h"
+#include "../sdk/sdk.h"
 #include "global.h"
-#include "../sdk/offset.h"
+#include "../sdk/offsets/offset.h"
 #include "../features/wallcheck.h"
 #include "imgui/addons/imgui_addons.h"
 

@@ -5,10 +5,10 @@
 #include <mutex>
 #pragma comment(lib, "Winmm.lib")
 
-#include "../sdk/engine.h"
+#include "../sdk/sdk.h"
 #include "global.h"
-#include "../features/cache.h"
-#include "../sdk/offset.h"
+#include "../core/cache.h"
+#include "../sdk/offsets/offset.h"
 
 namespace {
     sdk::vector3 lookvec(const sdk::matrix3& rot)

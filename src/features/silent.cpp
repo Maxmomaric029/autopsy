@@ -9,8 +9,7 @@
 #include <iostream>
 #include "silent.h"
 #include "global.h"
-#include "../sdk/engine.h"
-#include "../sdk/math.h"
+#include "../sdk/sdk.h"
 #include "../features/wallcheck.h"
 #include "imgui/addons/imgui_addons.h"
 

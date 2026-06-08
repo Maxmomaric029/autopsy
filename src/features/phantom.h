@@ -5,7 +5,7 @@
 #include <cmath>
 #include <chrono>
 #include <thread>
-#include "../features/cache.h"
+#include "../core/cache.h"
 #include "global.h"
 
 std::mutex CMutex;

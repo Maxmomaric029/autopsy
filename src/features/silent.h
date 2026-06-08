@@ -2,8 +2,8 @@
 #include <memory>
 #include <cstdint>
 #include <vector>
-#include "../sdk/engine.h"
-#include "../features/cache.h"
+#include "../sdk/sdk.h"
+#include "../core/cache.h"
 
 namespace silent
 {

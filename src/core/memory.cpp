@@ -1,4 +1,5 @@
 #include "memory.h"
+#include "../sdk/offsets/offset.h"
 
 std::uint32_t driver::process(const std::string& Process_Name)
 {
