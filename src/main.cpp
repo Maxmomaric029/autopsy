@@ -169,21 +169,46 @@ std::int32_t main(std::int32_t argc, char** argv[])
 
     std::cout << "[AUTOPSY.lol] Autopsy External loaded" << std::endl;
 
+    std::cout << "[DEBUG] Spawning watch thread..." << std::endl;
     std::thread(watch, BINARY_NAME).detach();
 
+    std::cout << "[DEBUG] drive->process()..." << std::endl;
     drive->process(BINARY_NAME);
+    std::cout << "[DEBUG] drive->attach()..." << std::endl;
     drive->attach(BINARY_NAME);
+    std::cout << "[DEBUG] drive->module()..." << std::endl;
     drive->module(BINARY_NAME);
 
+    std::cout << "[DEBUG] Reading fakemodel pointer at base + " << std::hex << offset::fakemodel::Pointer << std::dec << "..." << std::endl;
     auto fakemodel = drive->read<std::uint64_t>(drive->modulebase() + offset::fakemodel::Pointer);
+    std::cout << "[DEBUG] fakemodel = " << std::hex << fakemodel << std::dec << std::endl;
+
+    std::cout << "[DEBUG] Reading DataModel address..." << std::endl;
     global::model.Address = drive->read<std::uint64_t>(fakemodel + offset::fakemodel::RealDataModel);
+    std::cout << "[DEBUG] model.Address = " << std::hex << global::model.Address << std::dec << std::endl;
+
+    std::cout << "[DEBUG] Reading render pointer..." << std::endl;
     global::render.Address = drive->read<std::uint64_t>(drive->modulebase() + offset::render::Pointer);
+    std::cout << "[DEBUG] render.Address = " << std::hex << global::render.Address << std::dec << std::endl;
+
+    std::cout << "[DEBUG] Looking for Players..." << std::endl;
     global::actor.Address = global::model.childclass("Players").Address;
+    std::cout << "[DEBUG] actor.Address = " << std::hex << global::actor.Address << std::dec << std::endl;
+
+    std::cout << "[DEBUG] Looking for Workspace..." << std::endl;
     global::workspace.Address = global::model.childclass("Workspace").Address;
+    std::cout << "[DEBUG] workspace.Address = " << std::hex << global::workspace.Address << std::dec << std::endl;
+
+    std::cout << "[DEBUG] Looking for Camera..." << std::endl;
     global::camera.Address = global::workspace.childclass("Camera").Address;
+    std::cout << "[DEBUG] camera.Address = " << std::hex << global::camera.Address << std::dec << std::endl;
+
+    std::cout << "[DEBUG] Looking for Lighting..." << std::endl;
     auto Lightin = global::model.childclass("Lighting");
     global::light = sdk::light(Lightin.Address);
+    std::cout << "[DEBUG] light.Address = " << std::hex << Lightin.Address << std::dec << std::endl;
 
+    std::cout << "[DEBUG] Spawning feature threads..." << std::endl;
     std::thread(cache::run).detach();
     std::thread(world::run).detach();
     std::thread(aim::run).detach();
@@ -191,9 +216,13 @@ std::int32_t main(std::int32_t argc, char** argv[])
     std::thread(misc::run).detach();
     std::thread(ball::run).detach();
 
+    std::cout << "[DEBUG] Writing gravity..." << std::endl;
     auto workspacetoworld = drive->read<uintptr_t>(global::workspace.Address + offset::workspace::world);
+    std::cout << "[DEBUG] workspacetoworld = " << std::hex << workspacetoworld << std::dec << std::endl;
     drive->write<float>(workspacetoworld + offset::world::GravityOverride, 200 * 4.f);
+    std::cout << "[DEBUG] Gravity written" << std::endl;
 
+    std::cout << "[DEBUG] Creating overlay window..." << std::endl;
     if (!screen->window())
     {
         std::cout << "[AUTOPSY.lol] ERROR: Failed to create overlay window!" << std::endl;
@@ -203,6 +232,7 @@ std::int32_t main(std::int32_t argc, char** argv[])
     }
     std::cout << "[AUTOPSY.lol] Overlay window created" << std::endl;
 
+    std::cout << "[DEBUG] Creating D3D11 device..." << std::endl;
     if (!screen->device())
     {
         std::cout << "[AUTOPSY.lol] ERROR: Failed to create D3D11 device!" << std::endl;
@@ -212,6 +242,7 @@ std::int32_t main(std::int32_t argc, char** argv[])
     }
     std::cout << "[AUTOPSY.lol] D3D11 device created" << std::endl;
 
+    std::cout << "[DEBUG] Initializing ImGui..." << std::endl;
     if (!screen->imgui())
     {
         std::cout << "[AUTOPSY.lol] ERROR: Failed to initialize ImGui!" << std::endl;
