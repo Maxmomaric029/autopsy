@@ -46,9 +46,9 @@ namespace sdk {
             (unsigned long long)offset::instance::ChildrenStart);
         if (!childStart) { printf("[CHILDREN] childStart=0 -> EMPTY\n"); return Container; }
 
-        // ChildrenEnd is the offset from Address (instance) to the end pointer
-        uintptr_t childEnd = drive->read<uintptr_t>(Address + offset::instance::ChildrenEnd);
-        printf("[CHILDREN] childEnd=0x%llx (read from Address+0x%llx)\n",
+        // ChildrenEnd is offset within ChildrenContainer to the end pointer
+        uintptr_t childEnd = drive->read<uintptr_t>(childStart + offset::instance::ChildrenEnd);
+        printf("[CHILDREN] childEnd=0x%llx (read from childStart+0x%llx)\n",
             (unsigned long long)childEnd,
             (unsigned long long)offset::instance::ChildrenEnd);
         if (!childEnd || childEnd <= childStart) {
