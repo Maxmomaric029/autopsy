@@ -124,7 +124,7 @@ namespace sdk {
         return result;
     }
 
-    void camera::viewport(viewport Vp) const {
+    void camera::set_viewport(viewport Vp) const {
         drive->write<viewport>(this->Address + offset::camera::Viewport, Vp);
     }
 

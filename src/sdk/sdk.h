@@ -133,7 +133,7 @@ namespace sdk
         void position(const sdk::vector3& pos) const;
         void rotation(const sdk::matrix3& rot) const;
         vector2 viewportat(vector2 target_screen_pos, vector2 screen_size);
-        void viewport(sdk::viewport Vp) const;
+        void set_viewport(sdk::viewport Vp) const;
     };
 
     struct humanoid : public instance {
