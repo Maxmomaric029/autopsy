@@ -5,6 +5,7 @@
 #include <string>
 
 #include "core/memory.h"
+#include "core/offsets_manager.h"
 #include "global.h"
 #include "log.h"
 #include "ui/graphic.h"
@@ -152,6 +153,28 @@ std::int32_t main(std::int32_t argc, char** argv[])
 {
     gate();
 
+    // Load offsets with try-catch: remote fetch -> fallback to local file
+    try {
+        if (!OffsetsManager::instance().load()) {
+            printf("[AUTOPSY] WARNING: OffsetsManager could not load offsets.\n");
+            printf("[AUTOPSY] Using hardcoded fallback offsets from offset.h\n");
+        }
+        else {
+            printf("[AUTOPSY] Offsets loaded from server/local.\n");
+            // Example of debug usage:
+            printf("[AUTOPSY] Instance/ChildrenStart = 0x%llx (%s)\n",
+                (unsigned long long)OffsetsManager::instance().get_offset("Instance", "ChildrenStart"),
+                OffsetsManager::instance().get_hex_offset("Instance", "ChildrenStart").c_str());
+        }
+    }
+    catch (const std::exception& e) {
+        printf("[AUTOPSY] OffsetsManager exception: %s\n", e.what());
+        printf("[AUTOPSY] Fallback: using hardcoded offsets from offset.h\n");
+    }
+    catch (...) {
+        printf("[AUTOPSY] OffsetsManager unknown exception. Using hardcoded fallback.\n");
+    }
+
     static constexpr const char* BINARY_NAME = { "RobloxPlayerBeta.exe" };
     const bool alreadyRunning = process(BINARY_NAME);
 
@@ -194,6 +217,18 @@ std::int32_t main(std::int32_t argc, char** argv[])
     std::cout << "[DEBUG] Looking for Players..." << std::endl;
     global::actor.Address = global::model.childclass("Players").Address;
     std::cout << "[DEBUG] actor.Address = " << std::hex << global::actor.Address << std::dec << std::endl;
+
+    // Diagnostic: enumerate Players children to verify children() works
+    printf("[DIAG] Players children enumeration:\n");
+    auto playerChildren = global::actor.children();
+    printf("[DIAG] Players has %zu children\n", playerChildren.size());
+    for (size_t ci = 0; ci < playerChildren.size() && ci < 10; ci++) {
+        printf("[DIAG]   [%zu] addr=0x%llx name='%s' kind='%s'\n",
+            ci,
+            (unsigned long long)playerChildren[ci].Address,
+            playerChildren[ci].name().c_str(),
+            playerChildren[ci].kind().c_str());
+    }
 
     std::cout << "[DEBUG] Looking for Workspace..." << std::endl;
     global::workspace.Address = global::model.childclass("Workspace").Address;

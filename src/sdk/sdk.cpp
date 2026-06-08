@@ -39,44 +39,31 @@ namespace sdk {
         std::vector<instance> Container;
         if (!Address) return Container;
 
-        static constexpr std::uint64_t MAX_CHILDREN = 10000;
-
         uintptr_t childStart = drive->read<uintptr_t>(Address + offset::instance::ChildrenStart);
         if (!childStart) return Container;
 
-        uintptr_t childEnd = drive->read<uintptr_t>(childStart + offset::instance::ChildrenEnd);
+        // FIX: ChildrenEnd is relative to the instance, not the children array.
+        // Read end pointer from: Address + ChildrenStart + ChildrenEnd
+        uintptr_t childEnd = drive->read<uintptr_t>(Address + offset::instance::ChildrenStart + offset::instance::ChildrenEnd);
         if (!childEnd || childEnd <= childStart) return Container;
 
-        std::uint64_t estimatedCount = (childEnd - childStart) / 0x10;
-
-        // Diagnostic: always print the raw values
-        printf("[CHILDREN] inst=0x%llx start=0x%llx end=0x%llx count=%llu\n",
+        // Diagnostic
+        printf("[CHILDREN] inst=0x%llx start=0x%llx end=0x%llx\n",
             (unsigned long long)Address,
             (unsigned long long)childStart,
-            (unsigned long long)childEnd,
-            (unsigned long long)estimatedCount);
+            (unsigned long long)childEnd);
 
-        if (estimatedCount > MAX_CHILDREN)
+        // Safety cap: never iterate more than 5000 entries
+        const int MAX_CHILDREN = 5000;
+        int count = 0;
+
+        for (uintptr_t ptr = childStart; ptr < childEnd && count < MAX_CHILDREN; ptr += 0x10)
         {
-            printf("[CHILDREN] insane count %llu! Capping to %llu. Offsets may be wrong.\n",
-                (unsigned long long)estimatedCount,
-                (unsigned long long)MAX_CHILDREN);
-            estimatedCount = MAX_CHILDREN;
-        }
-
-        Container.reserve((size_t)estimatedCount);
-
-        std::uint64_t iterations = 0;
-        for (uintptr_t ptr = childStart; ptr < childEnd && iterations < MAX_CHILDREN; ptr += 0x10)
-        {
-            iterations++;
             uintptr_t child = drive->read<uintptr_t>(ptr);
             if (is_valid_instance_address(child))
                 Container.emplace_back(child);
+            count++;
         }
-
-        if (iterations >= MAX_CHILDREN)
-            printf("[CHILDREN] hit iteration cap at inst=0x%llx\n", (unsigned long long)Address);
 
         return Container;
     }

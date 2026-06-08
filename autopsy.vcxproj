@@ -264,6 +264,7 @@
     <ClInclude Include="Dependencies\ImGui\imstb_truetype.h" />
     <ClInclude Include="Dependencies\ImGui\misc\imgui_freetype.h" />
     <ClInclude Include="src\core\memory.h" />
+    <ClInclude Include="src\core\offsets_manager.h" />
     <ClInclude Include="src\core\cache.h" />
     <ClInclude Include="src\features\phantom.h" />
     <ClInclude Include="src\features\aimbot.h" />
@@ -298,6 +299,7 @@
     <ClCompile Include="Dependencies\ImGui\imgui_widgets.cpp" />
     <ClCompile Include="Dependencies\ImGui\misc\imgui_freetype.cpp" />
     <ClCompile Include="src\core\memory.cpp" />
+    <ClCompile Include="src\core\offsets_manager.cpp" />
     <ClCompile Include="src\core\cache.cpp" />
     <ClCompile Include="src\features\aimbot.cpp" />
     <ClCompile Include="src\features\visuals.cpp" />
