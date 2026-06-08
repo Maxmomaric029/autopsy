@@ -623,7 +623,34 @@ inline void init() {
     auto& mgr = OffsetsManager::instance();
     if (!mgr.is_loaded()) return;
 
-#define TRY(ns, field) do { auto v = mgr.get_offset(#ns, #field); if (v) offset::ns::field = v; } while(0)
+#define TRY(ns, field) do { offset::ns::field = mgr.get_offset(#ns, #field); } while(0)
+
+    // ===== DEBUG: verify critical offsets loaded correctly =====
+    printf("[OFFSETS] instance::ChildrenStart = 0x%llx (JSON: 0x%llx)\n",
+        (unsigned long long)offset::instance::ChildrenStart,
+        (unsigned long long)mgr.get_offset("instance", "ChildrenStart"));
+    printf("[OFFSETS] instance::ChildrenEnd   = 0x%llx (JSON: 0x%llx)\n",
+        (unsigned long long)offset::instance::ChildrenEnd,
+        (unsigned long long)mgr.get_offset("instance", "ChildrenEnd"));
+    printf("[OFFSETS] instance::ClassDescriptor = 0x%llx (JSON: 0x%llx)\n",
+        (unsigned long long)offset::instance::ClassDescriptor,
+        (unsigned long long)mgr.get_offset("instance", "ClassDescriptor"));
+    printf("[OFFSETS] instance::ClassName = 0x%llx (JSON: 0x%llx)\n",
+        (unsigned long long)offset::instance::ClassName,
+        (unsigned long long)mgr.get_offset("instance", "ClassName"));
+    printf("[OFFSETS] instance::name = 0x%llx (JSON: 0x%llx)\n",
+        (unsigned long long)offset::instance::name,
+        (unsigned long long)mgr.get_offset("instance", "name"));
+    printf("[OFFSETS] instance::parent = 0x%llx (JSON: 0x%llx)\n",
+        (unsigned long long)offset::instance::parent,
+        (unsigned long long)mgr.get_offset("instance", "parent"));
+    printf("[OFFSETS] fakemodel::Pointer = 0x%llx (JSON: 0x%llx)\n",
+        (unsigned long long)offset::fakemodel::Pointer,
+        (unsigned long long)mgr.get_offset("fakemodel", "Pointer"));
+    printf("[OFFSETS] fakemodel::RealDataModel = 0x%llx (JSON: 0x%llx)\n",
+        (unsigned long long)offset::fakemodel::RealDataModel,
+        (unsigned long long)mgr.get_offset("fakemodel", "RealDataModel"));
+    // ===== END DEBUG =====
 
     TRY(air, AirDensity);
     TRY(air, GlobalWind);
