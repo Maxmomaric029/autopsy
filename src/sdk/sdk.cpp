@@ -45,12 +45,27 @@ namespace sdk {
         uintptr_t childEnd = drive->read<uintptr_t>(childStart + offset::instance::ChildrenEnd);
         if (!childEnd || childEnd <= childStart) return Container;
 
-        for (uintptr_t ptr = childStart; ptr < childEnd; ptr += 0x10)
+        std::uint64_t estimatedCount = (childEnd - childStart) / 0x10;
+        if (estimatedCount > 10000)
         {
+            printf("[AUTOPSY] children(): insane count %llu at inst 0x%llx (start=0x%llx end=0x%llx), capping\n",
+                estimatedCount, (unsigned long long)Address,
+                (unsigned long long)childStart, (unsigned long long)childEnd);
+            estimatedCount = 10000;
+        }
+        Container.reserve((size_t)estimatedCount);
+
+        std::uint64_t iterations = 0;
+        for (uintptr_t ptr = childStart; ptr < childEnd && iterations < 20000; ptr += 0x10)
+        {
+            iterations++;
             uintptr_t child = drive->read<uintptr_t>(ptr);
             if (is_valid_instance_address(child))
-                Container.emplace_back(drive->read<instance>(ptr));
+                Container.emplace_back(child); // just the pointer, not a full instance read
         }
+
+        if (iterations >= 20000)
+            printf("[AUTOPSY] children(): hit iteration cap at inst 0x%llx\n", (unsigned long long)Address);
 
         return Container;
     }
