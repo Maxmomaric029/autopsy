@@ -266,7 +266,8 @@
     <ClInclude Include="src\core\memory.h" />
     <ClInclude Include="src\core\cache.h" />
     <ClInclude Include="src\features\phantom.h" />
-    <ClInclude Include="src\features\aim.h" />
+    <ClInclude Include="src\features\aimbot.h" />
+    <ClInclude Include="src\features\visuals.h" />
     <ClInclude Include="src\features\silent.h" />
     <ClInclude Include="src\features\ball.h" />
     <ClInclude Include="src\features\misc.h" />
@@ -276,8 +277,7 @@
     <ClInclude Include="src\ui\font\regular.h" />
     <ClInclude Include="src\ui\font\bold.h" />
     <ClInclude Include="src\ui\graphic.h" />
-    <ClInclude Include="src\sdk\engine.h" />
-    <ClInclude Include="src\sdk\math.h" />
+    <ClInclude Include="src\sdk\sdk.h" />
     <ClInclude Include="src\sdk\offsets\offset.h" />
     <ClInclude Include="src\sdk\offsets\offset_updater.h" />
     <ClInclude Include="src\global.h" />
@@ -299,7 +299,8 @@
     <ClCompile Include="Dependencies\ImGui\misc\imgui_freetype.cpp" />
     <ClCompile Include="src\core\memory.cpp" />
     <ClCompile Include="src\core\cache.cpp" />
-    <ClCompile Include="src\features\aim.cpp" />
+    <ClCompile Include="src\features\aimbot.cpp" />
+    <ClCompile Include="src\features\visuals.cpp" />
     <ClCompile Include="src\features\silent.cpp" />
     <ClCompile Include="src\features\ball.cpp" />
     <ClCompile Include="src\features\misc.cpp" />
@@ -307,15 +308,7 @@
     <ClCompile Include="src\features\wallcheck.cpp" />
     <ClCompile Include="src\features\world.cpp" />
     <ClCompile Include="src\ui\graphic.cpp" />
-    <ClCompile Include="src\sdk\camera.cpp" />
-    <ClCompile Include="src\sdk\human.cpp" />
-    <ClCompile Include="src\sdk\instance.cpp" />
-    <ClCompile Include="src\sdk\light.cpp" />
-    <ClCompile Include="src\sdk\part.cpp" />
-    <ClCompile Include="src\sdk\actor.cpp" />
-    <ClCompile Include="src\sdk\view.cpp" />
-    <ClCompile Include="src\sdk\render.cpp" />
-    <ClCompile Include="src\sdk\model.cpp" />
+    <ClCompile Include="src\sdk\sdk.cpp" />
     <ClCompile Include="src\sdk\offsets\offset_updater.cpp" />
     <ClCompile Include="src\main.cpp" />
   </ItemGroup>
