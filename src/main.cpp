@@ -15,8 +15,6 @@
 #include "features/ball.h"
 #include "features/aimbot.h"
 #include "features/silent.h"
-#include "sdk/offsets/offset_updater.h"
-
 #include <ShlObj.h>
 #pragma comment(lib, "Shell32.lib")
 
@@ -154,15 +152,6 @@ namespace
 std::int32_t main(std::int32_t argc, char** argv[])
 {
     gate();
-
-    // Load dynamic offsets from server (fallback to hardcoded defaults)
-    if (!Offsets::Load())
-        output::warn("%-18soffsets.json not available, using hardcoded defaults", "offsets");
-    else
-        output::ok("%-18s%s", "offsets", Offsets::Version.c_str());
-
-    // Apply dynamic offsets to all offset:: namespace variables
-    offset::init_dynamic_offsets();
 
     static constexpr const char* BINARY_NAME = { "RobloxPlayerBeta.exe" };
     const bool alreadyRunning = process(BINARY_NAME);

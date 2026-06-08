@@ -279,7 +279,7 @@
     <ClInclude Include="src\ui\graphic.h" />
     <ClInclude Include="src\sdk\sdk.h" />
     <ClInclude Include="src\sdk\offsets\offset.h" />
-    <ClInclude Include="src\sdk\offsets\offset_updater.h" />
+
     <ClInclude Include="src\global.h" />
     <ClInclude Include="src\log.h" />
     <ClInclude Include="src\config.h" />
@@ -309,7 +309,7 @@
     <ClCompile Include="src\features\world.cpp" />
     <ClCompile Include="src\ui\graphic.cpp" />
     <ClCompile Include="src\sdk\sdk.cpp" />
-    <ClCompile Include="src\sdk\offsets\offset_updater.cpp" />
+
     <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
