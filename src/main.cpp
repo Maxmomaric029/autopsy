@@ -165,51 +165,89 @@ std::int32_t main(std::int32_t argc, char** argv[])
         }
     }
 
-    HWND hwnd = GetConsoleWindow();
-    if (hwnd != NULL) {
-        ShowWindow(hwnd, SW_HIDE);
-    }
-
     if (!alreadyRunning)
         Sleep(5000);
 
-    std::cout << "[AUTOPSY.lol] Autopsy External loaded" << std::endl;
-
-    std::thread(watch, BINARY_NAME).detach();
-
-    drive->process(BINARY_NAME);
-    drive->attach(BINARY_NAME);
-    drive->module(BINARY_NAME);
-
-    auto fakemodel = drive->read<std::uint64_t>(drive->modulebase() + offset::fakemodel::Pointer);
-    global::model.Address = drive->read<std::uint64_t>(fakemodel + offset::fakemodel::RealDataModel);
-    global::render.Address = drive->read<std::uint64_t>(drive->modulebase() + offset::render::Pointer);
-    global::actor.Address = global::model.childclass("Players").Address;
-    global::workspace.Address = global::model.childclass("Workspace").Address;
-    global::camera.Address = global::workspace.childclass("Camera").Address;
-    auto Lightin = global::model.childclass("Lighting");
-    global::light = sdk::light(Lightin.Address);
-
-    std::thread(cache::run).detach();
-    std::thread(world::run).detach();
-    std::thread(aim::run).detach();
-    std::thread(silent::run).detach();
-    std::thread(misc::run).detach();
-    std::thread(ball::run).detach();
-
-    auto workspacetoworld = drive->read<uintptr_t>(global::workspace.Address + offset::workspace::world);
-    drive->write<float>(workspacetoworld + offset::world::GravityOverride, 200 * 4.f);
-
-    screen->window();
-    screen->device();
-    screen->imgui();
-
-    for (;;)
+    __try
     {
-        screen->begin();
-        screen->visual();
-        screen->menu();
-        screen->end();
+        std::cout << "[AUTOPSY.lol] Autopsy External loaded" << std::endl;
+
+        std::thread(watch, BINARY_NAME).detach();
+
+        drive->process(BINARY_NAME);
+        drive->attach(BINARY_NAME);
+        drive->module(BINARY_NAME);
+
+        auto fakemodel = drive->read<std::uint64_t>(drive->modulebase() + offset::fakemodel::Pointer);
+        if (!fakemodel)
+        {
+            std::cout << "[AUTOPSY.lol] ERROR: fakemodel::Pointer returned 0 - wrong offset!" << std::endl;
+            std::cout << "[AUTOPSY.lol] Press any key to exit..." << std::endl;
+            system("pause > nul");
+            return 1;
+        }
+
+        global::model.Address = drive->read<std::uint64_t>(fakemodel + offset::fakemodel::RealDataModel);
+        global::render.Address = drive->read<std::uint64_t>(drive->modulebase() + offset::render::Pointer);
+
+        std::cout << "[AUTOPSY.lol] model.Address = 0x" << std::hex << global::model.Address << std::dec << std::endl;
+
+        if (!global::model.Address)
+        {
+            std::cout << "[AUTOPSY.lol] ERROR: Could not find DataModel - wrong offsets!" << std::endl;
+            std::cout << "[AUTOPSY.lol] Press any key to exit..." << std::endl;
+            system("pause > nul");
+            return 1;
+        }
+
+        global::actor.Address = global::model.childclass("Players").Address;
+        global::workspace.Address = global::model.childclass("Workspace").Address;
+
+        if (!global::workspace.Address)
+        {
+            std::cout << "[AUTOPSY.lol] ERROR: Could not find Workspace - wrong offsets!" << std::endl;
+            std::cout << "[AUTOPSY.lol] Press any key to exit..." << std::endl;
+            system("pause > nul");
+            return 1;
+        }
+
+        global::camera.Address = global::workspace.childclass("Camera").Address;
+        auto Lightin = global::model.childclass("Lighting");
+        global::light = sdk::light(Lightin.Address);
+
+        std::cout << "[AUTOPSY.lol] All addresses resolved successfully!" << std::endl;
+
+        std::thread(cache::run).detach();
+        std::thread(world::run).detach();
+        std::thread(aim::run).detach();
+        std::thread(silent::run).detach();
+        std::thread(misc::run).detach();
+        std::thread(ball::run).detach();
+
+        auto workspacetoworld = drive->read<uintptr_t>(global::workspace.Address + offset::workspace::world);
+        drive->write<float>(workspacetoworld + offset::world::GravityOverride, 200 * 4.f);
+
+        screen->window();
+        screen->device();
+        screen->imgui();
+
+        ShowWindow(GetConsoleWindow(), SW_HIDE);
+
+        for (;;)
+        {
+            screen->begin();
+            screen->visual();
+            screen->menu();
+            screen->end();
+        }
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        std::cout << "[AUTOPSY.lol] CRASH: Exception in main loop - wrong offsets?" << std::endl;
+        std::cout << "[AUTOPSY.lol] The dumped offsets don't match your Roblox version." << std::endl;
+        std::cout << "[AUTOPSY.lol] Press any key to exit..." << std::endl;
+        system("pause > nul");
+        return 1;
     }
 
     return 0;
