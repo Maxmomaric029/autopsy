@@ -3,41 +3,43 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
-#include <memory>
+#include <filesystem>
+#include <nlohmann/json.hpp>
 
 #define NOMINMAX
 #include <windows.h>
 
+using json = nlohmann::json;
+
 // ------------------------------------------------------------------
-// OffsetsManager - Auto-Updater de Offsets via WinHTTP
+// OffsetsManager - Auto-Updater via WinHTTP
 // ------------------------------------------------------------------
-// Fetch desde https://imtheo.lol/Offsets (API RbxDumperV2)
-// Fallback a offsets.json local si el servidor falla.
+// Host: offsets.imtheo.lol
+//   1. GET /roblox/version   -> plain text: "version-abc123..."
+//   2. Compare vs cached offsets.version
+//   3. If different: GET /offsets.json -> save as offsets.json
+//   4. Load offsets.json into memory
 // ------------------------------------------------------------------
 
 struct OffsetsEntry {
-    uintptr_t value = 0;       // Valor del offset en decimal
-    std::string hex;           // Representación hexadecimal para debug
+    uintptr_t value = 0;
+    std::string hex;           // "0xABC" for debug
 };
 
 class OffsetsManager {
 public:
     static OffsetsManager& instance();
 
-    // Carga los offsets: primero intenta fetch remoto, fallback a local
+    // Full load: check version, download if stale, parse
     bool load();
 
-    // Retorna el valor uintptr_t de un offset por su nombre completo, ej: "Instance/ChildrenStart"
-    uintptr_t get_offset(const std::string& group, const std::string& name) const;
+    // Helpers (return 0 if not found)
+    uintptr_t get_offset(const std::string& cls, const std::string& field) const;
+    std::string get_hex_offset(const std::string& cls, const std::string& field) const;
 
-    // Retorna la representación hex del offset para debug
-    std::string get_hex_offset(const std::string& group, const std::string& name) const;
-
-    // Retorna true si los offsets se cargaron correctamente
     bool is_loaded() const { return loaded_; }
-
-    // Retorna la versión del cliente (del JSON)
-    std::string client_version() const { return client_version_; }
+    std::string roblox_version() const { return roblox_version_; }
+    int total_offsets() const { return total_offsets_; }
 
 private:
     OffsetsManager() = default;
@@ -45,25 +47,38 @@ private:
     OffsetsManager(const OffsetsManager&) = delete;
     OffsetsManager& operator=(const OffsetsManager&) = delete;
 
-    // Fetch remoto via WinHTTP
-    bool fetch_from_server(std::string& out_json);
+    // WinHTTP GET helper (throws on failure)
+    static std::string http_get(const wchar_t* host, const wchar_t* path);
 
-    // Carga desde archivo local
-    bool load_from_file(const std::string& path, std::string& out_json);
+    // Get live version from server
+    static std::string fetch_live_version();
 
-    // Guarda JSON a disco para fallback futuro
-    bool save_to_file(const std::string& path, const std::string& json);
+    // Download offsets.json from server
+    static std::string fetch_offsets_json();
 
-    // Parsea el JSON y llena el cache
-    bool parse_json(const std::string& json);
+    // File I/O for caching
+    static std::string read_file(const std::string& path);
+    static void write_file(const std::string& path, const std::string& content);
+
+    // Parse JSON into cache
+    bool parse_json(const json& data);
 
     std::unordered_map<std::string, OffsetsEntry> cache_;
-    std::string client_version_;
+    std::string roblox_version_;
+    int total_offsets_ = 0;
     bool loaded_ = false;
 
-    static constexpr const char* REMOTE_URL = "https://imtheo.lol/Offsets";
-    static constexpr const char* LOCAL_FILE = "offsets.json";
+    static constexpr const wchar_t* HOST = L"offsets.imtheo.lol";
+    static constexpr const char* VERSION_FILE = "offsets.version";
+    static constexpr const char* OFFSETS_FILE = "offsets.json";
 };
 
-// Global access macro
-#define OFFSET_MGR OffsetsManager::instance()
+// Helper: safe offset lookup from json data
+inline uintptr_t GetOffset(const json& data, const char* cls, const char* field) {
+    if (!data.contains("Offsets")) return 0;
+    const auto& offsets = data["Offsets"];
+    if (!offsets.contains(cls)) return 0;
+    const auto& entry = offsets[cls];
+    if (!entry.contains(field)) return 0;
+    return entry[field].get<uintptr_t>();
+}
