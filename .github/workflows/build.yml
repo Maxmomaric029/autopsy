@@ -1,0 +1,30 @@
+name: Build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Restore NuGet packages
+      run: nuget restore autopsy.sln
+
+    - name: Build Release x64
+      run: msbuild autopsy.sln /p:Configuration=Release /p:Platform=x64 /p:WholeProgramOptimization=false /m
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: autopsy.exe
+        path: Build/autopsy.exe

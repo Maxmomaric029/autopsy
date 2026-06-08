@@ -1,0 +1,43 @@
+# Build outputs
+Build/
+Debug/
+Release/
+x64/
+Win32/
+*.exe
+*.pdb
+*.ilk
+*.obj
+*.lib
+*.exp
+*.dll
+
+# IDE/editor files
+.vs/
+*.sdf
+*.opensdf
+*.vcxproj.user
+*.vcxproj.filters
+*.user
+*.suo
+
+# Cache files
+*.cache
+ipch/
+
+# Generated offset files
+offsets.json
+offsets.version
+
+# Visual Studio
+*.aps
+*.ncb
+*.opt
+*.plg
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Compiled MASM
+*.asm.obj
