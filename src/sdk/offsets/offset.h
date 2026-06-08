@@ -1029,31 +1029,33 @@ inline void init() {
 
 #undef TRY
 
-    // ===== DEBUG: verify offsets after JSON override =====
-    printf("[OFFSETS] instance::ChildrenStart = 0x%llx (JSON: 0x%llx)\n",
+    // ===== DEBUG TEMPORAL - borrar después =====
+    printf("=== OFFSET DEBUG ===\n");
+    printf("instance::ChildrenStart = 0x%llx (JSON lookup: 0x%llx)\n",
         (unsigned long long)offset::instance::ChildrenStart,
         (unsigned long long)mgr.get_offset("instance", "ChildrenStart"));
-    printf("[OFFSETS] instance::ChildrenEnd   = 0x%llx (JSON: 0x%llx)\n",
+    printf("instance::ChildrenEnd   = 0x%llx (JSON lookup: 0x%llx)\n",
         (unsigned long long)offset::instance::ChildrenEnd,
         (unsigned long long)mgr.get_offset("instance", "ChildrenEnd"));
-    printf("[OFFSETS] instance::ClassDescriptor = 0x%llx (JSON: 0x%llx)\n",
+    printf("instance::ClassDescriptor = 0x%llx (JSON lookup: 0x%llx)\n",
         (unsigned long long)offset::instance::ClassDescriptor,
         (unsigned long long)mgr.get_offset("instance", "ClassDescriptor"));
-    printf("[OFFSETS] instance::ClassName = 0x%llx (JSON: 0x%llx)\n",
+    printf("instance::ClassName = 0x%llx (JSON lookup: 0x%llx)\n",
         (unsigned long long)offset::instance::ClassName,
         (unsigned long long)mgr.get_offset("instance", "ClassName"));
-    printf("[OFFSETS] instance::name = 0x%llx (JSON: 0x%llx)\n",
+    printf("instance::name = 0x%llx (JSON lookup: 0x%llx)\n",
         (unsigned long long)offset::instance::name,
         (unsigned long long)mgr.get_offset("instance", "name"));
-    printf("[OFFSETS] instance::parent = 0x%llx (JSON: 0x%llx)\n",
+    printf("instance::parent = 0x%llx (JSON lookup: 0x%llx)\n",
         (unsigned long long)offset::instance::parent,
         (unsigned long long)mgr.get_offset("instance", "parent"));
-    printf("[OFFSETS] fakemodel::Pointer = 0x%llx (JSON: 0x%llx)\n",
+    printf("fakemodel::Pointer = 0x%llx (JSON lookup: 0x%llx)\n",
         (unsigned long long)offset::fakemodel::Pointer,
         (unsigned long long)mgr.get_offset("fakemodel", "Pointer"));
-    printf("[OFFSETS] fakemodel::RealDataModel = 0x%llx (JSON: 0x%llx)\n",
+    printf("fakemodel::RealDataModel = 0x%llx (JSON lookup: 0x%llx)\n",
         (unsigned long long)offset::fakemodel::RealDataModel,
         (unsigned long long)mgr.get_offset("fakemodel", "RealDataModel"));
+    printf("=== END DEBUG ===\n");
     // ===== END DEBUG =====
 }
 
