@@ -76,13 +76,11 @@ namespace Offsets
 
                         while (WinHttpQueryDataAvailable(hRequest, &bytesAvailable) && bytesAvailable > 0)
                         {
-                            DWORD bytesRead = 0;
-                            if (WinHttpReadData(hRequest, buffer,
-                                min(bytesAvailable, (DWORD)sizeof(buffer)),
-                                &bytesRead))
-                            {
+                            DWORD bytesRead = 0;                    DWORD chunkSize = bytesAvailable < (DWORD)sizeof(buffer) ? bytesAvailable : (DWORD)sizeof(buffer);
+                    if (WinHttpReadData(hRequest, buffer, chunkSize, &bytesRead))
+                    {
                                 ss.write(buffer, bytesRead);
-                            }
+                    }
                         }
 
                         out = ss.str();
