@@ -40,35 +40,42 @@ namespace sdk {
         printf("[CHILDREN] called inst=0x%llx\n", (unsigned long long)Address);
         if (!Address) { printf("[CHILDREN] Address=0 -> EMPTY\n"); return Container; }
 
-        uintptr_t childStart = drive->read<uintptr_t>(Address + offset::instance::ChildrenStart);
-        printf("[CHILDREN] childStart=0x%llx (read from Address+0x%llx)\n",
-            (unsigned long long)childStart,
+        // Step 1: Read container pointer from Instance+ChildrenStart
+        uintptr_t container = drive->read<uintptr_t>(Address + offset::instance::ChildrenStart);
+        printf("[CHILDREN] container=0x%llx (read from Address+0x%llx)\n",
+            (unsigned long long)container,
             (unsigned long long)offset::instance::ChildrenStart);
-        if (!childStart) { printf("[CHILDREN] childStart=0 -> EMPTY\n"); return Container; }
+        if (!container) { printf("[CHILDREN] container=0 -> EMPTY\n"); return Container; }
 
-        // ChildrenEnd is offset within ChildrenContainer to the end pointer
-        uintptr_t childEnd = drive->read<uintptr_t>(childStart + offset::instance::ChildrenEnd);
-        printf("[CHILDREN] childEnd=0x%llx (read from childStart+0x%llx)\n",
-            (unsigned long long)childEnd,
+        // Step 2: Read begin and end FROM the container
+        // Container { [0x00] begin_ptr, [0x08] end_ptr }
+        uintptr_t begin = drive->read<uintptr_t>(container);                    // container + 0x0
+        uintptr_t end   = drive->read<uintptr_t>(container + offset::instance::ChildrenEnd); // container + 0x8
+        printf("[CHILDREN] begin=0x%llx end=0x%llx (read from container+0x0, container+0x%llx)\n",
+            (unsigned long long)begin,
+            (unsigned long long)end,
             (unsigned long long)offset::instance::ChildrenEnd);
-        if (!childEnd || childEnd <= childStart) {
-            printf("[CHILDREN] childEnd=0x%llx <= childStart=0x%llx -> EMPTY\n",
-                (unsigned long long)childEnd, (unsigned long long)childStart);
+        if (!begin || !end || end <= begin) {
+            printf("[CHILDREN] begin=0x%llx end=0x%llx -> EMPTY\n",
+                (unsigned long long)begin, (unsigned long long)end);
             return Container;
         }
 
-        // Diagnostic
-        printf("[CHILDREN] OK inst=0x%llx start=0x%llx end=0x%llx diff=%llu\n",
+        // Diagnostic: expected count
+        uintptr_t count_est = (end - begin) / sizeof(uintptr_t);
+        printf("[CHILDREN] OK inst=0x%llx begin=0x%llx end=0x%llx stride=%zu expected_count=%llu\n",
             (unsigned long long)Address,
-            (unsigned long long)childStart,
-            (unsigned long long)childEnd,
-            (unsigned long long)(childEnd - childStart) / 0x10);
+            (unsigned long long)begin,
+            (unsigned long long)end,
+            sizeof(uintptr_t),
+            (unsigned long long)count_est);
 
         // Safety cap: never iterate more than 5000 entries
         const int MAX_CHILDREN = 5000;
         int count = 0;
 
-        for (uintptr_t ptr = childStart; ptr < childEnd && count < MAX_CHILDREN; ptr += 0x10)
+        // Iterate with stride = sizeof(uintptr_t) = 8
+        for (uintptr_t ptr = begin; ptr < end && count < MAX_CHILDREN; ptr += sizeof(uintptr_t))
         {
             uintptr_t child = drive->read<uintptr_t>(ptr);
             if (is_valid_instance_address(child))
@@ -76,6 +83,7 @@ namespace sdk {
             count++;
         }
 
+        printf("[CHILDREN] returning %zu children\n", Container.size());
         return Container;
     }
 
