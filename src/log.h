@@ -22,6 +22,7 @@ namespace console {
     // Status info (set from main thread)
     inline int playerCount = 0;
     inline bool connected = false;
+    inline uintptr_t cameraAddress = 0;
 
     // ========================================================================
     // ANSI helpers
@@ -263,7 +264,7 @@ namespace console {
 
         // ===== PLAYERS =====
         section_header("PLAYERS", w);
-        offset_line("LocalPlayer Addr", global::LocalPlayer.Address, w);
+        offset_line("LocalPlayer Addr", global::LocalPlayer.player.Address, w);
         offset_line("Local Character", global::LocalPlayer.character.Address, w);
         offset_line("HumanoidRootPart", global::LocalPlayer.HumanoidRootPart.Address, w);
         offset_line("Model offset", offset::player::ModelInstance, w);

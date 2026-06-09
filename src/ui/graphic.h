@@ -8,9 +8,17 @@
 #include <string>
 #include <vector>
 
+class ModernUI;
+
 // ========================================================================
-// Thin wrapper class for DirectX11 + Win32 overlay
-// Delegates rendering and UI logic to the new modular system under ui/
+// graphic — DirectX11 + Win32 overlay manager
+// ========================================================================
+// Handles:
+//   - Overlay window creation / destruction
+//   - D3D11 device / swap chain creation / destruction
+//   - ImGui init (delegated to ModernUI)
+//   - Frame begin (delegated to ModernUI::BeginFrame)
+//   - Render + Present
 // ========================================================================
 
 struct detail {
@@ -42,6 +50,8 @@ private:
     void dropdevice();
     void dropwindow();
     void dropimgui();
+
+    std::unique_ptr<ModernUI> m_ui;
 };
 
 inline std::unique_ptr<graphic> screen = std::make_unique<graphic>();

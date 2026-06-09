@@ -284,6 +284,7 @@
     <ClInclude Include="src\ui\widgets\controls.h" />
     <ClInclude Include="src\ui\layout\menulayout.h" />
     <ClInclude Include="src\ui\pages\pages.h" />
+    <ClInclude Include="src\ui\modern_ui.h" />
     <ClInclude Include="src\ui\graphic.h" />
     <ClInclude Include="src\ui\core\texture.h" />
     <ClInclude Include="Dependencies\stb\stb_image.h" />
@@ -326,6 +327,7 @@
     <ClCompile Include="src\features\wallcheck.cpp" />
     <ClCompile Include="src\features\world.cpp" />
     <ClCompile Include="src\ui\widgets\controls.cpp" />
+    <ClCompile Include="src\ui\modern_ui.cpp" />
     <ClCompile Include="src\ui\graphic.cpp" />
     <ClCompile Include="src\sdk\sdk.cpp" />
 
