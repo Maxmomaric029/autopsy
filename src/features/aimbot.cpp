@@ -354,6 +354,16 @@ namespace aim {
 
             if (global::aim::useFov && Dist2D > global::aim::FovSize) continue;
 
+            // When using Distance priority, also validate the target is on-screen
+            if (global::aim::TargetPriority == 1) {
+                // Only consider if the target is validly on screen
+                RECT cr;
+                GetClientRect(robloxHwnd(), &cr);
+                if (ScreenPos.x < 0.f || ScreenPos.y < 0.f ||
+                    ScreenPos.x > (float)cr.right || ScreenPos.y > (float)cr.bottom)
+                    continue;
+            }
+
             const float Score = global::aim::TargetPriority == 1 ? Dist3D : Dist2D;
             if (Score < ClosestDistance) {
                 ClosestDistance = Score;

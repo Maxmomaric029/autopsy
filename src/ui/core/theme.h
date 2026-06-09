@@ -47,8 +47,8 @@ namespace theme {
     inline constexpr float kPad           = 14.f;
     inline constexpr float kCardGap       = 6.f;
 
-    inline float kWinW = 810.f;
-    inline float kWinH = 520.f;
+    inline float kWinW = 840.f;
+    inline float kWinH = 540.f;
 
     // ========================================================================
     // Color helpers
