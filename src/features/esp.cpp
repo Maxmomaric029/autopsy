@@ -76,7 +76,7 @@ namespace style
     // Aurora Dark palette from theme.h
     static constexpr ImU32 Surface     = IM_COL32(3, 8, 14, 188);
     static constexpr ImU32 SurfaceSoft = IM_COL32(5, 13, 22, 132);
-    static constexpr ImU32 Border      = IM_COL32(26, 50, 72, 180);
+    static constexpr ImU32 Border      = IM_COL32(18, 32, 52, 180); // #1A3348
     static constexpr ImU32 Accent      = IM_COL32(220, 60, 70, 255);      // blood red
     static constexpr ImU32 AccentDim   = IM_COL32(179, 50, 61, 255);      // darker red
     static constexpr ImU32 text        = IM_COL32(234, 244, 255, 240);    // EAF4FF
@@ -237,7 +237,7 @@ namespace style
 
         shadow(draw, bgMin, bgMax, rounding, .45f);
         draw->AddRectFilled(bgMin, bgMax, IM_COL32(4, 8, 14, 210), rounding);
-        draw->AddRect(bgMin, bgMax, IM_COL32(26, 50, 72, 180), rounding, 0, 1.f);
+        draw->AddRect(bgMin, bgMax, IM_COL32(18, 32, 52, 180), rounding, 0, 1.f);
 
         const float fillH = (y1 - y0 - 4.f) * ratio;
         const ImVec2 fillMin(x + 2.f, y1 - 2.f - fillH);
