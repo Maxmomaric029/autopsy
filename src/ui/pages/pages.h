@@ -18,25 +18,36 @@ namespace page {
         const float halfH = (bInH - 8.f) * .5f;
 
         if (w::card::begin("##abt", { halfW, halfH }, "AIMBOT")) {
-            w::toggle("Enabled", &global::aim::Enabled);
+            w::toggle_icon(ICON_FA_POWER_OFF, "Enabled", &global::aim::Enabled);
+            w::helptooltip("Activate aimbot on keypress");
             ImGui::SameLine(ImGui::GetContentRegionMax().x -
                 w::bindwidth(global::aim::Aimbot_Key, global::aim::Aimbot_Mode) - 4.f);
             w::bind("##abk", &global::aim::Aimbot_Key, &global::aim::Aimbot_Mode);
             w::gap(2.f);
-            w::toggle("Sticky Aim", &global::aim::AimbotSticky);
+            w::toggle_icon(ICON_FA_CROSSHAIRS, "Sticky Aim", &global::aim::AimbotSticky);
+            w::helptooltip("Lock onto target until they leave FOV");
             w::toggle("Knocked Check", &global::aim::KnockedCheck);
-            w::toggle("Visible Check", &global::aim::VisibleCheck);
+            w::helptooltip("Skip knocked/downed players");
+            w::toggle_icon(ICON_FA_EYE, "Visible Check", &global::aim::VisibleCheck);
+            w::helptooltip("Only aim at players visible through walls");
             w::sliderint("Hit Chance", &global::aim::HitChance, 0, 100);
+            w::helptooltip("Probability of triggering each frame (100 = always)");
             w::gap(4.f);
-            w::combo("Type", &global::aim::Aimbot_type, { "Mouse", "Camera" });
+            w::labelsection("TARGETING");
+            w::pill_toolbar("##aimbottype", {"Free Aim","Mouse Aim","Cam Lock"}, &global::aim::Aimbot_type);
+            w::helptooltip("How the aim input is delivered to the game");
             w::gap(2.f);
-            w::combo("Priority", &global::aim::TargetPriority, { "Crosshair", "Distance" });
+            w::pill_toolbar("##priority", {"Crosshair","Distance"}, &global::aim::TargetPriority);
+            w::helptooltip("Target selection method");
             w::gap(2.f);
-            w::combo("HitPart", &global::aim::HitPart, { "Head", "Torso", "LowerTorso" });
+            w::pill_toolbar("##hitpart", {"Head","Torso","L.Torso"}, &global::aim::HitPart);
+            w::helptooltip("Body part to aim at");
             w::gap(6.f);
-            w::toggle("Prediction", &global::aim::Prediction);
+            w::toggle_icon(ICON_FA_BULLSEYE, "Prediction", &global::aim::Prediction);
+            w::helptooltip("Lead moving targets");
             if (global::aim::Prediction) {
                 w::toggle("Auto Prediction", &global::aim::AutoPrediction);
+                w::helptooltip("Automatically calculate prediction factor");
                 if (!global::aim::AutoPrediction) {
                     w::sliderfloat("Pred X", &global::aim::PredictionX, 0.f, .5f);
                     w::sliderfloat("Pred Y", &global::aim::PredictionY, 0.f, .5f);
@@ -44,20 +55,28 @@ namespace page {
                 }
             }
             w::gap(4.f);
-            if (global::aim::Aimbot_type == 0) {
+            w::labelsection("SMOOTHING");
+            if (global::aim::Aimbot_type == 0 || global::aim::Aimbot_type == 1) {
+                // Free Aim and Mouse Aim show mouse smoothing
                 w::sliderfloat("Smooth X", &global::aim::mouse::Smoothing_X, 0.f, 12.f);
+                w::helptooltip("Mouse movement smoothing (0 = instant)");
                 w::sliderfloat("Smooth Y", &global::aim::mouse::Smoothing_Y, 0.f, 12.f);
+                w::helptooltip("Mouse movement smoothing (0 = instant)");
                 w::sliderfloat("Sensitivity", &global::aim::mouse::Mouse_Sensitivty, 0.f, 5.f);
-            }
-            else {
+                w::helptooltip("Mouse movement scale factor");
+            } else {
+                // Cam Lock shows camera smoothing
                 w::sliderfloat("Smooth X", &global::aim::camera::Smoothing_X, 0.f, 12.f);
                 w::sliderfloat("Smooth Y", &global::aim::camera::Smoothing_Y, 0.f, 12.f);
             }
             w::gap(4.f);
-            w::toggle("Trigger Bot", &global::aim::TriggerBot);
+            w::toggle_icon(ICON_FA_HAND, "Trigger Bot", &global::aim::TriggerBot);
+            w::helptooltip("Auto click when crosshair overlaps target");
             if (global::aim::TriggerBot) {
                 w::sliderfloat("TB Radius", &global::aim::TriggerRadius, 1.f, 25.f);
+                w::helptooltip("Box size around cursor that triggers a click");
                 w::sliderint("TB Delay", &global::aim::TriggerDelayMs, 0, 250);
+                w::helptooltip("Milliseconds before click fires");
             }
         }
         w::card::end();
@@ -65,21 +84,29 @@ namespace page {
         ImGui::SameLine(0.f, 6.f);
 
         if (w::card::begin("##sil", { halfW, halfH }, "SILENT AIM")) {
-            w::toggle("Enabled", &global::silent::Enabled);
+            w::toggle_icon(ICON_FA_POWER_OFF, "Enabled", &global::silent::Enabled);
+            w::helptooltip("Activate silent aim on keypress");
             ImGui::SameLine(ImGui::GetContentRegionMax().x -
                 w::bindwidth(global::silent::Silent_Key, global::silent::Silent_Mode) - 4.f);
             w::bind("##sik", &global::silent::Silent_Key, &global::silent::Silent_Mode);
             w::gap(2.f);
-            w::toggle("Sticky Aim", &global::silent::StickyAim);
+            w::toggle_icon(ICON_FA_LOCK, "Sticky Aim", &global::silent::StickyAim);
+            w::helptooltip("Stay locked on last target");
             w::toggle("Spoof Mouse", &global::silent::SpoofMouse);
+            w::helptooltip("Write mouse position to game input service");
             w::toggle("Knocked Check", &global::silent::KnockedCheck);
-            w::toggle("Visible Check", &global::silent::VisibleCheck);
+            w::helptooltip("Skip knocked players");
+            w::toggle_icon(ICON_FA_EYE, "Visible Check", &global::silent::VisibleCheck);
+            w::helptooltip("Only target visible players");
             w::gap(4.f);
-            w::combo("Priority", &global::silent::TargetPriority, { "Crosshair", "Distance" });
+            w::pill_toolbar("##silpri", {"Crosshair","Distance"}, &global::silent::TargetPriority);
+            w::helptooltip("Target selection method");
             w::gap(2.f);
-            w::combo("Hit Part", &global::silent::AimPart, { "Head", "Torso", "LowerTorso" });
+            w::pill_toolbar("##silpart", {"Head","Torso","L.Torso"}, &global::silent::AimPart);
+            w::helptooltip("Body part to redirect shots toward");
             w::gap(4.f);
             w::toggle("Prediction", &global::silent::Prediction);
+            w::helptooltip("Lead target movement");
             if (global::silent::Prediction) {
                 w::toggle("Auto Prediction", &global::silent::AutoPrediction);
                 if (!global::silent::AutoPrediction) {
@@ -148,8 +175,10 @@ namespace page {
         const float halfW = (bInW - 8.f) * .5f;
 
         if (w::card::begin("##esp", { halfW, bInH }, "ESP TOGGLES")) {
-            w::toggle("Master Enable", &global::esp::Enabled);
+            w::toggle_icon(ICON_FA_POWER_OFF, "Master Enable", &global::esp::Enabled);
+            w::helptooltip("Toggle all ESP rendering");
             w::toggle("Visible Check", &global::esp::VisibleCheck);
+            w::helptooltip("Color targets differently based on visibility");
             if (global::esp::VisibleCheck) {
                 ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Visible");
                 w::color4("##espvisc", global::esp::color::Visible);
@@ -159,11 +188,14 @@ namespace page {
             w::gap(4.f);
 
             w::labelsection("BOX");
-            w::togglecolor("Box", &global::esp::Box, "##bxc", global::esp::color::Box);
+            w::toggle_icon(ICON_FA_BOX, "Box", &global::esp::Box);
+            w::helptooltip("Draw bounding or corner box around players");
             if (global::esp::Box) {
-                w::combo("Style", &global::esp::Box_Type, { "Bounding", "Corner" });
+                w::pill_toolbar("##boxtype", {"Bounding","Corner"}, &global::esp::Box_Type);
+                w::helptooltip("Box drawing style");
                 w::gap(2.f);
                 w::toggle("Box Fill", &global::esp::Box_Fill);
+                w::helptooltip("Fill the box with a semi-transparent color");
                 if (global::esp::Box_Fill) {
                     w::dualcolor("##bft", global::esp::color::BoxFill_Top,
                         "##bfb", global::esp::color::BoxFill_Bottom);
@@ -181,12 +213,14 @@ namespace page {
             w::gap(4.f);
 
             w::labelsection("HEALTH");
-            w::togglecolor("Health Bar", &global::esp::Healthbar, "##hbc", global::esp::color::Healthbar);
+            w::toggle_icon(ICON_FA_HEART, "Health Bar", &global::esp::Healthbar);
+            w::helptooltip("Show vertical health bar next to box");
             if (global::esp::Healthbar) {
-                w::combo("Bar Style", &global::esp::Healthbar_Type, { "Static", "Gradient" });
+                w::pill_toolbar("##hbtype", {"Static","Gradient"}, &global::esp::Healthbar_Type);
+                w::helptooltip("Health bar fill style");
                 if (global::esp::Healthbar_Type == 1) {
                     ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
-                        "Gradient (top \xE2\x80\x94 mid \xE2\x80\x94 bottom)");
+                        "Gradient (top — mid — bottom)");
                     w::tricolor("##hbt", global::esp::color::Healthbar_Top,
                         "##hbm", global::esp::color::Healthbar_Middle,
                         "##hbb", global::esp::color::Healthbar_Bottom);
@@ -194,25 +228,32 @@ namespace page {
                 w::sliderint("Bar Gap", &global::esp::gap, 1, 5);
                 w::sliderint("Bar Thickness", &global::esp::Thickness, 1, 5);
             }
-            w::togglecolor("Health Text", &global::esp::Health, "##htc", global::esp::color::Health);
+            w::toggle("Health Text", &global::esp::Health);
+            w::helptooltip("Show numeric HP value");
             w::gap(4.f);
 
             w::labelsection("LABELS");
-            w::togglecolor("Name", &global::esp::name, "##nc", global::esp::color::name);
+            w::toggle_icon(ICON_FA_TAG, "Name", &global::esp::name);
+            w::helptooltip("Show player username above box");
             if (global::esp::name)
                 w::combo("Name Format", &global::esp::Name_Type,
                     { "Name", "Display Name", "Name & Display" });
-            w::togglecolor("Distance", &global::esp::Distance, "##dc", global::esp::color::Distance);
-            w::togglecolor("Rig Type", &global::esp::Rig_Type, "##rc", global::esp::color::Rig_Type);
-            w::togglecolor("Tool", &global::esp::tool, "##tc", global::esp::color::tool);
+            w::toggle_icon(ICON_FA_RULER, "Distance", &global::esp::Distance);
+            w::helptooltip("Show distance in studs below box");
+            w::toggle("Rig Type", &global::esp::Rig_Type);
+            w::toggle("Tool", &global::esp::tool);
             w::gap(4.f);
 
             w::labelsection("3D");
-            w::togglecolor("Skeleton", &global::esp::Skeleton, "##skc", global::esp::color::Skeleton);
-            w::togglecolor("Trails", &global::esp::Trails, "##trc", global::esp::color::Trails);
-            w::togglecolor("Chinese Hats", &global::esp::Chinese_Hat, "##chhatc", global::esp::color::hat);
-            w::togglecolor("Aim Lines", &global::esp::aimline, "##aimlc", global::esp::color::aimline);
+            w::toggle_icon(ICON_FA_PERSON, "Skeleton", &global::esp::Skeleton);
+            w::helptooltip("Render bone lines connecting body parts");
+            w::toggle_icon(ICON_FA_CHART_LINE, "Trails", &global::esp::Trails);
+            w::helptooltip("Draw movement trail behind players");
+            w::toggle("Chinese Hats", &global::esp::Chinese_Hat);
+            w::toggle("Aim Lines", &global::esp::aimline);
+            w::helptooltip("Show aim direction ray from each player");
             w::toggle("Chams", &global::esp::Chams);
+            w::helptooltip("Fill player body parts with color overlay");
             if (global::esp::Chams) {
                 w::dualcolor("##chc", global::esp::color::Chams,
                     "##choc", global::esp::color::ChamsOutline);
@@ -231,6 +272,7 @@ namespace page {
             w::gap(4.f);
             w::labelsection("RENDERING");
             w::sliderfloat("Render Distance", &global::esp::Render_Distance, 0.f, 500.f);
+            w::helptooltip("Maximum distance to render ESP elements");
         }
         w::card::end();
     }
@@ -433,17 +475,23 @@ namespace page {
             ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Menu Key");
             ImGui::SameLine(ImGui::GetContentRegionMax().x - 60.f);
             w::keyselect("##menukey", &global::setting::Menu_Key);
+            w::helptooltip("Key to toggle the config menu");
             w::gap(4.f);
             w::labelsection("DISPLAY");
             w::toggle("Compact UI", &global::setting::Compact_UI);
-            w::combo("Performance", &global::setting::Performance_Mode,
-                { "VSync", "Eco", "Unlocked" });
+            w::helptooltip("Reduce padding and spacing");
+            w::pill_toolbar("##perf", {"VSync","Eco","Unlocked"}, &global::setting::Performance_Mode);
+            w::helptooltip("VSync limits FPS, Eco saves CPU, Unlocked is max");
+            w::gap(2.f);
             w::toggle("Streamproof", &global::setting::Streamproof);
+            w::helptooltip("Hide overlay from screen capture software");
             w::gap(4.f);
 
             w::labelsection("OVERLAY");
-            w::toggle("Watermark", &global::overlay::watermark);
+            w::toggle_icon(ICON_FA_DROPLET, "Watermark", &global::overlay::watermark);
+            w::helptooltip("Show branding panel on screen");
             w::toggle("Hotkeys", &global::overlay::hotkey);
+            w::helptooltip("Show live hotkey status panel");
             if (global::overlay::hotkey) {
                 w::toggle("  Aimbot", &global::overlay::Hotkey_Aimbot);
                 w::toggle("  Silent", &global::overlay::Hotkey_Silent);
@@ -452,16 +500,22 @@ namespace page {
                 w::toggle("  Walkspeed", &global::overlay::Hotkey_Walkspeed);
                 w::toggle("  Hitbox", &global::overlay::Hotkey_HitboxExpander);
             }
-            w::toggle("Radar", &global::overlay::radar);
+            w::toggle_icon(ICON_FA_MAP, "Radar", &global::overlay::radar);
+            w::helptooltip("Show mini radar with player positions");
             if (global::overlay::radar) {
-                w::combo("Shape", &global::overlay::Radar_Shape, { "Circle", "Square" });
+                w::pill_toolbar("##radarshape", {"Circle","Square"}, &global::overlay::Radar_Shape);
                 w::sliderfloat("Zoom", &global::overlay::Radar_Zoom, .3f, 4.f);
+                w::helptooltip("Radar scale — higher = more zoomed out");
                 w::sliderfloat("Size", &global::overlay::Radar_Size, 130.f, 280.f);
+                w::helptooltip("Radar panel pixel size");
                 w::toggle("Rotate", &global::overlay::Radar_Rotate);
+                w::helptooltip("Rotate radar with camera direction");
             }
-            w::toggle("Aim Warning", &global::overlay::AimWarning);
+            w::toggle_icon(ICON_FA_TRIANGLE_EXCLAMATION, "Aim Warning", &global::overlay::AimWarning);
+            w::helptooltip("Alert when a player is aiming at you");
             if (global::overlay::AimWarning)
                 w::sliderfloat("AimView Length", &global::overlay::AimView_MaxLength, 50.f, 1000.f);
+            w::helptooltip("Ray length used for aim threat detection");
         }
         w::card::end();
 

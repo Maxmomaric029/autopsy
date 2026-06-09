@@ -12,12 +12,12 @@
 namespace icon {
 
     inline constexpr const char* tabIconChars[] = {
-        ICON_FA_CROSSHAIRS,       // Aimbot
-        ICON_FA_EYE,              // Visuals
-        ICON_FA_GLOBE,            // World
-        ICON_FA_SLIDERS,          // Misc
-        ICON_FA_FUTBOL,           // Blade Ball
-        ICON_FA_GEAR              // Settings
+        ICON_FA_LOCATION_CROSSHAIRS,  // Aimbot
+        ICON_FA_BINOCULARS,           // Visuals
+        ICON_FA_EARTH_AMERICAS,       // World
+        ICON_FA_TOOLBOX,              // Misc
+        ICON_FA_SHIELD_HALVED,        // Blade Ball
+        ICON_FA_SCREWDRIVER_WRENCH    // Settings
     };
 
     inline constexpr const char* tabLabels[] = {

@@ -76,8 +76,10 @@ namespace cache {
 
     void rescan() {
         static std::uint64_t Stored_GameID = 0;
+        static int post_change_delay = 0;
 
         while (true) {
+            if (post_change_delay > 0) { --post_change_delay; std::this_thread::sleep_for(std::chrono::milliseconds(100)); continue; }
             try {
                 auto fakemodel = drive->read<std::uint64_t>(drive->modulebase() + offset::fakemodel::Pointer);
                 global::model.Address = drive->read<std::uint64_t>(fakemodel + offset::fakemodel::RealDataModel);
@@ -101,10 +103,10 @@ namespace cache {
                         auto Lightin = global::model.childclass("Lighting");
                         global::light = sdk::light(Lightin.Address);
                         global::workspace.Address = global::model.childclass("Workspace").Address;
-                        std::this_thread::sleep_for(std::chrono::seconds(5));
                         global::camera.Address = global::workspace.childclass("Camera").Address;
 
                         References_Updated.store(true);
+                        post_change_delay = 50;
 
                     }
                 }

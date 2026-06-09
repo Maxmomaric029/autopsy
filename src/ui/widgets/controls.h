@@ -433,4 +433,76 @@ namespace w {
             theme::col_danger(), theme::col_danger(), w, h);
     }
 
+    // ---- Icon toggle (FA6 icon + label) ---------------------------------
+    inline bool toggle_icon(const char* icon, const char* label, bool* v) {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        const ImVec2 p = ImGui::GetCursorScreenPos();
+        dl->AddText(font::bold(), 11.f, p + ImVec2(0.f, 3.f),
+            theme::col_muted(), icon);
+        ImGui::SetCursorScreenPos(p + ImVec2(16.f, 0.f));
+        return toggle(label, v);
+    }
+
+    // ---- Pill toolbar (iOS-style pill selector) -------------------------
+    inline int pill_toolbar(const char* id, const std::vector<const char*>& labels, int* current) {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        const float avail = ImGui::GetContentRegionAvail().x;
+        const int count = (int)labels.size();
+        constexpr float kH = 24.f;
+        constexpr float kR = 12.f;
+        const float itemW = (avail - (count - 1) * 2.f) / count;
+        ImGui::PushID(id);
+        const ImVec2 base = ImGui::GetCursorScreenPos();
+        dl->AddRectFilled(base, base + ImVec2(avail, kH),
+            theme::col_surface(), kR);
+        dl->AddRect(base, base + ImVec2(avail, kH),
+            theme::col_border(), kR, 0, 1.f);
+        for (int i = 0; i < count; i++) {
+            const ImVec2 mn = base + ImVec2(i * (itemW + 2.f), 0.f);
+            const ImVec2 mx = mn + ImVec2(itemW, kH);
+            ImGui::SetCursorScreenPos(mn);
+            ImGui::InvisibleButton(labels[i], { itemW, kH });
+            if (ImGui::IsItemClicked()) *current = i;
+            const bool active = (*current == i);
+            const float t = anim::toggle(ImGui::GetItemID(), active);
+            if (t > 0.01f) {
+                dl->AddRectFilled(mn + ImVec2(1.f, 1.f), mx - ImVec2(1.f, 1.f),
+                    theme::alpha(theme::col_accent(), t * 0.9f), kR - 1.f);
+            }
+            const float fontSize = 11.f;
+            ImVec2 ts = ImGui::CalcTextSize(labels[i]);
+            dl->AddText(font::medium(), fontSize,
+                mn + ImVec2((itemW - ts.x) * 0.5f, (kH - fontSize) * 0.5f),
+                active ? theme::col_text() : theme::col_muted(0.8f),
+                labels[i]);
+        }
+        ImGui::SetCursorScreenPos(base + ImVec2(0.f, kH + 4.f));
+        ImGui::Dummy({avail, 0.f});
+        ImGui::PopID();
+        return *current;
+    }
+
+    // ---- Help tooltip (hover pill) --------------------------------------
+    inline void helptooltip(const char* text) {
+        if (!ImGui::IsItemHovered() || !text || !*text) return;
+        ImDrawList* dl = ImGui::GetForegroundDrawList();
+        const ImVec2 mp = ImGui::GetIO().MousePos;
+        const float fontSize = 11.f;
+        ImVec2 ts = ImGui::CalcTextSize(text);
+        const float padX = 10.f, padY = 5.f;
+        const float w = ts.x + padX * 2.f;
+        const float h = fontSize + padY * 2.f;
+        ImVec2 mn = mp + ImVec2(12.f, 16.f);
+        ImVec2 mx = mn + ImVec2(w, h);
+        const ImVec2 display = ImGui::GetIO().DisplaySize;
+        if (mx.x > display.x - 8.f) { mn.x -= (mx.x - display.x + 8.f); mx.x = display.x - 8.f; }
+        if (mx.y > display.y - 8.f) { mn.y -= (mx.y - display.y + 8.f); mx.y = display.y - 8.f; }
+        dl->AddRectFilled(mn + ImVec2(0.f, 3.f), mx + ImVec2(0.f, 3.f),
+            IM_COL32(0,0,0,80), h * 0.5f);
+        dl->AddRectFilled(mn, mx, IM_COL32(6, 11, 20, 240), h * 0.5f);
+        dl->AddRect(mn, mx, theme::col_accent(0.5f), h * 0.5f, 0, 1.f);
+        dl->AddText(font::regular(), fontSize,
+            mn + ImVec2(padX, padY), theme::col_muted(), text);
+    }
+
 } // namespace w

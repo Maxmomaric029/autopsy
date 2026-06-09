@@ -206,7 +206,7 @@ namespace aim {
 
         POINT CursorPos;
         if (!GetCursorPos(&CursorPos)) return;
-        ScreenToClient(FindWindowA(0, "Roblox"), &CursorPos);
+        ScreenToClient(robloxHwnd(), &CursorPos);
 
         float ClosestDistance = 999999.f;
         std::string BestName = "";
@@ -331,7 +331,7 @@ namespace aim {
             if (ScreenPos.x <= -0.5f || ScreenPos.y <= -0.5f) continue;
 
             RECT ClientRect;
-            GetClientRect(FindWindowA(0, "Roblox"), &ClientRect);
+            GetClientRect(robloxHwnd(), &ClientRect);
             if (ScreenPos.x > ClientRect.right || ScreenPos.y > ClientRect.bottom) continue;
             if (global::aim::VisibleCheck && !visible(Cam, BonePos, ScreenPos)) continue;
 
@@ -369,7 +369,7 @@ namespace aim {
 
         static ULONGLONG LastShot = 0;
         POINT CursorPos;
-        HWND Window = FindWindowA(0, "Roblox");
+        HWND Window = robloxHwnd();
         if (!Window || GetForegroundWindow() != Window || !GetCursorPos(&CursorPos) || !ScreenToClient(Window, &CursorPos))
             return;
 
@@ -420,11 +420,23 @@ namespace aim {
         }
     }
 
+    static HWND robloxHwnd() {
+        static HWND cached = 0;
+        static DWORD lastCheck = 0;
+        DWORD now = GetTickCount();
+        if (!cached || now - lastCheck > 1000) {
+            cached = FindWindowA(0, "Roblox");
+            lastCheck = now;
+        }
+        return cached;
+    }
+
     void update() {
         if (!TargetFound) return;
         if (!hitchance()) return;
 
-        if (global::aim::Aimbot_type == 1) {
+        if (global::aim::Aimbot_type == 2) {
+            // Case 2: Cam Lock — existing camera matrix lookat logic
             sdk::model Dm(global::model.Address);
             sdk::instance WorkspaceInst = Dm.childclass("Workspace");
             sdk::instance CameraInst = WorkspaceInst.child("Camera");
@@ -453,10 +465,41 @@ namespace aim {
 
             Cam.rotation(FinalMatrix);
         }
-        else {
+        else if (global::aim::Aimbot_type == 1) {
+            // Case 1: Mouse Aim — raw mouse, no smoothing division
             POINT CursorPos;
             if (!GetCursorPos(&CursorPos)) return;
-            ScreenToClient(FindWindowA(0, "Roblox"), &CursorPos);
+            ScreenToClient(robloxHwnd(), &CursorPos);
+
+            float Sensitivity = global::aim::mouse::Mouse_Sensitivty;
+
+            float MoveX = (AimPositionS.x - CursorPos.x) * Sensitivity * 1.4f;
+            float MoveY = (AimPositionS.y - CursorPos.y) * Sensitivity * 1.4f;
+
+            if (global::aim::Shake) {
+                MoveX += ((float)rand() / RAND_MAX * 2 - 1) * global::aim::ShakeX;
+                MoveY += ((float)rand() / RAND_MAX * 2 - 1) * global::aim::ShakeY;
+            }
+
+            if (MoveX < -120.f) MoveX = -120.f;
+            if (MoveX > 120.f) MoveX = 120.f;
+            if (MoveY < -120.f) MoveY = -120.f;
+            if (MoveY > 120.f) MoveY = 120.f;
+
+            if (abs(MoveX) >= 1.f || abs(MoveY) >= 1.f) {
+                INPUT Input = {};
+                Input.type = INPUT_MOUSE;
+                Input.mi.dx = (LONG)MoveX;
+                Input.mi.dy = (LONG)MoveY;
+                Input.mi.dwFlags = MOUSEEVENTF_MOVE;
+                SendInput(1, &Input, sizeof(INPUT));
+            }
+        }
+        else {
+            // Case 0: Free Aim — existing mouse logic WITH smoothing
+            POINT CursorPos;
+            if (!GetCursorPos(&CursorPos)) return;
+            ScreenToClient(robloxHwnd(), &CursorPos);
 
             float Sensitivity = global::aim::mouse::Mouse_Sensitivty;
             if (global::aim::mouse::Smoothing_X > 0) {

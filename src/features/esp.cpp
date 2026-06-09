@@ -73,13 +73,14 @@ static bool visiblecheck(const sdk::vector3& target, const sdk::vector2& screen)
 
 namespace style
 {
-    static constexpr ImU32 Surface = IM_COL32(3, 8, 14, 188);
+    // Aurora Dark palette from theme.h
+    static constexpr ImU32 Surface     = IM_COL32(3, 8, 14, 188);
     static constexpr ImU32 SurfaceSoft = IM_COL32(5, 13, 22, 132);
-    static constexpr ImU32 Border = IM_COL32(38, 72, 94, 150);
-    static constexpr ImU32 Accent = IM_COL32(0, 174, 255, 255);
-    static constexpr ImU32 Purple = IM_COL32(100, 117, 255, 255);
-    static constexpr ImU32 text = IM_COL32(232, 242, 249, 255);
-    static constexpr ImU32 TextDim = IM_COL32(146, 166, 178, 255);
+    static constexpr ImU32 Border      = IM_COL32(26, 50, 72, 180);
+    static constexpr ImU32 Accent      = IM_COL32(220, 60, 70, 255);      // blood red
+    static constexpr ImU32 AccentDim   = IM_COL32(179, 50, 61, 255);      // darker red
+    static constexpr ImU32 text        = IM_COL32(234, 244, 255, 240);    // EAF4FF
+    static constexpr ImU32 TextDim     = IM_COL32(142, 164, 181, 255);    // #8EA4B5
     static bool VisibilityTint = false;
     static bool TargetVisible = true;
 
@@ -108,6 +109,19 @@ namespace style
         return IM_COL32(mix(0), mix(8), mix(16), mix(24));
     }
 
+    // Health bar colour interpolation: green → yellow → red
+    static ImU32 healthcolor(float ratio)
+    {
+        ratio = ImClamp(ratio, 0.f, 1.f);
+        if (ratio > 0.5f)
+        {
+            const float t = (ratio - 0.5f) * 2.f;
+            return lerp(IM_COL32(240, 192, 80, 255), IM_COL32(61, 224, 160, 255), t);
+        }
+        const float t = ratio * 2.f;
+        return lerp(IM_COL32(224, 60, 70, 255), IM_COL32(240, 192, 80, 255), t);
+    }
+
     static void shadow(ImDrawList* draw, ImVec2 min, ImVec2 max, float rounding, float strength = 1.f)
     {
         for (int i = 0; i < 5; i++)
@@ -127,8 +141,8 @@ namespace style
         draw->AddRectFilled(min + ImVec2(1.f, 1.f), max - ImVec2(1.f, 1.f),
             fill ? IM_COL32(3, 8, 14, 34) : IM_COL32(3, 8, 14, 36), rounding);
         draw->AddRect(min - ImVec2(1.f, 1.f), max + ImVec2(1.f, 1.f), IM_COL32(0, 0, 0, 92), rounding, 0, 1.4f);
-        draw->AddRect(min, max, alpha(accent, .88f), rounding, 0, 1.35f);
-        draw->AddRect(min + ImVec2(1.f, 1.f), max - ImVec2(1.f, 1.f), IM_COL32(255, 255, 255, 24), rounding, 0, 1.f);
+        draw->AddRect(min, max, alpha(accent, .7f), rounding, 0, 1.35f);
+        draw->AddRect(min + ImVec2(1.f, 1.f), max - ImVec2(1.f, 1.f), IM_COL32(255, 255, 255, 18), rounding, 0, 1.f);
     }
 
     static void fillbox(ImDrawList* draw, ImVec2 min, ImVec2 max)
@@ -178,11 +192,11 @@ namespace style
         frame(draw, min, max, accent, global::esp::Box_Fill);
     }
 
-    static void cornerline(ImDrawList* draw, ImVec2 a, ImVec2 b, ImU32 accent)
+    static void cornerline(ImDrawList* draw, ImVec2 a, ImVec2 b)
     {
-        draw->AddLine(a, b, IM_COL32(0, 0, 0, 142), 4.2f);
-        draw->AddLine(a, b, alpha(Purple, .28f), 2.8f);
-        draw->AddLine(a, b, accent, 1.55f);
+        draw->AddLine(a, b, IM_COL32(0, 0, 0, 160), 3.8f);
+        draw->AddLine(a, b, IM_COL32(220, 230, 245, 28), 2.8f);
+        draw->AddLine(a, b, IM_COL32(220, 230, 245, 200), 1.2f);
     }
 
     static void cornerbox(ImDrawList* draw, ImVec2 min, ImVec2 max)
@@ -190,7 +204,7 @@ namespace style
         const ImU32 accent = fromfloat(global::esp::color::Box);
         const float w = max.x - min.x;
         const float h = max.y - min.y;
-        const float len = ImClamp(ImMin(w, h) * .27f, 9.f, 48.f);
+        const float len = ImClamp(ImMin(w, h) * 0.22f, 8.f, 40.f);
 
         shadow(draw, min, max, 0.f, .52f);
         if (global::esp::Box_Fill)
@@ -199,31 +213,31 @@ namespace style
             draw->AddRectFilled(min + ImVec2(1.f, 1.f), max - ImVec2(1.f, 1.f), IM_COL32(3, 8, 14, 24));
 
         draw->AddRect(min, max, IM_COL32(255, 255, 255, 18), 0.f, 0, 1.f);
-        cornerline(draw, min, ImVec2(min.x + len, min.y), accent);
-        cornerline(draw, min, ImVec2(min.x, min.y + len), accent);
-        cornerline(draw, ImVec2(max.x - len, min.y), ImVec2(max.x, min.y), accent);
-        cornerline(draw, ImVec2(max.x, min.y), ImVec2(max.x, min.y + len), accent);
-        cornerline(draw, ImVec2(min.x, max.y), ImVec2(min.x + len, max.y), accent);
-        cornerline(draw, ImVec2(min.x, max.y - len), ImVec2(min.x, max.y), accent);
-        cornerline(draw, ImVec2(max.x - len, max.y), max, accent);
-        cornerline(draw, ImVec2(max.x, max.y - len), max, accent);
+        cornerline(draw, min, ImVec2(min.x + len, min.y));
+        cornerline(draw, min, ImVec2(min.x, min.y + len));
+        cornerline(draw, ImVec2(max.x - len, min.y), ImVec2(max.x, min.y));
+        cornerline(draw, ImVec2(max.x, min.y), ImVec2(max.x, min.y + len));
+        cornerline(draw, ImVec2(min.x, max.y), ImVec2(min.x + len, max.y));
+        cornerline(draw, ImVec2(min.x, max.y - len), ImVec2(min.x, max.y));
+        cornerline(draw, ImVec2(max.x - len, max.y), max);
+        cornerline(draw, ImVec2(max.x, max.y - len), max);
     }
 
     static void healthbar(ImDrawList* draw, ImVec2 pos, ImVec2 size, float ratio)
     {
         ratio = ImClamp(ratio, 0.f, 1.f);
         const float gap = (float)global::esp::gap;
-        const float thick = ImMax(4.f, (float)global::esp::Thickness + 2.f);
+        const float thick = ImMax(3.f, (float)global::esp::Thickness + 2.f);
         const float x = pos.x - gap - thick - 5.f;
         const float y0 = pos.y;
         const float y1 = pos.y + size.y;
         const ImVec2 bgMin(x, y0);
         const ImVec2 bgMax(x + thick, y1);
-        const float rounding = thick * .5f;
+        const float rounding = thick * 0.5f;
 
         shadow(draw, bgMin, bgMax, rounding, .45f);
-        draw->AddRectFilled(bgMin, bgMax, IM_COL32(3, 8, 14, 178), rounding);
-        draw->AddRect(bgMin, bgMax, Border, rounding, 0, 1.f);
+        draw->AddRectFilled(bgMin, bgMax, IM_COL32(4, 8, 14, 210), rounding);
+        draw->AddRect(bgMin, bgMax, IM_COL32(26, 50, 72, 180), rounding, 0, 1.f);
 
         const float fillH = (y1 - y0 - 4.f) * ratio;
         const ImVec2 fillMin(x + 2.f, y1 - 2.f - fillH);
@@ -233,12 +247,12 @@ namespace style
         {
             if (global::esp::Healthbar_Type == 1)
                 draw->AddRectFilledMultiColor(fillMin, fillMax,
-                    fromfloat(global::esp::color::Healthbar_Top),
-                    fromfloat(global::esp::color::Healthbar_Top),
-                    fromfloat(global::esp::color::Healthbar_Bottom),
-                    fromfloat(global::esp::color::Healthbar_Bottom));
+                    healthcolor(1.f),
+                    healthcolor(1.f),
+                    healthcolor(0.f),
+                    healthcolor(0.f));
             else
-                draw->AddRectFilled(fillMin, fillMax, fromfloat(global::esp::color::Healthbar), rounding - 1.f);
+                draw->AddRectFilled(fillMin, fillMax, healthcolor(ratio), rounding - 1.f);
         }
     }
 
@@ -248,19 +262,15 @@ namespace style
             return;
 
         ImFont* font = ImGui::GetFont();
-        ImGui::PushFont(font);
         const float fontSize = ImGui::GetFontSize();
-        ImGui::PopFont();
 
         pos.x = std::roundf(pos.x);
         pos.y = std::roundf(pos.y);
         const ImU32 accent = fromfloat(col);
 
-        draw->AddText(font, fontSize, pos + ImVec2(0.f, 2.f), IM_COL32(0, 0, 0, 185), text);
-        draw->AddText(font, fontSize, pos + ImVec2(2.f, 2.f), IM_COL32(0, 0, 0, 122), text);
-        draw->AddText(font, fontSize, pos + ImVec2(-1.f, 1.f), IM_COL32(0, 0, 0, 135), text);
-        draw->AddText(font, fontSize, pos + ImVec2(1.f, -1.f), style::alpha(accent, .22f), text);
-        draw->AddText(font, fontSize, pos, lerp(style::text, accent, .32f), text);
+        // Clean single drop shadow
+        draw->AddText(font, fontSize, pos + ImVec2(1.f, 1.f), IM_COL32(0, 0, 0, 200), text);
+        draw->AddText(font, fontSize, pos, accent, text);
     }
 
     static void fov(ImDrawList* draw, ImVec2 center, float radius, const float color[4], bool fill, bool spin, int speed)
@@ -273,11 +283,12 @@ namespace style
         if (fill)
             draw->AddCircleFilled(center, radius, alpha(accent, .10f), 96);
 
-        for (int i = 0; i < 4; i++)
-            draw->AddCircle(center, radius + 2.f + i * 2.5f, IM_COL32(0, 0, 0, 38 - i * 7), 96, 1.3f);
+        // Glow rings behind
+        for (int i = 0; i < 3; i++)
+            draw->AddCircle(center, radius + 2.f + i * 2.f, IM_COL32(0, 0, 0, 30), 96, 1.3f);
 
-        draw->AddCircle(center, radius, alpha(accent, .94f), 96, 1.65f);
-        draw->AddCircle(center, radius - 2.f, IM_COL32(255, 255, 255, 24), 96, 1.f);
+        draw->AddCircle(center, radius, alpha(accent, .90f), 96, 1.5f);
+        draw->AddCircle(center, radius - 2.f, IM_COL32(255, 255, 255, 18), 96, 1.f);
 
         if (spin)
         {
@@ -286,7 +297,7 @@ namespace style
             {
                 const float start = rotation + i * IM_PI * .666f;
                 draw->PathArcTo(center, radius + 4.f, start, start + arc, 18);
-                draw->PathStroke(i == 1 ? alpha(Purple, .72f) : alpha(accent, .78f), false, 2.1f);
+                draw->PathStroke(alpha(accent, .78f), false, 2.1f);
             }
         }
     }
@@ -394,14 +405,18 @@ namespace style
         if (!project(origin, a) || !project(end, b))
             return;
 
-        const ImU32 accent = threat
-            ? IM_COL32(255, 80, 104, 245)
-            : fromfloat(global::esp::color::aimline, .88f);
-
-        draw->AddLine(a, b, IM_COL32(0, 0, 0, 150), threat ? 5.2f : 4.1f);
-        draw->AddLine(a, b, alpha(Purple, threat ? .42f : .26f), threat ? 3.0f : 2.2f);
-        draw->AddLine(a, b, accent, threat ? 1.85f : 1.35f);
-        draw->AddCircleFilled(b, threat ? 3.4f : 2.6f, alpha(accent, .78f), 16);
+        if (threat)
+        {
+            draw->AddLine(a, b, IM_COL32(0, 0, 0, 140), 4.1f);
+            draw->AddLine(a, b, IM_COL32(224, 60, 70, 230), 1.6f);
+            draw->AddCircleFilled(b, 3.4f, IM_COL32(224, 60, 70, 200), 16);
+        }
+        else
+        {
+            draw->AddLine(a, b, IM_COL32(0, 0, 0, 140), 3.6f);
+            draw->AddLine(a, b, IM_COL32(220, 230, 245, 120), 1.1f);
+            draw->AddCircleFilled(b, 2.6f, IM_COL32(220, 230, 245, 100), 16);
+        }
     }
 
     struct trailpoint
@@ -553,9 +568,8 @@ namespace style
                 const float alpha = life * (.18f + order * .82f);
                 if (alpha > .035f)
                 {
-                    const float width = 1.05f + order * 2.35f;
+                    const float width = 1.f + order * 1.8f;
                     draw->AddLine(prev, current, IM_COL32(0, 0, 0, (int)(142.f * alpha)), width + 3.0f);
-                    draw->AddLine(prev, current, style::alpha(style::Purple, .35f * alpha), width + 1.15f);
                     draw->AddLine(prev, current, fromfloat(global::esp::color::Trails, .92f * alpha), width);
 
                     if (i == trail.size() - 1 || (i % 4) == 0)
@@ -568,7 +582,8 @@ namespace style
         }
     }
 
-    static void hat(ImDrawList* draw, const sdk::part& head)
+    // Diamond indicator (replaces Chinese hat)
+    static void diamond(ImDrawList* draw, const sdk::part& head)
     {
         if (!head.Address)
             return;
@@ -579,59 +594,31 @@ namespace style
 
         const sdk::vector3 position = primitive.position();
         const sdk::vector3 size = primitive.size();
-        const sdk::matrix3 rotation = primitive.rotation();
         if (size.x == 0.f && size.y == 0.f && size.z == 0.f)
             return;
 
-        const float headWidth = ImMax(size.x, size.z);
-        const float radius = ImClamp(headWidth * .96f, .58f, 2.35f);
-        const float brimLift = ImMax(size.y * .54f, .38f);
-        const float coneLift = brimLift + ImClamp(size.y * .72f, .42f, 1.15f);
+        const float headHeight = ImMax(size.y, .5f);
+        const sdk::vector3 above = position + sdk::vector3{ 0.f, headHeight * 1.2f, 0.f };
 
-        const sdk::vector3 brimCenter = position + rotation * sdk::vector3{ 0.f, brimLift, 0.f };
-        const sdk::vector3 apex = position + rotation * sdk::vector3{ 0.f, coneLift, 0.f };
-
-        ImVec2 apexScreen;
-        if (!project(apex, apexScreen))
+        ImVec2 screen;
+        if (!project(above, screen))
             return;
 
-        constexpr int Segments = 40;
-        ImVec2 brim[Segments]{};
+        const float ds = 8.f; // diamond size
+        const ImU32 col = theme::col_accent(0.85f);
+        const ImU32 shd = IM_COL32(0, 0, 0, 160);
 
-        const float spin = (float)ImGui::GetTime() * .95f;
-        for (int i = 0; i < Segments; ++i)
-        {
-            const float angle = spin + ((float)i / (float)Segments) * IM_PI * 2.f;
-            const sdk::vector3 local{ cosf(angle) * radius, 0.f, sinf(angle) * radius };
-            ImVec2 screen;
-            if (!project(brimCenter + rotation * local, screen))
-                return;
-            brim[i] = screen;
-        }
+        // Shadow
+        draw->AddLine(screen + ImVec2(0.f, 1.f), screen + ImVec2(ds * .5f, ds + 1.f), shd, 1.5f);
+        draw->AddLine(screen + ImVec2(ds * .5f, ds + 1.f), screen + ImVec2(ds + 1.f, 1.f), shd, 1.5f);
+        draw->AddLine(screen + ImVec2(ds + 1.f, 1.f), screen + ImVec2(ds * .5f, -ds + 1.f), shd, 1.5f);
+        draw->AddLine(screen + ImVec2(ds * .5f, -ds + 1.f), screen + ImVec2(0.f, 1.f), shd, 1.5f);
 
-        const ImU32 accent = fromfloat(global::esp::color::hat, .94f);
-        const ImU32 shadow = IM_COL32(0, 0, 0, 118);
-
-        for (int i = 0; i < Segments; ++i)
-        {
-            const ImVec2& a = brim[i];
-            const ImVec2& b = brim[(i + 1) % Segments];
-            draw->AddTriangleFilled(apexScreen, a, b,
-                fromfloat(global::esp::color::hat, (i & 1) ? .085f : .14f));
-        }
-
-        draw->AddConvexPolyFilled(brim, Segments, fromfloat(global::esp::color::hat, .075f));
-
-        for (int i = 0; i < Segments; i += 5)
-        {
-            draw->AddLine(apexScreen, brim[i], IM_COL32(0, 0, 0, 78), 2.4f);
-            draw->AddLine(apexScreen, brim[i], alpha(accent, .38f), 1.05f);
-        }
-
-        draw->AddPolyline(brim, Segments, shadow, true, 3.4f);
-        draw->AddPolyline(brim, Segments, alpha(Purple, .30f), true, 2.05f);
-        draw->AddPolyline(brim, Segments, accent, true, 1.2f);
-        draw->AddCircleFilled(apexScreen, 2.25f, alpha(accent, .86f), 12);
+        // Diamond
+        draw->AddLine(screen, screen + ImVec2(ds * .5f, ds), col, 1.5f);
+        draw->AddLine(screen + ImVec2(ds * .5f, ds), screen + ImVec2(ds, 0.f), col, 1.5f);
+        draw->AddLine(screen + ImVec2(ds, 0.f), screen + ImVec2(ds * .5f, -ds), col, 1.5f);
+        draw->AddLine(screen + ImVec2(ds * .5f, -ds), screen, col, 1.5f);
     }
 }
 
@@ -708,6 +695,7 @@ namespace esp {
 
         visual_frame::begin();
 
+        // Declare background draw list ONCE at the top (performance)
         ImDrawList* Draw = ImGui::GetBackgroundDrawList();
         Draw->Flags |= ImDrawListFlags_AntiAliasedLines | ImDrawListFlags_AntiAliasedFill;
 
@@ -716,11 +704,21 @@ namespace esp {
         else
             style::prunetrail();
 
-        const auto Snapshot = global::Player_Cache;
+        // Thread-safe snapshot (bug fix: data race)
+        std::vector<sdk::player> Snapshot;
+        {
+            std::lock_guard<std::mutex> lock(cache::Mutex);
+            Snapshot = global::Player_Cache;
+        }
+
         const auto& Local = global::LocalPlayer;
         sdk::vector3 LocalPos{};
         const bool HasLocalPos = style::playerposition(Local, LocalPos);
         style::VisibilityTint = false;
+
+        // Clip rect for performance
+        ImVec2 clipMin = Draw->GetClipRectMin();
+        ImVec2 clipMax = Draw->GetClipRectMax();
 
         for (auto& player : Snapshot)
         {
@@ -825,6 +823,10 @@ namespace esp {
 
             if (!valid || Left >= Right || Top >= Bottom) continue;
 
+            // Clip rect early exit
+            if (Right < clipMin.x || Left > clipMax.x || Bottom < clipMin.y || Top > clipMax.y)
+                continue;
+
             ImVec2 Pos(Left - 1.f, Top - 1.f);
             ImVec2 Size((Right - Left) + 2.f, (Bottom - Top) + 2.f);
 
@@ -864,7 +866,7 @@ namespace esp {
             }
 
             if (global::esp::Chinese_Hat)
-                style::hat(Draw, Head);
+                style::diamond(Draw, Head);
 
             if (global::esp::Healthbar) {
                 float Ratio = (player.MaxHealth > 0.f) ? player.Health / player.MaxHealth : 0.f;
@@ -878,68 +880,51 @@ namespace esp {
                 if (global::esp::Healthbar)
                     X_Text -= global::esp::Thickness + global::esp::gap;
                 float Y_text = Pos.y - 3.0f;
-                ImGui::PushFont(ImGui::GetFont());
                 ImVec2 Text_Size = ImGui::CalcTextSize(HealthStr.c_str());
-                ImGui::PopFont();
                 ImVec2 Text_Pos(X_Text - Text_Size.x, Y_text);
                 outline(Text_Pos, HealthStr.c_str(), global::esp::color::Health);
             }
 
+            // Name label — clean single drop shadow via style::label
             if (global::esp::name) {
-                if (global::esp::Name_Type == 0) {
-                    ImGui::PushFont(ImGui::GetFont());
-                    ImVec2 Text_Size = ImGui::CalcTextSize(player.name.c_str());
-                    ImGui::PopFont();
-                    ImVec2 Text_Position(Pos.x + (Size.x * 0.5f) - (Text_Size.x * 0.5f), Pos.y - Text_Size.y - 3.f);
-                    outline(Text_Position, player.name.c_str(), global::esp::color::name);
-                }
-                else if (global::esp::Name_Type == 1) {
-                    ImGui::PushFont(ImGui::GetFont());
-                    ImVec2 Text_Size = ImGui::CalcTextSize(player.Display_Name.c_str());
-                    ImGui::PopFont();
-                    ImVec2 Text_Position(Pos.x + (Size.x * 0.5f) - (Text_Size.x * 0.5f), Pos.y - Text_Size.y - 3.f);
-                    outline(Text_Position, player.Display_Name.c_str(), global::esp::color::name);
-                }
-                else if (global::esp::Name_Type == 2) {
-                    std::string text = player.name + " [" + player.Display_Name + "]";
-                    ImGui::PushFont(ImGui::GetFont());
-                    ImVec2 Text_Size = ImGui::CalcTextSize(text.c_str());
-                    float NameW = ImGui::CalcTextSize((player.name + " ").c_str()).x;
-                    float BracketW = ImGui::CalcTextSize("[").x;
-                    float DisplayW = ImGui::CalcTextSize(player.Display_Name.c_str()).x;
-                    ImGui::PopFont();
-                    ImVec2 Position(Pos.x + (Size.x * 0.5f) - (Text_Size.x * 0.5f), Pos.y - Text_Size.y - 3.f);
-                    outline(Position, player.name.c_str(), global::esp::color::name);
-                    outline(ImVec2(Position.x + NameW, Position.y - 2.f), "[", global::esp::color::name);
-                    static float white[4] = { 1.f, 1.f, 1.f, 1.f };
-                    outline(ImVec2(Position.x + NameW + BracketW, Position.y - 1.f), player.Display_Name.c_str(), white);
-                    outline(ImVec2(Position.x + NameW + BracketW + DisplayW, Position.y - 2.f), "]", global::esp::color::name);
+                const char* nameText = player.name.c_str();
+                bool useDisplay = (global::esp::Name_Type == 1);
+                bool both = (global::esp::Name_Type == 2);
+                if (both) {
+                    std::string combined = player.name + " [" + player.Display_Name + "]";
+                    ImVec2 ts = ImGui::CalcTextSize(combined.c_str());
+                    ImVec2 tp(Pos.x + (Size.x * 0.5f) - (ts.x * 0.5f), Pos.y - ts.y - 3.f);
+                    outline(tp, combined.c_str(), global::esp::color::name);
+                } else {
+                    const char* useName = useDisplay ? player.Display_Name.c_str() : player.name.c_str();
+                    ImVec2 ts = ImGui::CalcTextSize(useName);
+                    ImVec2 tp(Pos.x + (Size.x * 0.5f) - (ts.x * 0.5f), Pos.y - ts.y - 3.f);
+                    // Name in clean text color, not accent
+                    static float white[4] = { 0.918f, 0.957f, 1.f, 0.941f };
+                    outline(tp, useName, white);
                 }
             }
 
             if (global::esp::Distance) {
-                ImGui::PushFont(ImGui::GetFont());
                 char Buffer[16];
                 snprintf(Buffer, sizeof(Buffer), "[%dm]", static_cast<int>(player.Distance));
                 ImVec2 Text_Size = ImGui::CalcTextSize(Buffer);
-                ImGui::PopFont();
                 ImVec2 Text_Position(Pos.x + (Size.x * 0.5f) - (Text_Size.x * 0.5f), Pos.y + Size.y + 3.0f);
+                // Distance in muted color
                 outline(Text_Position, Buffer, global::esp::color::Distance);
             }
 
             if (global::esp::Rig_Type)
             {
-                ImGui::PushFont(ImGui::GetFont());
                 const char* Rig_Type = nullptr;
                 if (player.Rig_Type == 1)
                     Rig_Type = "[R15]";
                 else if (player.Rig_Type == 0)
                     Rig_Type = "[R6]";
-                else { ImGui::PopFont(); continue; }
+                else continue;
                 ImVec2 Text_Size = ImGui::CalcTextSize(Rig_Type);
                 ImVec2 Text_Position(std::round(Pos.x + Size.x + 5.0f), std::round(Pos.y - Text_Size.y + 10.0f));
                 outline(Text_Position, Rig_Type, global::esp::color::Rig_Type);
-                ImGui::PopFont();
             }
 
             if (global::esp::tool)
@@ -960,16 +945,14 @@ namespace esp {
                         Cl_Name.push_back(']');
                     }
                 }
-                ImGui::PushFont(ImGui::GetFont());
                 ImVec2 Text_Size = ImGui::CalcTextSize(Cl_Name.c_str());
-                ImGui::PopFont();
                 float Offset = global::esp::Distance ? 18.0f : 3.0f;
                 ImVec2 Text_Position(std::round(Pos.x + (Size.x * 0.5f) - (Text_Size.x * 0.5f)), std::round(Pos.y + Size.y + Offset));
                 outline(Text_Position, Cl_Name.c_str(), global::esp::color::tool);
             }
 
             if (global::esp::Chams) {
-                ImDrawList* Draw = ImGui::GetBackgroundDrawList();
+                // Remove redeclaration of Draw — use the outer one
                 Draw->Flags |= ImDrawListFlags_AntiAliasedLines | ImDrawListFlags_AntiAliasedFill;
 
                 auto ProjectPart = [&](const sdk::part& part) -> std::vector<ImVec2> {
@@ -1034,7 +1017,7 @@ namespace esp {
                         for (auto& Pt : Sp) Poly.emplace_back(Pt.x / 1000.0f, Pt.y / 1000.0f);
                         if (Poly.size() >= 3) AllPolys.push_back(std::move(Poly));
                     }
-                    ImU32 FillColor = style::fromfloat(global::esp::color::Chams, .52f);
+                    ImU32 FillColor = style::fromfloat(global::esp::color::Chams, 0.45f);
                     ImU32 OutlineColor = style::fromfloat(global::esp::color::ChamsOutline, .72f);
                     if (global::esp::ChamsFade) {
                         float time = (float)ImGui::GetTime() * global::esp::ChamsFadeSpeed;
@@ -1047,16 +1030,15 @@ namespace esp {
                         Draw->AddConcavePolyFilled(Poly.data(), (int)Poly.size(), FillColor);
                     for (auto& Poly : AllPolys)
                     {
-                        Draw->AddPolyline(Poly.data(), (int)Poly.size(), IM_COL32(0, 0, 0, 96), true, 3.2f);
-                        Draw->AddPolyline(Poly.data(), (int)Poly.size(), OutlineColor, true, 1.35f);
+                        Draw->AddPolyline(Poly.data(), (int)Poly.size(), IM_COL32(0, 0, 0, 100), true, 3.0f);
+                        Draw->AddPolyline(Poly.data(), (int)Poly.size(), OutlineColor, true, 1.2f);
                     }
                 }
             }
 
+            // Skeleton — clean lines without purple tint
             if (global::esp::Skeleton) {
-                const ImU32 SkelCol = style::fromfloat(global::esp::color::Skeleton);
-                const ImU32 OutlineCol = IM_COL32(0, 0, 0, 132);
-                const float Thickness = 1.45f;
+                const float Thickness = 1.0f;
 
                 auto W2S = [&](const sdk::vector3& WorldPos, ImVec2& Out) -> bool {
                     auto ScreenPos = global::render.screen(WorldPos);
@@ -1068,9 +1050,8 @@ namespace esp {
 
                 auto DrawPoly = [&](const ImVec2* Points, int Count) {
                     if (Count < 2) return;
-                    Draw->AddPolyline(Points, Count, OutlineCol, false, Thickness + 3.f);
-                    Draw->AddPolyline(Points, Count, style::alpha(SkelCol, .35f), false, Thickness + 1.2f);
-                    Draw->AddPolyline(Points, Count, SkelCol, false, Thickness);
+                    Draw->AddPolyline(Points, Count, IM_COL32(0, 0, 0, 120), false, Thickness + 2.f);
+                    Draw->AddPolyline(Points, Count, IM_COL32(220, 230, 245, 160), false, Thickness);
                     };
 
                 if (player.UpperTorso.Address && player.LowerTorso.Address)
@@ -1164,6 +1145,20 @@ namespace esp {
                     { sdk::vector3 Pts[3]; int C = 0; BuildLegChain(player.LeftLeg, Pts, C); ProcessR6Chain(Pts, C); }
                     { sdk::vector3 Pts[3]; int C = 0; BuildLegChain(player.RightLeg, Pts, C); ProcessR6Chain(Pts, C); }
                 }
+
+                // Joint dots
+                auto Dot = [&](const sdk::instance& inst) {
+                    if (!inst.Address) return;
+                    sdk::part p(inst.Address);
+                    ImVec2 s;
+                    if (W2S(p.primitive().position(), s))
+                        Draw->AddCircleFilled(s, 2.f, IM_COL32(220, 230, 245, 180), 12);
+                    };
+                if (player.Head.Address) Dot(player.Head);
+                if (player.Torso.Address) Dot(player.Torso);
+                if (player.UpperTorso.Address) Dot(player.UpperTorso);
+                if (player.LowerTorso.Address) Dot(player.LowerTorso);
+                if (player.HumanoidRootPart.Address) Dot(player.HumanoidRootPart);
             }
         }
 
@@ -1191,7 +1186,6 @@ namespace esp {
             global::aim::FillFov, global::aim::FovSpin, global::aim::FovSpinSpeed);
 
         {
-            // Use effectivefov() so GunBasedFov is reflected visually
             float silentFov = effectivefov();
             DrawFovCircle(global::silent::DrawFov && global::silent::Enabled,
                 silentFov, global::silent::FovColor,

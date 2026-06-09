@@ -8,7 +8,7 @@
 #include "../core/cache.h"
 #include "global.h"
 
-std::mutex CMutex;
+extern std::mutex CMutex;
 
 inline float distance(const sdk::vector3& P1, const sdk::vector3& P2) {
     float Dx = P1.x - P2.x;

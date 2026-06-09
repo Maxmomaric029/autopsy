@@ -562,9 +562,7 @@ void silent::frame() {
             }
             else {
                 drive->write<sdk::vector2>(SilentAimInstance.Address + offset::gui::Size, SilentOriginalSize);
-                for (const auto& [ChildAddr, OrigSize] : SilentOriginalChildrenSizes) {
-                    drive->write<sdk::vector2>(ChildAddr + offset::gui::Size, OrigSize);
-                }
+                {                    std::lock_guard<std::mutex> szLock(SilentSizesMutex);                    for (const auto& [ChildAddr, OrigSize] : SilentOriginalChildrenSizes) {                        drive->write<sdk::vector2>(ChildAddr + offset::gui::Size, OrigSize);                    }                }
             }
         }
 
@@ -616,7 +614,7 @@ void silent::frame() {
                     if (FoundAimFrame.Address != SilentAimInstance.Address) {
                         SilentAimInstance = FoundAimFrame;
                         SilentHasOriginalSizes = false;
-                        SilentOriginalChildrenSizes.clear();
+                        { std::lock_guard<std::mutex> szLock(SilentSizesMutex); SilentOriginalChildrenSizes.clear(); }
 
                         if (SilentAimInstance.Address != 0) {
                             SilentOriginalSize = drive->read<sdk::vector2>(SilentAimInstance.Address + offset::gui::Size);
@@ -624,7 +622,7 @@ void silent::frame() {
                             for (auto& C : AimChildren) {
                                 if (C.Address) {
                                     sdk::vector2 CSize = drive->read<sdk::vector2>(C.Address + offset::gui::Size);
-                                    SilentOriginalChildrenSizes.push_back({ C.Address, CSize });
+                                    std::lock_guard<std::mutex> szLock(SilentSizesMutex); SilentOriginalChildrenSizes.push_back({ C.Address, CSize });
                                 }
                             }
                             SilentHasOriginalSizes = true;

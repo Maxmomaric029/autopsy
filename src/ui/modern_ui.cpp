@@ -165,6 +165,15 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
+    // ---- Animation state cache reserve ----
+    {
+        static bool reserved = false;
+        if (!reserved) {
+            anim::g_anim.reserve(128);
+            reserved = true;
+        }
+    }
+
     // ---- Menu toggle (Insert key) ----
     HWND roblox = FindWindowA(0, "Roblox");
     HWND fg = GetForegroundWindow();
@@ -448,20 +457,60 @@ namespace {
             ImGui::PopStyleVar(2);
         }
 
+        // Real FPS counter (500ms update)
+        static float realfps() {
+            static double lastTime = 0.0;
+            static int    frameCount = 0;
+            static float  cached = 0.f;
+            const double now = ImGui::GetTime();
+            ++frameCount;
+            if (now - lastTime >= 0.5) {
+                cached = (float)(frameCount / (now - lastTime));
+                frameCount = 0;
+                lastTime = now;
+            }
+            return cached;
+        }
+
+        // CPU usage (1s update via GetSystemTimes)
+        static float cpuusage() {
+            static FILETIME idleLast{}, kernelLast{}, userLast{};
+            static float cached = 0.f;
+            static double lastCheck = 0.0;
+            const double now = ImGui::GetTime();
+            if (now - lastCheck < 1.0) return cached;
+            lastCheck = now;
+            FILETIME idleNew, kernelNew, userNew;
+            if (!GetSystemTimes(&idleNew, &kernelNew, &userNew)) return cached;
+            auto sub = [](FILETIME a, FILETIME b) -> uint64_t {
+                uint64_t ua = ((uint64_t)a.dwHighDateTime << 32) | a.dwLowDateTime;
+                uint64_t ub = ((uint64_t)b.dwHighDateTime << 32) | b.dwLowDateTime;
+                return ua - ub;
+            };
+            uint64_t idle   = sub(idleNew,   idleLast);
+            uint64_t kernel = sub(kernelNew, kernelLast);
+            uint64_t user   = sub(userNew,   userLast);
+            idleLast = idleNew; kernelLast = kernelNew; userLast = userNew;
+            uint64_t total = kernel + user;
+            if (total == 0) return cached;
+            cached = 100.f * (1.f - (float)idle / (float)total);
+            return cached;
+        }
+
         static void watermark(ImDrawList* dl, ImVec2 p, ImVec2 s, bool hovered, bool active) {
             panelbase(dl, p, s, hovered, active);
             ImFont* logo = font::bold();
             float logoSize = logo->LegacySize;
             ImVec2 text = p + ImVec2(15.f, 7.f);
             ImVec2 nameSize = logo->CalcTextSizeA(logoSize, FLT_MAX, 0.f, "MISERABLE");
-            char fps[32]{}; std::snprintf(fps, sizeof(fps), "%.0f fps", ImGui::GetIO().Framerate);
+            char fps[32]{}; std::snprintf(fps, sizeof(fps), "%.0ffps  %.0f%%", realfps(), cpuusage());
             dl->AddRectFilled(p + ImVec2(7.f, 9.f), p + ImVec2(10.f, s.y - 9.f), accent(), 2.f);
             dl->AddText(logo, logoSize, text + ImVec2(1.f, 1.f), IM_COL32(0, 0, 0, 180), "MISERABLE");
             dl->AddText(logo, logoSize, text, IM_COL32(230, 60, 70, 245), "MISERABLE");
             dl->AddText(text + ImVec2(nameSize.x + 8.f, logoSize * .28f), accent(), "BETA");
             dl->AddText(p + ImVec2(16.f, 25.f), IM_COL32(140, 150, 170, 132), pcuser());
-            ImVec2 fpsSize = ImGui::CalcTextSize(fps);
-            ImVec2 pillMin = ImVec2(p.x + s.x - fpsSize.x - 28.f, p.y + 10.f);
+            float keyW = ImMax(72.f, ImGui::CalcTextSize(fps).x + 20.f);
+            ImVec2 pillMin = ImVec2(p.x + s.x - keyW - 18.f, p.y + 10.f);
             ImVec2 pillMax = ImVec2(p.x + s.x - 10.f, p.y + 29.f);
             dl->AddRectFilled(pillMin, pillMax, IM_COL32(8, 12, 18, 185), 6.f);
             dl->AddRect(pillMin, pillMax, IM_COL32(200, 60, 70, 64), 6.f);

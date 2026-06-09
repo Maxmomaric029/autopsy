@@ -35,6 +35,7 @@ inline bool SilentFTarget{ false };
 inline bool SilentPrimitiveActive{ false };
 inline bool SilentHasOriginalSizes{ false };
 inline sdk::vector2 SilentOriginalSize{};
+inline inline std::mutex SilentSizesMutex;
 inline std::vector<std::pair<std::uint64_t, sdk::vector2>> SilentOriginalChildrenSizes{};
 
 struct helper final
