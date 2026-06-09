@@ -125,19 +125,19 @@ std::int32_t main(std::int32_t argc, char** argv[])
         OffsetsManager::instance().load();
     }
     catch (...) {
-        printf("[AUTOPSY] OffsetsManager exception.\n");
     }
 
     // Apply loaded offsets to the runtime offset:: namespace
     offset::init();
-    printf("[AUTOPSY] Offsets initialized\n");
+
+    // Start console UI thread
+    console::start();
 
     static constexpr const char* BINARY_NAME = { "RobloxPlayerBeta.exe" };
     const bool alreadyRunning = process(BINARY_NAME);
 
     if (!alreadyRunning)
     {
-        printf("[AUTOPSY] Waiting for Roblox...\n");
         while (!process(BINARY_NAME))
         {
             Sleep(500);
@@ -146,8 +146,6 @@ std::int32_t main(std::int32_t argc, char** argv[])
 
     if (!alreadyRunning)
         Sleep(5000);
-
-    printf("[AUTOPSY] Roblox found, attaching...\n");
     std::thread(watch, BINARY_NAME).detach();
 
     drive->process(BINARY_NAME);
@@ -175,25 +173,16 @@ std::int32_t main(std::int32_t argc, char** argv[])
 
     if (!screen->window())
     {
-        std::cout << "[AUTOPSY] ERROR: Failed to create overlay window!" << std::endl;
-        std::cout << "[AUTOPSY] Press any key to exit..." << std::endl;
-        system("pause > nul");
         return 1;
     }
 
     if (!screen->device())
     {
-        std::cout << "[AUTOPSY] ERROR: Failed to create D3D11 device!" << std::endl;
-        std::cout << "[AUTOPSY] Press any key to exit..." << std::endl;
-        system("pause > nul");
         return 1;
     }
 
     if (!screen->imgui())
     {
-        std::cout << "[AUTOPSY] ERROR: Failed to initialize ImGui!" << std::endl;
-        std::cout << "[AUTOPSY] Press any key to exit..." << std::endl;
-        system("pause > nul");
         return 1;
     }
 

@@ -93,12 +93,10 @@ std::string OffsetsManager::http_get(const wchar_t* host, const wchar_t* path) {
 // fetch_live_version - GET /roblox/version, returns plain text
 // ------------------------------------------------------------------
 std::string OffsetsManager::fetch_live_version() {
-    printf("[OFFSETS] Fetching live version from %ls/roblox/version ...\n", HOST);
     std::string version = http_get(HOST, L"/roblox/version");
     // Trim whitespace/newlines
     while (!version.empty() && (version.back() == '\n' || version.back() == '\r' || version.back() == ' '))
         version.pop_back();
-    printf("[OFFSETS] Live version: %s\n", version.c_str());
     return version;
 }
 
@@ -106,9 +104,7 @@ std::string OffsetsManager::fetch_live_version() {
 // fetch_offsets_json - GET /offsets.json, returns JSON string
 // ------------------------------------------------------------------
 std::string OffsetsManager::fetch_offsets_json() {
-    printf("[OFFSETS] Downloading offsets.json from %ls/offsets.json ...\n", HOST);
     std::string body = http_get(HOST, L"/offsets.json");
-    printf("[OFFSETS] Downloaded %zu bytes\n", body.size());
     return body;
 }
 
@@ -148,21 +144,14 @@ bool OffsetsManager::load() {
 
         // 4. Download only if version changed or no cache
         if (liveVersion != cachedVersion || !offsetsExist) {
-            printf("[OFFSETS] Version changed or cache missing. Downloading new offsets...\n");
             std::string jsonBody = fetch_offsets_json();
             write_file(OFFSETS_FILE, jsonBody);
             write_file(VERSION_FILE, liveVersion);
-            printf("[OFFSETS] Saved to %s and %s\n", OFFSETS_FILE, VERSION_FILE);
-        }
-        else {
-            printf("[OFFSETS] Version unchanged (%s), using cached %s\n",
-                liveVersion.c_str(), OFFSETS_FILE);
         }
 
         // 5. Load and parse the JSON
         std::string jsonStr = read_file(OFFSETS_FILE);
         if (jsonStr.empty()) {
-            printf("[OFFSETS] FATAL: %s is empty or missing\n", OFFSETS_FILE);
             return false;
         }
 
@@ -171,33 +160,23 @@ bool OffsetsManager::load() {
 
         if (parsed) {
             loaded_ = true;
-            printf("[OFFSETS] Loaded successfully. Roblox version: %s, Total offsets: %d\n",
-                roblox_version_.c_str(), total_offsets_);
-        }
-        else {
-            printf("[OFFSETS] FATAL: Failed to parse offsets from %s\n", OFFSETS_FILE);
         }
 
         return loaded_;
 
     }
-    catch (const std::exception& e) {
-        printf("[OFFSETS] ERROR: %s\n", e.what());
-
+    catch (const std::exception&) {
         // Fallback: try loading whatever is on disk
-        printf("[OFFSETS] Trying fallback: load existing %s from disk...\n", OFFSETS_FILE);
         std::string jsonStr = read_file(OFFSETS_FILE);
         if (!jsonStr.empty()) {
             try {
                 auto data = json::parse(jsonStr);
                 if (parse_json(data)) {
                     loaded_ = true;
-                    printf("[OFFSETS] Fallback loaded from disk (%d offsets).\n", total_offsets_);
                     return true;
                 }
             }
             catch (...) {
-                printf("[OFFSETS] Fallback also failed.\n");
             }
         }
 
@@ -226,7 +205,6 @@ bool OffsetsManager::parse_json(const json& data) {
 
         // The actual offsets are under "Offsets" key
         if (!data.contains("Offsets") || !data["Offsets"].is_object()) {
-            printf("[OFFSETS] JSON missing 'Offsets' key\n");
             return false;
         }
 
@@ -262,21 +240,16 @@ bool OffsetsManager::parse_json(const json& data) {
             }
         }
 
-        printf("[OFFSETS] Parsed %d offsets across %zu groups\n",
-            parsed, offsets_obj.size());
         return parsed > 0;
 
     }
-    catch (const json::parse_error& e) {
-        printf("[OFFSETS] JSON parse error: %s\n", e.what());
+    catch (const json::parse_error&) {
         return false;
     }
-    catch (const json::type_error& e) {
-        printf("[OFFSETS] JSON type error: %s\n", e.what());
+    catch (const json::type_error&) {
         return false;
     }
-    catch (const std::exception& e) {
-        printf("[OFFSETS] Unexpected error: %s\n", e.what());
+    catch (const std::exception&) {
         return false;
     }
 }

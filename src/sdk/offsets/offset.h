@@ -1028,26 +1028,6 @@ inline void init() {
     TRY(world, worldStepsPerSec);
 
 #undef TRY
-
-    // ===== DEBUG OFFSETS =====
-    printf("[OFFSETS-DEBUG] instance::ChildrenStart = 0x%llx (server: 0x%llx)\n",
-        (unsigned long long)offset::instance::ChildrenStart,
-        (unsigned long long)mgr.get_offset("instance", "ChildrenStart"));
-    printf("[OFFSETS-DEBUG] instance::ChildrenEnd   = 0x%llx (server: 0x%llx)\n",
-        (unsigned long long)offset::instance::ChildrenEnd,
-        (unsigned long long)mgr.get_offset("instance", "ChildrenEnd"));
-    printf("[OFFSETS-DEBUG] instance::ClassDescriptor = 0x%llx\n",
-        (unsigned long long)mgr.get_offset("instance", "ClassDescriptor"));
-    printf("[OFFSETS-DEBUG] instance::name = 0x%llx (server: 0x%llx)\n",
-        (unsigned long long)offset::instance::name,
-        (unsigned long long)mgr.get_offset("instance", "name"));
-    printf("[OFFSETS-DEBUG] fakemodel::Pointer = 0x%llx (server: 0x%llx)\n",
-        (unsigned long long)offset::fakemodel::Pointer,
-        (unsigned long long)mgr.get_offset("fakemodel", "Pointer"));
-    printf("[OFFSETS-DEBUG] render::Pointer = 0x%llx (server: 0x%llx)\n",
-        (unsigned long long)offset::render::Pointer,
-        (unsigned long long)mgr.get_offset("render", "Pointer"));
-    // ===== END DEBUG =====
 }
 
 }

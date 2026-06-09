@@ -103,16 +103,6 @@ namespace cache {
 
                         References_Updated.store(true);
 
-                        output::ok("%-18s%u", "process", drive->processid());
-                        output::ok("%-18s0x%llx", "handle", drive->processhandle());
-                        output::ok("%-18s0x%llx", "module", drive->modulebase());
-                        output::core("datamodel", "0x%llx", global::model);
-                        output::core("visual engine", "0x%llx", global::render);
-                        output::core("players", "0x%llx", global::actor);
-                        output::core("local player", "0x%llx", global::LocalPlayer);
-                        output::core("workspace", "0x%llx", global::workspace);
-                        output::core("camera", "0x%llx", global::camera);
-                        output::core("lighting", "0x%llx", global::light);
                     }
                 }
             }
