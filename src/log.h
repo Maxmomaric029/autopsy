@@ -229,15 +229,15 @@ namespace console {
         reset();
 
         const char* items[] = {
-            "Camera Settings",
-            "Lights Settings",
-            "Players Settings",
-            "ESP Settings",
-            "Aimbot Settings",
-            "Silent Aim Settings",
-            "World Settings",
-            "Miscellaneous",
-            "Config Manager"
+            "Camera offset   =",
+            "Lights offset   =",
+            "Players offset  =",
+            "ESP offset      =",
+            "Aimbot offset   =",
+            "Silent offset   =",
+            "World offset    =",
+            "Miscellaneous    =",
+            "Config Manager   ="
         };
         int count = sizeof(items) / sizeof(items[0]);
 
@@ -290,15 +290,11 @@ namespace console {
     }
 
     // ========================================================================
-    // Full render — uses cursor home (no cls) to avoid flickering/scrolling
+    // Full render — prints ONCE, then only on input change
     // ========================================================================
     inline void render(float time) {
-        if (redraw) {
-            cls();
-            redraw = false;
-        } else {
-            home();
-        }
+        cls();
+        redraw = false;
         hue = fmodf(time * 0.05f, 1.0f);
         draw_header(hue);
         draw_status_bar();
@@ -307,41 +303,49 @@ namespace console {
     }
 
     // ========================================================================
-    // Input thread
+    // Input thread — triggers re-render on key press
     // ========================================================================
     inline void input_thread() {
         const int item_count = 9;
         while (true) {
+            bool dirty = false;
             if (GetAsyncKeyState(VK_UP) & 0x0001) {
                 selectedOption = (selectedOption - 1 + item_count) % item_count;
-                redraw = true;
+                dirty = true;
             }
             if (GetAsyncKeyState(VK_DOWN) & 0x0001) {
                 selectedOption = (selectedOption + 1) % item_count;
-                redraw = true;
+                dirty = true;
             }
             if (GetAsyncKeyState(VK_RETURN) & 0x0001) {
                 Beep(800, 50);
             }
             if (GetAsyncKeyState(VK_INSERT) & 0x0001) {
                 menuVisible = !menuVisible;
-                redraw = true;
+                dirty = true;
+            }
+            if (dirty && menuVisible) {
+                float time = (float)std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now().time_since_epoch()).count() / 1000.0f;
+                render(time);
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
     }
 
     // ========================================================================
-    // Render loop — slower rate, cursor-home overwrite
+    // Render once at startup, then only on input
     // ========================================================================
     inline void render_loop() {
+        // Render once on start
+        if (menuVisible) {
+            float time = (float)std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now().time_since_epoch()).count() / 1000.0f;
+            render(time);
+        }
+        // No loop — only re-render from input_thread when dirty
         while (true) {
-            if (menuVisible) {
-                float time = (float)std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::steady_clock::now().time_since_epoch()).count() / 1000.0f;
-                render(time);
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            std::this_thread::sleep_for(std::chrono::hours(24));
         }
     }
 

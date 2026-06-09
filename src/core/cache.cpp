@@ -89,10 +89,13 @@ namespace cache {
                         Stored_GameID = GameID;
                         Current_GameID.store(GameID);
                         global::GameID = GameID;
-                        if (GameID == global::rivals::PlaceId) {
+                        // Only set defaults on first init, not every cycle
+                        static bool firstInit = true;
+                        if (firstInit && GameID == global::rivals::PlaceId) {
                             global::aim::Aimbot_type = 0;
                             global::silent::SpoofMouse = true;
                         }
+                        firstInit = false;
 
                         global::actor.Address = global::model.childclass("Players").Address;
                         auto Lightin = global::model.childclass("Lighting");
@@ -266,11 +269,6 @@ namespace cache {
         console::cameraAddress = global::camera.Address;
         console::connected = (global::camera.Address != 0);
         console::playerCount = (int)global::Player_Cache.size();
-        if (global::GameID == global::rivals::PlaceId) {
-            global::aim::Aimbot_type = 0;
-            global::silent::SpoofMouse = true;
-        }
-
         if (global::GameID == 292439477) {
             std::vector<sdk::player> players;
 

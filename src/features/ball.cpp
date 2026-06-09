@@ -521,6 +521,8 @@ namespace ball
                 s_ballInRange = false;
                 s_recentParry = false;
                 s_lastBall = 0;
+                s_spamToggle = false;
+                s_spamWasDown = false;
                 s_tracks.clear();
                 {
                     std::lock_guard<std::mutex> lock(s_ballsMutex);
@@ -531,6 +533,14 @@ namespace ball
             }
 
             refreshball();
+
+            // Check SpamParry BEFORE AutoParry check so they work independently
+            if (spamactive())
+            {
+                parry(1);
+                std::this_thread::sleep_for(std::chrono::milliseconds(16));
+                continue;
+            }
 
             if (!global::ball::AutoParry)
             {
@@ -545,13 +555,6 @@ namespace ball
             if (!valid(local))
             {
                 std::this_thread::sleep_for(std::chrono::milliseconds(3));
-                continue;
-            }
-
-            if (spamactive())
-            {
-                parry(1);
-                std::this_thread::sleep_for(std::chrono::milliseconds(16));
                 continue;
             }
 

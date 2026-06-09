@@ -5,6 +5,9 @@
 #include "../sdk/sdk.h"
 #include "../core/cache.h"
 
+// Forward declaration for GunBasedFov - used by esp.cpp for DrawFov
+float effectivefov();
+
 namespace silent
 {
     void frame();

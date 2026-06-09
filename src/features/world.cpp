@@ -5,6 +5,18 @@
 
 namespace world {
 
+    // Saved original values for restoration when toggling off
+    static float s_origBrightness = 0.f;
+    static float s_origExposure = 0.f;
+    static float s_origFogEnd = 0.f;
+    static sdk::vector3 s_origFogColor{};
+    static sdk::vector3 s_origAmbient{};
+    static sdk::vector3 s_origOutdoorAmbient{};
+    static bool s_brightnessSaved = false;
+    static bool s_exposureSaved = false;
+    static bool s_fogSaved = false;
+    static bool s_ambienceSaved = false;
+
     void skybox() {
 
         while (true)
@@ -120,7 +132,7 @@ namespace world {
                         auto sky = global::light.childclass("Sky");
 
                         static float rotY = 0.0f;
-                        rotY = (0.0f > 360.0f) ? 0.0f : rotY + global::world::Skybox_Rotate_Speed;
+                        rotY = (rotY > 360.0f) ? 0.0f : rotY + global::world::Skybox_Rotate_Speed;
 
                         drive->write<sdk::vector3>(sky.Address + offset::sky::SkyboxOrientation, { 0.0f, rotY, 0.0f });
                     }
@@ -140,8 +152,18 @@ namespace world {
         {
             if (global::world::Ambience)
             {
+                if (!s_ambienceSaved) {
+                    s_origAmbient = drive->read<sdk::vector3>(global::light.Address + offset::light::Ambient);
+                    s_origOutdoorAmbient = drive->read<sdk::vector3>(global::light.Address + offset::light::OutdoorAmbient);
+                    s_ambienceSaved = true;
+                }
                 sdk::light::ambient(global::light.Address, {global::world::color::Ambience[0], global::world::color::Ambience[1], global::world::color::Ambience[2]} );
                 sdk::view::invalidate();
+            }
+            else if (s_ambienceSaved) {
+                sdk::light::ambient(global::light.Address, s_origAmbient);
+                sdk::view::invalidate();
+                s_ambienceSaved = false;
             }
 
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -154,8 +176,18 @@ namespace world {
         {
             if (global::world::Fog)
             {
+                if (!s_fogSaved) {
+                    s_origFogEnd = drive->read<float>(global::light.Address + offset::light::FogEnd);
+                    s_origFogColor = drive->read<sdk::vector3>(global::light.Address + offset::light::FogColor);
+                    s_fogSaved = true;
+                }
                 sdk::light::fog(global::light.Address, global::world::Fog_Distance, {global::world::color::Fog[0], global::world::color::Fog[1], global::world::color::Fog[2]} );
                 sdk::view::invalidate();
+            }
+            else if (s_fogSaved) {
+                sdk::light::fog(global::light.Address, s_origFogEnd, s_origFogColor);
+                sdk::view::invalidate();
+                s_fogSaved = false;
             }
 
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -168,8 +200,17 @@ namespace world {
         {
             if (global::world::Brightness)
             {
+                if (!s_brightnessSaved) {
+                    s_origBrightness = drive->read<float>(global::light.Address + offset::light::Brightness);
+                    s_brightnessSaved = true;
+                }
                 sdk::light::brightness(global::light.Address, global::world::BrightnessI);
                 sdk::view::invalidate();
+            }
+            else if (s_brightnessSaved) {
+                sdk::light::brightness(global::light.Address, s_origBrightness);
+                sdk::view::invalidate();
+                s_brightnessSaved = false;
             }
 
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -182,8 +223,17 @@ namespace world {
         {
             if (global::world::Exposure)
             {
+                if (!s_exposureSaved) {
+                    s_origExposure = drive->read<float>(global::light.Address + offset::light::ExposureCompensation);
+                    s_exposureSaved = true;
+                }
                 sdk::light::exposure(global::light.Address, global::world::ExposureI);
                 sdk::view::invalidate();
+            }
+            else if (s_exposureSaved) {
+                sdk::light::exposure(global::light.Address, s_origExposure);
+                sdk::view::invalidate();
+                s_exposureSaved = false;
             }
 
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -198,6 +248,7 @@ namespace world {
             {
 				sdk::light::fov(global::camera.Address, global::world::FOV_Distance);
             }
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
 
     }

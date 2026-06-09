@@ -247,8 +247,8 @@ namespace aim {
                 }
 
                 int HitboxIdx = global::aim::HitPart;
-                if (HitboxIdx >= (int)Bones.size()) HitboxIdx = 0;
                 if (HitboxIdx == 4) HitboxIdx = rand() % (int)Bones.size();
+                else if (HitboxIdx >= (int)Bones.size()) HitboxIdx = 0;
 
                 sdk::vector3 BonePos = Bones[HitboxIdx].first;
                 if (std::isnan(BonePos.x)) {
@@ -277,7 +277,7 @@ namespace aim {
                     (ScreenPos.x - CursorPos.x) * (ScreenPos.x - CursorPos.x) +
                     (ScreenPos.y - CursorPos.y) * (ScreenPos.y - CursorPos.y));
 
-                if (global::aim::Aimbot_type == 1 && Dist2D > global::aim::FovSize) {
+                if ((global::aim::useFov || global::aim::Aimbot_type == 1) && Dist2D > global::aim::FovSize) {
                     IsPersisting = false;
                     PersistenceName = "";
                     global::aim::AimTarget = sdk::instance(0);
@@ -314,8 +314,8 @@ namespace aim {
             if (Bones.empty()) continue;
 
             int HitboxIdx = global::aim::HitPart;
-            if (HitboxIdx >= (int)Bones.size()) HitboxIdx = 0;
             if (HitboxIdx == 4) HitboxIdx = rand() % (int)Bones.size();
+            else if (HitboxIdx >= (int)Bones.size()) HitboxIdx = 0;
 
             sdk::vector3 BonePos = Bones[HitboxIdx].first;
             if (std::isnan(BonePos.x)) continue;
@@ -433,10 +433,6 @@ namespace aim {
             sdk::camera Cam(CameraInst.Address);
             auto CamPos = Cam.position();
             auto TargetPos = AimPositionW;
-
-            TargetPos.x += global::aim::ShakeX;
-            TargetPos.y += global::aim::ShakeY;
-            TargetPos.z += global::aim::ShakeY;
 
             if (global::aim::Shake) {
                 TargetPos.x += ((float)rand() / RAND_MAX * 2 - 1) * global::aim::ShakeX;

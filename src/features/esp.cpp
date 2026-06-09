@@ -14,6 +14,7 @@
 #include <imgui/imgui_internal.h>
 #include "ui/graphic.h"
 #include "../features/wallcheck.h"
+#include "../features/silent.h"
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 
@@ -1189,8 +1190,11 @@ namespace esp {
             global::aim::FovSize, global::aim::FovColor,
             global::aim::FillFov, global::aim::FovSpin, global::aim::FovSpinSpeed);
 
-        DrawFovCircle(global::silent::DrawFov && global::silent::Enabled,
-            global::silent::fov, global::silent::FovColor,
+        {
+            // Use effectivefov() so GunBasedFov is reflected visually
+            float silentFov = effectivefov();
+            DrawFovCircle(global::silent::DrawFov && global::silent::Enabled,
+            silentFov, global::silent::FovColor,
             global::silent::FillFov, global::silent::FovSpin, global::silent::FovSpinSpeed);
     }
 }

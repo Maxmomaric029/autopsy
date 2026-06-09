@@ -89,6 +89,9 @@ namespace {
 
 namespace misc {
 
+    // Separate active state from enabled flag to fix Hold mode override
+    static bool s_flyActive = false;
+
     void fly()
     {
         timeBeginPeriod(1);
@@ -111,10 +114,11 @@ namespace misc {
             {
                 if (keyDown && !prevKeyState)
                     global::misc::fly = !global::misc::fly;
+                s_flyActive = global::misc::fly;
             }
             else
             {
-                global::misc::fly = keyDown;
+                s_flyActive = keyDown;
             }
 
             prevKeyState = keyDown;
@@ -122,6 +126,13 @@ namespace misc {
             auto& lp = global::LocalPlayer;
             if (!lp.HumanoidRootPart.Address || !lp.humanoid.Address || !global::camera.Address)
             {
+                if (wasFlying)
+                {
+                    writegravity(worldptr(), savedGravity);
+                    platform(lp.humanoid.Address, false);
+                    sdk::part hrp(lp.HumanoidRootPart.Address);
+                    hrp.velocity({ 0.f, 0.f, 0.f });
+                }
                 wasFlying = false;
                 continue;
             }
@@ -130,7 +141,7 @@ namespace misc {
             if (!world)
                 continue;
 
-            if (!global::misc::fly)
+            if (!s_flyActive)
             {
                 if (wasFlying)
                 {
@@ -239,32 +250,39 @@ namespace misc {
         drive->write<bool>(primitive.Address + offset::primitiveflag::CanCollide, false);
     }
 
+
+
+    struct OrigSize { uint64_t address; sdk::vector3 size; bool canCollide; };
+    static std::vector<OrigSize> s_originalSizes;
+    static bool s_hitboxRestored = true;
+
     void hitbox()
     {
-        constexpr sdk::vector3 kNormalSize{ 2.f, 2.f, 1.f };
-        bool restored = true;
-
         while (true)
         {
             Sleep(10);
 
             if (!global::misc::hitbox)
             {
-                if (!restored)
+                if (!s_hitboxRestored)
                 {
                     std::lock_guard<std::mutex> lock(cache::Mutex);
-                    for (const sdk::player& player : global::Player_Cache)
-                    {
-                        if (player.Local_Player)
-                            continue;
-                        primitivesize(player.HumanoidRootPart, kNormalSize);
+                    for (auto& orig : s_originalSizes) {
+                        if (!orig.address) continue;
+                        sdk::part bp(orig.address);
+                        sdk::part prim = bp.primitive();
+                        if (prim.Address) {
+                            drive->write<sdk::vector3>(prim.Address + offset::primitive::Size, orig.size);
+                            drive->write<bool>(prim.Address + offset::primitiveflag::CanCollide, orig.canCollide);
+                        }
                     }
-                    restored = true;
+                    s_originalSizes.clear();
+                    s_hitboxRestored = true;
                 }
                 continue;
             }
 
-            restored = false;
+            s_hitboxRestored = false;
             const sdk::vector3 hitboxSize{
                 std::clamp(global::misc::Hitbox_Size_X, 1.f, 75.f),
                 std::clamp(global::misc::Hitbox_Size_Y, 1.f, 75.f),
@@ -272,10 +290,25 @@ namespace misc {
             };
 
             std::lock_guard<std::mutex> lock(cache::Mutex);
+            if (s_originalSizes.empty()) {
+                for (const sdk::player& player : global::Player_Cache) {
+                    if (player.Local_Player) continue;
+                    if (global::LocalPlayer.character.Address &&
+                        player.character.Address == global::LocalPlayer.character.Address)
+                        continue;
+                    if (!player.HumanoidRootPart.Address) continue;
+                    sdk::part bp(player.HumanoidRootPart.Address);
+                    sdk::part prim = bp.primitive();
+                    if (prim.Address) {
+                        sdk::vector3 origSize = drive->read<sdk::vector3>(prim.Address + offset::primitive::Size);
+                        bool origCollide = drive->read<bool>(prim.Address + offset::primitiveflag::CanCollide);
+                        s_originalSizes.push_back({player.HumanoidRootPart.Address, origSize, origCollide});
+                    }
+                }
+            }
             for (const sdk::player& player : global::Player_Cache)
             {
-                if (player.Local_Player)
-                    continue;
+                if (player.Local_Player) continue;
                 if (global::LocalPlayer.character.Address &&
                     player.character.Address == global::LocalPlayer.character.Address)
                     continue;

@@ -15,7 +15,7 @@
 
 std::uint64_t helper::CachedInputObject = 0;
 
-static float effectivefov()
+float effectivefov()
 {
     if (!global::silent::GunBasedFov)
         return global::silent::fov;
@@ -551,7 +551,7 @@ void silent::frame() {
         silentkey();
 
         if (SilentAimInstance.Address != 0 && SilentHasOriginalSizes) {
-            if (global::silent::Enabled) {
+            if (silentactive()) {
                 drive->write<sdk::vector2>(SilentAimInstance.Address + offset::gui::Size, { 0, 0 });
 
                 auto children = SilentAimInstance.children();
@@ -563,7 +563,7 @@ void silent::frame() {
             else {
                 drive->write<sdk::vector2>(SilentAimInstance.Address + offset::gui::Size, SilentOriginalSize);
                 for (const auto& [ChildAddr, OrigSize] : SilentOriginalChildrenSizes) {
-                    drive->write<sdk::vector2>(ChildAddr, OrigSize);
+                    drive->write<sdk::vector2>(ChildAddr + offset::gui::Size, OrigSize);
                 }
             }
         }

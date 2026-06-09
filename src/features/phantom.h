@@ -49,6 +49,17 @@ std::vector<sdk::instance> playerlist() {
     else {
         sdk::instance LocalPlayer(LocalPlayerAddr);
         sdk::instance LocalChar = LocalPlayer.character();
+        if (!LocalChar.Address) return TargetPlayers;
+        std::uint64_t LocalTeamId = sdk::actor(LocalPlayerAddr).teamid();
+        for (auto& team : Teams) {
+            for (auto& player : team.childrenas<sdk::instance>()) {
+                if (player.kind() != "Model") continue;
+                std::uint64_t PlayerTeamId = sdk::actor(player.Address).teamid();
+                if (PlayerTeamId != LocalTeamId) {
+                    TargetPlayers.push_back(player);
+                }
+            }
+        }
     }
 
     return TargetPlayers;
