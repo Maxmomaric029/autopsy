@@ -17,31 +17,52 @@ namespace font {
     inline ImFont* g_logo    = nullptr;  // Logo/Header 24px (Inter Black)
 
     // ========================================================================
+    // Resolve font path relative to executable directory
+    // Exe at: .../Build/miserable.exe → baseDir = .../
+    // ========================================================================
+    inline std::string resolvePath(const char* relative) {
+        char exePath[MAX_PATH];
+        GetModuleFileNameA(nullptr, exePath, MAX_PATH);
+        std::string p(exePath);
+        auto pos = p.find_last_of("\\/");
+        if (pos != std::string::npos) {
+            p = p.substr(0, pos); // Build/
+            auto pos2 = p.find_last_of("\\/");
+            if (pos2 != std::string::npos) {
+                p = p.substr(0, pos2 + 1); // project root with trailing \
+            }
+        }
+        return p + relative;
+    }
+
+    // ========================================================================
     // Load all fonts with DPI-aware sizing, FreeType, and FontAwesome 6 icons
     // ========================================================================
     inline bool load(float dpiScale = 1.0f) {
         ImGuiIO& io = ImGui::GetIO();
         io.Fonts->Clear();
 
-        // Use FreeType for superior anti-aliasing
+        // Safety fallback: load default font first so we always have something
+        ImFont* defaultFallback = io.Fonts->AddFontDefault();
+        g_regular = g_medium = g_bold = g_mono = g_logo = defaultFallback;
+
+        // Use FreeType for superior anti-aliasing (applies to custom fonts below)
         const unsigned int ftFlags =
             ImGuiFreeTypeLoaderFlags_LoadColor |
             ImGuiFreeTypeLoaderFlags_LightHinting;
         io.Fonts->SetFontLoader(ImGuiFreeType::GetFontLoader());
         io.Fonts->FontLoaderFlags = ftFlags;
 
-        // Paths to Inter font files (local in project)
-        const char* interRegular = "Dependencies/Fonts/Inter/Inter-Regular.ttf";
-        const char* interSemiBld = "Dependencies/Fonts/Inter/Inter-SemiBold.ttf";
-        const char* interBold    = "Dependencies/Fonts/Inter/Inter-Bold.ttf";
-        const char* interBlack   = "Dependencies/Fonts/Inter/Inter-Black.ttf";
+        // Resolve absolute paths from executable location
+        std::string interRegular = resolvePath("Dependencies\\Fonts\\Inter\\Inter-Regular.ttf");
+        std::string interSemiBld = resolvePath("Dependencies\\Fonts\\Inter\\Inter-SemiBold.ttf");
+        std::string interBold    = resolvePath("Dependencies\\Fonts\\Inter\\Inter-Bold.ttf");
+        std::string interBlack   = resolvePath("Dependencies\\Fonts\\Inter\\Inter-Black.ttf");
+        std::string faSolid      = resolvePath("Dependencies\\FontAwesome\\fa-solid-900.ttf");
+        std::string faRegular    = resolvePath("Dependencies\\FontAwesome\\fa-regular-400.ttf");
 
-        // FontAwesome paths
-        const char* faSolid   = "Dependencies/FontAwesome/fa-solid-900.ttf";
-        const char* faRegular = "Dependencies/FontAwesome/fa-regular-400.ttf";
-
-        auto fileExists = [](const char* p) -> bool {
-            return GetFileAttributesA(p) != INVALID_FILE_ATTRIBUTES;
+        auto fileExists = [](const std::string& p) -> bool {
+            return GetFileAttributesA(p.c_str()) != INVALID_FILE_ATTRIBUTES;
         };
 
         // ---- Base config ----
@@ -55,14 +76,13 @@ namespace font {
         // ---- 1. Body: Inter Regular 14px + FontAwesome Solid merged ----
         if (fileExists(interRegular)) {
             cfg.MergeMode = false;
-            g_regular = io.Fonts->AddFontFromFileTTF(interRegular, 14.0f * dpiScale, &cfg);
-            // Merge FontAwesome Solid icons into body font
+            g_regular = io.Fonts->AddFontFromFileTTF(interRegular.c_str(), 14.0f * dpiScale, &cfg);
             if (g_regular && fileExists(faSolid)) {
                 cfg.MergeMode = true;
                 cfg.GlyphMinAdvanceX = 14.0f;
                 cfg.GlyphOffset = { 0.f, 1.f };
                 static const ImWchar faSolidRanges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
-                io.Fonts->AddFontFromFileTTF(faSolid, 14.0f * dpiScale, &cfg, faSolidRanges);
+                io.Fonts->AddFontFromFileTTF(faSolid.c_str(), 14.0f * dpiScale, &cfg, faSolidRanges);
                 cfg.MergeMode = false;
                 cfg.GlyphMinAdvanceX = 0.f;
                 cfg.GlyphOffset = { 0.f, 0.f };
@@ -72,13 +92,13 @@ namespace font {
         // ---- 2. Body Medium: Inter SemiBold 14px + FontAwesome Solid merged ----
         if (fileExists(interSemiBld)) {
             cfg.MergeMode = false;
-            g_medium = io.Fonts->AddFontFromFileTTF(interSemiBld, 14.0f * dpiScale, &cfg);
+            g_medium = io.Fonts->AddFontFromFileTTF(interSemiBld.c_str(), 14.0f * dpiScale, &cfg);
             if (g_medium && fileExists(faSolid)) {
                 cfg.MergeMode = true;
                 cfg.GlyphMinAdvanceX = 14.0f;
                 cfg.GlyphOffset = { 0.f, 1.f };
                 static const ImWchar faSolidRanges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
-                io.Fonts->AddFontFromFileTTF(faSolid, 14.0f * dpiScale, &cfg, faSolidRanges);
+                io.Fonts->AddFontFromFileTTF(faSolid.c_str(), 14.0f * dpiScale, &cfg, faSolidRanges);
                 cfg.MergeMode = false;
                 cfg.GlyphMinAdvanceX = 0.f;
                 cfg.GlyphOffset = { 0.f, 0.f };
@@ -90,13 +110,13 @@ namespace font {
             cfg.MergeMode = false;
             cfg.OversampleH = 3;
             cfg.OversampleV = 3;
-            g_bold = io.Fonts->AddFontFromFileTTF(interBold, 16.0f * dpiScale, &cfg);
+            g_bold = io.Fonts->AddFontFromFileTTF(interBold.c_str(), 16.0f * dpiScale, &cfg);
             if (g_bold && fileExists(faSolid)) {
                 cfg.MergeMode = true;
                 cfg.GlyphMinAdvanceX = 16.0f;
                 cfg.GlyphOffset = { 0.f, 1.f };
                 static const ImWchar faSolidRanges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
-                io.Fonts->AddFontFromFileTTF(faSolid, 16.0f * dpiScale, &cfg, faSolidRanges);
+                io.Fonts->AddFontFromFileTTF(faSolid.c_str(), 16.0f * dpiScale, &cfg, faSolidRanges);
                 cfg.MergeMode = false;
                 cfg.GlyphMinAdvanceX = 0.f;
                 cfg.GlyphOffset = { 0.f, 0.f };
@@ -110,15 +130,15 @@ namespace font {
             cfg.MergeMode = false;
             cfg.OversampleH = 3;
             cfg.OversampleV = 3;
-            g_logo = io.Fonts->AddFontFromFileTTF(interBlack, 24.0f * dpiScale, &cfg);
+            g_logo = io.Fonts->AddFontFromFileTTF(interBlack.c_str(), 24.0f * dpiScale, &cfg);
             cfg.OversampleH = 2;
             cfg.OversampleV = 2;
         }
 
-        // ---- 5. Mono: Inter Regular 13px (code-like text) ----
+        // ---- 5. Mono: Inter Regular 13px ----
         if (fileExists(interRegular)) {
             cfg.MergeMode = false;
-            g_mono = io.Fonts->AddFontFromFileTTF(interRegular, 13.0f * dpiScale, &cfg);
+            g_mono = io.Fonts->AddFontFromFileTTF(interRegular.c_str(), 13.0f * dpiScale, &cfg);
         }
 
         // ---- 6. Fallbacks ----

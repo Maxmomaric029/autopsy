@@ -6,23 +6,21 @@
 #include <thread>
 #include <chrono>
 #include <vector>
+#include "global.h"
 
 // ============================================================================
-// MISERABLE Console UI - Animated Header, Credits, TOS, Box-Drawing Menu
+// AUTOPSY Console UI — Clean offsets presentation (no interactive menu)
 // ============================================================================
 
 namespace console {
 
     inline HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     inline bool initialized = false;
-    inline bool menuVisible = true;
-    inline int selectedOption = 0;
     inline float hue = 0.0f;
     inline bool redraw = true;
 
     // Status info (set from main thread)
     inline int playerCount = 0;
-    inline uintptr_t cameraAddress = 0;
     inline bool connected = false;
 
     // ========================================================================
@@ -42,6 +40,13 @@ namespace console {
 
     inline void home() {
         printf("\033[H");
+    }
+
+    inline void hide_cursor() {
+        CONSOLE_CURSOR_INFO cursorInfo;
+        GetConsoleCursorInfo(hConsole, &cursorInfo);
+        cursorInfo.bVisible = false;
+        SetConsoleCursorInfo(hConsole, &cursorInfo);
     }
 
     // ========================================================================
@@ -80,184 +85,233 @@ namespace console {
     }
 
     // ========================================================================
-    // Status bar - shows player count, camera status
+    // Box drawing helpers
     // ========================================================================
-    inline void draw_status_bar() {
-        rgb(60, 75, 90);
-        printf("  \xC0\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xB4\n");
-        reset();
+    inline void draw_hline(int len) {
+        for (int i = 0; i < len; i++) putchar(0xCD);
+    }
 
-        // Player count
-        rgb(146, 166, 178);
-        printf("  \xB3  Players: ");
-        if (connected) {
-            rgb(0, 220, 130);
-            printf("%-4d", playerCount);
-        } else {
-            rgb(255, 80, 80);
-            printf("waiting");
-        }
+    inline void draw_box_top(int w) {
+        putchar(0xC9);
+        draw_hline(w - 2);
+        putchar(0xBB);
+    }
 
-        // Separator
-        rgb(60, 75, 90);
-        printf("  \xB3  ");
+    inline void draw_box_bottom(int w) {
+        putchar(0xC0);
+        draw_hline(w - 2);
+        putchar(0xD9);
+    }
 
-        // Camera
-        rgb(146, 166, 178);
-        printf("Camera: ");
-        if (cameraAddress) {
-            rgb(0, 174, 255);
-            printf("0x%llX", (unsigned long long)cameraAddress);
-        } else {
-            rgb(255, 80, 80);
-            printf("N/A");
-        }
+    inline void draw_box_sep(int w) {
+        putchar(0xCC);
+        draw_hline(w - 2);
+        putchar(0xB9);
+    }
 
-        // Separator
-        rgb(60, 75, 90);
-        printf("  \xB3  MISERABLE");
-        reset();
-        printf("\n");
-
-        rgb(60, 75, 90);
-        printf("  \xC0\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xD9\n");
-        reset();
-        printf("\n");
+    inline void draw_bar(const char* left, const char* right, int w) {
+        printf("  %s ", left);
+        int pad = w - 4 - (int)strlen(left) - (int)strlen(right);
+        if (pad < 0) pad = 0;
+        printf("%*s", pad, "");
+        printf("%s  %s", right, left);
     }
 
     // ========================================================================
-    // Unicode block ASCII Art: MISERABLE
-    // Using: \xDB (█ full), \xDF (▄ bottom), \xDC (▀ top), \xDB (█)
+    // Draw "AUTOPSY" ASCII header
     // ========================================================================
     inline void draw_header(float hue_offset = 0.0f) {
-        const char* art[] = {
-            "  \xDB\xDB   \xDB\xDB \xDB\xDB\xDB\xDB\xDB \xDB\xDB\xDB\xDB\xDB \xDB\xDB\xDB\xDB\xDB \xDB\xDB\xDB\xDB  \xDB\xDB\xDB \xDB\xDB\xDB\xDB  \xDB     \xDB\xDB\xDB\xDB\xDB",
-            "  \xDB \xDB \xDB \xDB \xDB      \xDB     \xDB   \xDB \xDB   \xDB \xDB   \xDB \xDB     \xDB    ",
-            "  \xDB  \xDB  \xDB \xDB\xDB\xDB\xDB\xDB \xDB\xDB\xDB\xDB  \xDB\xDB\xDB\xDB  \xDB\xDB\xDB\xDB  \xDB\xDB\xDB\xDB\xDB \xDB\xDB\xDB\xDB  \xDB     \xDB\xDB\xDB\xDB ",
-            "  \xDB     \xDB \xDB      \xDB     \xDB     \xDB  \xDB \xDB   \xDB \xDB   \xDB \xDB     \xDB    ",
-            "  \xDB     \xDB \xDB\xDB\xDB\xDB\xDB \xDB\xDB\xDB\xDB\xDB \xDB   \xDB \xDB   \xDB \xDB\xDB\xDB\xDB  \xDB\xDB\xDB\xDB\xDB \xDB\xDB\xDB\xDB\xDB",
-            "",
+        const char* header[] = {
+            "    ╔═══╗╔════╗╔════╗╔════╗╔═══╗╔════╗╔═══╗╔════╗",
+            "    ║╔═╗║║╔╗╔╗║║╔╗╔╗║║╔╗╔╗║║╔══╝║╔╗╔╗║║╔══╝╚═╗╔═╝",
+            "    ║╚═╝║║║║║║║╚╝║║╚╝║║║║║║║╚══╗║║║║║║║╚══╗  ║║  ",
+            "    ║╔╗╔╝║║║║║║  ║║  ║║║║║║║╔══╝║║║║║║║╔══╝  ║║  ",
+            "    ║║║╚╗║║║║║║  ║║  ║║║║║║║╚══╗║║║║║║║╚══╗  ║║  ",
+            "    ╚╝╚═╝╚╝╚╝╚╝  ╚╝  ╚╝╚╝╚╝╚═══╝╚╝╚╝╚╝╚═══╝  ╚╝  ",
         };
 
-        int lines = sizeof(art) / sizeof(art[0]);
-        for (int i = 0; i < lines; i++) {
-            float h = hue_offset + ((float)i / 4.0f) * 0.3f;
+        for (int i = 0; i < 6; i++) {
+            float h = hue_offset + ((float)i / 6.0f) * 0.15f;
             if (h > 1.0f) h -= 1.0f;
-            rgb(30, 40, 55);
-            printf(" ");
-            reset();
-            gradient_text(art[i], h, 0.2f);
+            printf("  ");
+            gradient_text(header[i], h, 0.15f);
             printf("\n");
         }
-
-        // Credit line with box drawing
-        rgb(100, 117, 255);
-        printf("  \xC9\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xBB\n");
-        rgb(180, 140, 255);
-        printf("  \xBA         Bloodie & Xchino presents — MISERABLE          \xBA\n");
-        rgb(100, 117, 255);
-        printf("  \xBC\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xBE\n");
-        reset();
-        printf("\n");
     }
 
     // ========================================================================
-    // TOS
+    // Draw an offset line
     // ========================================================================
-    inline void draw_tos() {
-        rgb(100, 117, 255);
-        printf("  \xC9\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xBB\n");
-        rgb(180, 140, 255);
-        printf("  \xBA                      TERMS OF SERVICE                      \xBA\n");
-        rgb(100, 117, 255);
-        printf("  \xCC\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xB9\n");
+    inline void offset_line(const char* label, uintptr_t value, int w) {
+        rgb(60, 75, 90);
+        printf("  \xBA  ");
         reset();
-
-        const char* tos_lines[] = {
-            "  \xBA  >>  This software is FREE and for EDUCATIONAL purposes only  \xBA",
-            "  \xBA  >>  Use at your own risk. Creators assume NO liability.       \xBA",
-            "  \xBA  >>  You MAY be banned from games/services while using this.    \xBA",
-            "  \xBA  >>  Reselling or redistribution for profit is STRICTLY banned. \xBA",
-            "  \xBA  >>  Educational/security research purposes ONLY.               \xBA",
-        };
-
-        rgb(180, 200, 220);
-        for (auto& line : tos_lines) {
-            printf("%s\n", line);
-        }
-        reset();
-
-        rgb(100, 117, 255);
-        printf("  \xC0\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xD9\n");
-        reset();
-        printf("\n");
-    }
-
-    // ========================================================================
-    // Box-Drawing Menu
-    // ========================================================================
-    inline void draw_menu_item(const char* label, bool selected, bool enabled = true) {
-        if (selected) {
-            rgb(0, 174, 255);
-            printf("  \xBA  \xFE  ");
-            rgb(255, 255, 255);
-            printf("%-47s", label);
-            rgb(0, 174, 255);
-            printf("  \xBA");
-        }
-        else if (enabled) {
-            rgb(146, 166, 178);
-            printf("  \xBA     ");
-            rgb(180, 200, 220);
-            printf("%-47s", label);
-            rgb(146, 166, 178);
-            printf("  \xBA");
-        }
-        else {
-            rgb(86, 101, 114);
-            printf("  \xBA     ");
-            printf("%-47s", label);
-            printf("  \xBA");
-        }
-        reset();
-        printf("\n");
-    }
-
-    inline void draw_menu() {
-        rgb(100, 117, 255);
-        printf("  \xC9\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD  M E N U  \xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xBB\n");
-        reset();
-
-        const char* items[] = {
-            "Camera offset   =",
-            "Lights offset   =",
-            "Players offset  =",
-            "ESP offset      =",
-            "Aimbot offset   =",
-            "Silent offset   =",
-            "World offset    =",
-            "Miscellaneous    =",
-            "Config Manager   ="
-        };
-        int count = sizeof(items) / sizeof(items[0]);
-
-        for (int i = 0; i < count; i++) {
-            draw_menu_item(items[i], i == selectedOption, true);
-            if (i < count - 1) {
-                rgb(60, 75, 90);
-                printf("  \xBA  \xFA                                            \xFA  \xBA\n");
-                reset();
-            }
-        }
-
-        rgb(100, 117, 255);
-        printf("  \xC0\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xD9\n");
-        reset();
-
-        printf("\n");
         rgb(146, 166, 178);
-        printf("  [\x18\x19] Navigate  [Enter] Select  [INS] Toggle Menu\n");
+        printf("%-20s", label);
         reset();
+        rgb(0, 174, 255);
+        if (value)
+            printf("0x%08llX", (unsigned long long)value);
+        else
+            printf("N/A");
+        reset();
+        // Fill remaining space
+        int used = 4 + 20 + 12;
+        if (used < w) {
+            rgb(60, 75, 90);
+            for (int i = used; i < w - 3; i++) putchar(' ');
+            printf(" \xBA");
+        } else {
+            rgb(60, 75, 90);
+            printf("  \xBA");
+        }
+        reset();
+        printf("\n");
+    }
+
+    // ========================================================================
+    // Draw status line
+    // ========================================================================
+    inline void status_line(const char* label, const char* value, int w, int r, int g, int b) {
+        rgb(60, 75, 90);
+        printf("  \xBA  ");
+        reset();
+        rgb(146, 166, 178);
+        printf("%-20s", label);
+        reset();
+        rgb(r, g, b);
+        printf("%-16s", value);
+        reset();
+        rgb(60, 75, 90);
+        printf("  \xBA");
+        reset();
+        printf("\n");
+    }
+
+    // ========================================================================
+    // Section header
+    // ========================================================================
+    inline void section_header(const char* title, int w) {
+        rgb(100, 117, 255);
+        printf("  \xBA  ");
+        rgb(146, 166, 178);
+        printf(">> %s", title);
+        reset();
+        int used = 5 + 2 + (int)strlen(title);
+        if (used < w - 3) {
+            rgb(60, 75, 90);
+            for (int i = used; i < w - 3; i++) putchar(' ');
+            printf(" \xBA");
+        } else {
+            rgb(60, 75, 90);
+            printf("  \xBA");
+        }
+        reset();
+        printf("\n");
+    }
+
+    // ========================================================================
+    // Full render
+    // ========================================================================
+    inline void render(float time) {
+        cls();
+        redraw = false;
+        hue = fmodf(time * 0.03f, 1.0f);
+
+        const int w = 60;
+
+        // ===== HEADER =====
+        draw_header(hue);
+        printf("\n");
+
+        // ===== STATUS BAR =====
+        rgb(100, 117, 255);
+        printf("  ");
+        draw_box_top(w);
+        reset();
+        printf("\n");
+
+        rgb(180, 140, 255);
+        printf("  \xBA  AUTOPSY \xBB OFFSETS MONITOR                 \xBA\n");
+        rgb(100, 117, 255);
+        printf("  ");
+        draw_box_sep(w);
+        reset();
+        printf("\n");
+
+        // ===== GAME INFO =====
+        section_header("GAME", w);
+
+        char gameIdStr[32];
+        snprintf(gameIdStr, sizeof(gameIdStr), "%llu", (unsigned long long)global::GameID);
+        status_line("GameID", gameIdStr, w, 0, 220, 130);
+
+        status_line("Status", global::camera.Address ? "Connected" : "Waiting", w,
+            global::camera.Address ? 0 : 255,
+            global::camera.Address ? 220 : 80,
+            global::camera.Address ? 130 : 80);
+
+        char playerStrBuf[32];
+        snprintf(playerStrBuf, sizeof(playerStrBuf), "%d", console::playerCount);
+        status_line("Players", playerStrBuf, w, 146, 166, 178);
+
+        // ===== CAMERA =====
+        section_header("CAMERA", w);
+        offset_line("Camera Address", global::camera.Address, w);
+        offset_line("Camera Subject", offset::camera::CameraSubject, w);
+        offset_line("FieldOfView", offset::camera::FieldOfView, w);
+
+        // ===== PLAYERS =====
+        section_header("PLAYERS", w);
+        offset_line("LocalPlayer Addr", global::LocalPlayer.Address, w);
+        offset_line("Local Character", global::LocalPlayer.character.Address, w);
+        offset_line("HumanoidRootPart", global::LocalPlayer.HumanoidRootPart.Address, w);
+        offset_line("Model offset", offset::player::ModelInstance, w);
+        offset_line("DisplayName offset", offset::player::DisplayName, w);
+
+        // ===== LIGHTING =====
+        section_header("LIGHTING", w);
+        offset_line("Light Address", global::light.Address, w);
+        offset_line("Brightness offset", offset::light::Brightness, w);
+        offset_line("FogEnd offset", offset::light::FogEnd, w);
+        offset_line("ClockTime offset", offset::light::ClockTime, w);
+
+        // ===== CORE =====
+        section_header("CORE", w);
+        offset_line("Model Address", global::model.Address, w);
+        offset_line("Workspace Addr", global::workspace.Address, w);
+        offset_line("Render Address", global::render.Address, w);
+        offset_line("View Address", global::view.Address, w);
+
+        // ===== AIMBOT =====
+        section_header("AIMBOT / SILENT", w);
+        offset_line("FakeModel Ptr", offset::fakemodel::Pointer, w);
+        offset_line("Render Ptr", offset::render::Pointer, w);
+        offset_line("Task Ptr", offset::task::Pointer, w);
+
+        // ===== FOOTER =====
+        rgb(100, 117, 255);
+        printf("  ");
+        draw_box_bottom(w);
+        printf("\n");
+        reset();
+
+        rgb(146, 166, 178);
+        printf("  [INS] Toggle overlay  [END] Exit\n");
+        reset();
+    }
+
+    // ========================================================================
+    // Periodically refresh
+    // ========================================================================
+    inline void refresh_loop() {
+        while (true) {
+            float time = (float)std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now().time_since_epoch()).count() / 1000.0f;
+            render(time);
+            // Wait a bit before refreshing
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+        }
     }
 
     // ========================================================================
@@ -272,101 +326,27 @@ namespace console {
             SetConsoleMode(hConsole, mode);
         }
 
-        CONSOLE_CURSOR_INFO cursorInfo;
-        GetConsoleCursorInfo(hConsole, &cursorInfo);
-        cursorInfo.bVisible = false;
-        SetConsoleCursorInfo(hConsole, &cursorInfo);
+        hide_cursor();
 
-        // Set small buffer to minimize scrollback
         CONSOLE_SCREEN_BUFFER_INFO csbi;
         GetConsoleScreenBufferInfo(hConsole, &csbi);
-        csbi.dwSize.Y = 800; // limit scrollback
+        csbi.dwSize.Y = 800;
         SetConsoleScreenBufferSize(hConsole, csbi.dwSize);
 
-        SetConsoleTitleA("miserable");
+        SetConsoleTitleA("autopsy - offsets monitor");
 
         initialized = true;
-        cls();
     }
 
     // ========================================================================
-    // Full render — prints ONCE, then only on input change
-    // ========================================================================
-    inline void render(float time) {
-        cls();
-        redraw = false;
-        hue = fmodf(time * 0.05f, 1.0f);
-        draw_header(hue);
-        draw_status_bar();
-        draw_tos();
-        draw_menu();
-    }
-
-    // ========================================================================
-    // Input thread — triggers re-render on key press
-    // ========================================================================
-    inline void input_thread() {
-        const int item_count = 9;
-        while (true) {
-            bool dirty = false;
-            if (GetAsyncKeyState(VK_UP) & 0x0001) {
-                selectedOption = (selectedOption - 1 + item_count) % item_count;
-                dirty = true;
-            }
-            if (GetAsyncKeyState(VK_DOWN) & 0x0001) {
-                selectedOption = (selectedOption + 1) % item_count;
-                dirty = true;
-            }
-            if (GetAsyncKeyState(VK_RETURN) & 0x0001) {
-                Beep(800, 50);
-            }
-            if (GetAsyncKeyState(VK_INSERT) & 0x0001) {
-                menuVisible = !menuVisible;
-                dirty = true;
-            }
-            if (dirty && menuVisible) {
-                float time = (float)std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::steady_clock::now().time_since_epoch()).count() / 1000.0f;
-                render(time);
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        }
-    }
-
-    // ========================================================================
-    // Render once at startup, then only on input
-    // ========================================================================
-    inline void render_loop() {
-        // Render once on start
-        if (menuVisible) {
-            float time = (float)std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::steady_clock::now().time_since_epoch()).count() / 1000.0f;
-            render(time);
-        }
-        // No loop — only re-render from input_thread when dirty
-        while (true) {
-            std::this_thread::sleep_for(std::chrono::hours(24));
-        }
-    }
-
-    // ========================================================================
-    // Start
+    // Start — no interactive menu, just periodic refresh
     // ========================================================================
     inline void start() {
         init();
-        std::thread(input_thread).detach();
-        std::thread(render_loop).detach();
+        float time = (float)std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()).count() / 1000.0f;
+        render(time);
+        std::thread(refresh_loop).detach();
     }
 
 } // namespace console
-
-// ============================================================================
-// Legacy output namespace — all stubs for compatibility
-// ============================================================================
-namespace output {
-    inline void info(const char*, ...) {}
-    inline void warn(const char*, ...) {}
-    inline void error(const char*, ...) {}
-    inline void ok(const char*, ...) {}
-    inline void core(const char*, const char*, ...) {}
-} // namespace output

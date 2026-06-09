@@ -7,248 +7,201 @@
 #include "../core/icons.h"
 
 // ========================================================================
-// Menu layout: sidebar tabs, header, and backdrop rendering
+// Menu layout: horizontal pill tabs + clean content area
 // ========================================================================
 
 namespace layout {
 
-    // ---- Sidebar Tab button --------------------------------------------
-    static bool tab(ImDrawList* dl, ImVec2 wp, float startY, float sbW, bool compact,
-        int idx, int cur, const char* iconChar, const char* label) {
+    // ========================================================================
+    // Header bar — logo + pill tabs + branding
+    // ========================================================================
+    static bool header(ImDrawList* dl, ImVec2 wp, ImVec2 ws,
+        int& section, float menuEase) {
 
-        const bool   active = (idx == cur);
-        const float tabH = theme::kTabH - 6.f;
-        const float tabPad = compact ? 4.f : 14.f;
-        const float tabW = sbW - (tabPad * 2.f);
-        const float tabX = wp.x + tabPad;
-        const float tabY = wp.y + startY + idx * theme::kTabH;
-
-        const ImVec2 tMin = { tabX, tabY };
-        const ImVec2 tMax = tMin + ImVec2(tabW, tabH);
-        const ImVec2 center = compact
-            ? ImVec2(tMin.x + tabW * .5f, tMin.y + tabH * .5f)
-            : ImVec2(tMin.x + 18.f, tMin.y + tabH * .5f);
-
-        ImGui::SetCursorScreenPos(tMin);
-        ImGui::PushID(idx);
-        ImGui::InvisibleButton("##tab", { tabW, tabH });
-
-        const bool clicked = ImGui::IsItemClicked();
-        const bool hov = ImGui::IsItemHovered();
-        const ImGuiID id = ImGui::GetItemID();
-        ImGui::PopID();
-
-        const float t = anim::ease_out_cubic(anim::g_anim.get(id, active || hov, 9.f));
-        const float at = anim::ease_out_cubic(anim::g_anim.get(id ^ 0x8A13C4u, active, 10.f));
-
-        const ImU32 hoverFill = theme::lerp_u32(IM_COL32(0, 0, 0, 0),
-            IM_COL32(11, 28, 42, 126), t);
-        const ImU32 activeFill = IM_COL32(0, 78, 116, 178);
-        dl->AddRectFilled(tMin, tMax, theme::lerp_u32(hoverFill, activeFill, at), 9.f);
-
-        if (at > .01f) {
-            dl->AddRectFilled(tMin + ImVec2(1.f, 1.f), tMax - ImVec2(1.f, 1.f),
-                IM_COL32(0, 174, 255, (int)(at * 12.f)), 8.f);
-            dl->AddRect(tMin, tMax, IM_COL32(0, 174, 255, (int)(at * 96.f)), 9.f, 0, 1.f);
-        }
-
-        const ImU32 baseCol = hov ? theme::col_text() : theme::col_muted();
-        ImU32 iconCol = theme::lerp_u32(baseCol, theme::alpha(theme::col_accent(), 0.85f), at);
-
-        // Render FontAwesome icon as text instead of custom draw
-        const float iconSize = 18.f + at;
-        ImFont* f = font::bold();
-        ImVec2 iconS = f->CalcTextSizeA(iconSize, FLT_MAX, 0.f, iconChar);
-        dl->AddText(f, iconSize,
-            ImVec2(center.x - iconS.x * 0.5f + at * 1.5f,
-                   center.y - iconS.y * 0.5f),
-            iconCol, iconChar);
-
-        if (!compact)
-            dl->AddText({ tMin.x + 42.f, tMin.y + (tabH - ImGui::GetFontSize()) * .5f },
-                iconCol, label);
-
-        return clicked;
-    }
-
-    // ---- Sidebar --------------------------------------------------------
-    static void sidebar(ImDrawList* dl, ImVec2 wp, ImVec2 ws, bool compact,
-        int& section, const char* userName) {
-
-        const float sbW = compact ? theme::kSidebarCompactW : theme::kSidebarW;
-
-        // Sidebar background
-        const ImVec2 sideMin = wp + ImVec2(1.f, 1.f);
-        const ImVec2 sideMax = { wp.x + sbW, wp.y + ws.y - 1.f };
-        dl->AddRectFilled(sideMin, sideMax, IM_COL32(4, 10, 17, 118), theme::r_window,
-            ImDrawFlags_RoundCornersLeft);
-
-        // Subtle gradient overlay
-        dl->AddRectFilledMultiColorRounded(sideMin, sideMax,
-            IM_COL32(255, 255, 255, 10), IM_COL32(255, 255, 255, 2),
-            IM_COL32(0, 0, 0, 68), IM_COL32(0, 174, 255, 12),
-            theme::r_window, ImDrawFlags_RoundCornersLeft);
-
-        // Logo area gradient
-        dl->AddRectFilledMultiColorRounded(sideMin + ImVec2(1.f, 1.f),
-            ImVec2(sideMax.x - 1.f, sideMin.y + 92.f),
-            IM_COL32(255, 255, 255, 8), IM_COL32(0, 174, 255, 5),
-            IM_COL32(255, 255, 255, 1), IM_COL32(0, 0, 0, 0),
-            theme::r_window - 1.f, ImDrawFlags_RoundCornersTopLeft);
-
-        // Sidebar border
-        dl->AddRect(sideMin, sideMax, IM_COL32(255, 255, 255, 18),
-            theme::r_window, ImDrawFlags_RoundCornersLeft, 1.f);
-        dl->AddLine({ wp.x + sbW, wp.y + 10.f },
-            { wp.x + sbW, wp.y + ws.y - 10.f },
-            IM_COL32(96, 210, 255, 42), 1.f);
-
-        // Logo (non-compact)
-        if (!compact) {
-            const ImVec2 lp = { wp.x + 30.f, wp.y + 25.f };
-            ImFont* logoF = font::logo();
-            const float logoSize = logoF->LegacySize;
-            const ImVec2 aw = logoF->CalcTextSizeA(logoSize, FLT_MAX, 0.f, "AUTOPSY");
-            dl->AddRectFilled(lp + ImVec2(-8.f, 3.f), lp + ImVec2(-5.f, 25.f),
-                theme::col_accent(), 2.f);
-            dl->AddText(logoF, logoSize, lp + ImVec2(1.f, 2.f),
-                IM_COL32(0, 0, 0, 190), "AUTOPSY");
-            dl->AddText(logoF, logoSize, lp, theme::col_text(), "AUTOPSY");
-            dl->AddText(lp + ImVec2(aw.x + 7.f, 6.f),
-                theme::col_accent(), "BETA");
-
-            // Divider
-            dl->AddRectFilled({ wp.x + 20.f, wp.y + theme::kLogoH - 13.f },
-                { wp.x + sbW - 20.f, wp.y + theme::kLogoH - 12.f },
-                theme::col_border(), 1.f);
-        }
-
-        // Section label
-        if (!compact)
-            dl->AddText({ wp.x + 20.f, wp.y + theme::kLogoH + 7.f },
-                theme::col_muted(), "MAIN");
-
-        // Tabs
-        const float tabY = compact ? 14.f : theme::kLogoH + 28.f;
-        for (int i = 0; i < icon::kTabCount; i++)
-            if (tab(dl, wp, tabY, sbW, compact, i, section,
-                icon::tabIconChars[i], icon::tabLabels[i]))
-                section = i;
-
-        // Footer (non-compact)
-        if (!compact) {
-            dl->AddRectFilled({ wp.x + 20.f, wp.y + ws.y - 66.f },
-                { wp.x + sbW - 20.f, wp.y + ws.y - 65.f },
-                theme::col_border(), 1.f);
-            dl->AddText({ wp.x + 20.f, wp.y + ws.y - 49.f },
-                theme::col_muted(), "Signed in");
-            dl->AddText({ wp.x + 20.f, wp.y + ws.y - 30.f },
-                theme::col_text(), userName);
-        }
-    }
-
-    // ---- Header ---------------------------------------------------------
-    static void header(ImDrawList* dl, ImVec2 wp, ImVec2 ws, float sbW,
-        int section, int prevSection, float headerEase, float headerAlpha,
-        bool compact) {
-
-        const float kHeaderH = compact ? 48.f : theme::kHeaderH;
-        const float contentX = wp.x + sbW + 1.f;
-        const float contentW = ws.x - sbW - 1.f;
+        const float kHeaderH = 56.f;
+        constexpr float padX = 16.f;
 
         // Header background
-        dl->AddRectFilled({ contentX, wp.y + 1.f },
-            { contentX + contentW - 1.f, wp.y + kHeaderH },
-            theme::col_surface(), theme::r_window, ImDrawFlags_RoundCornersTopRight);
-        dl->AddRectFilled({ contentX, wp.y + 1.f },
-            { contentX + contentW - 1.f, wp.y + kHeaderH },
-            IM_COL32(0, 174, 255, 5), theme::r_window, ImDrawFlags_RoundCornersTopRight);
-        dl->AddLine({ contentX, wp.y + kHeaderH },
-            { contentX + contentW, wp.y + kHeaderH },
-            theme::col_border(), 1.f);
+        dl->AddRectFilled(wp, wp + ImVec2(ws.x, kHeaderH),
+            IM_COL32(4, 10, 18, 220), theme::r_window,
+            ImDrawFlags_RoundCornersTop);
 
-        // Page titles
-        constexpr const char* kTabTitles[] = {
-            "AIMBOT", "VISUALS", "WORLD", "MISC", "BLADE BALL", "SETTINGS"
-        };
-        constexpr const char* kTabSubtitles[] = {
-            "combat & targeting", "esp & effects", "environment",
-            "movement & exploits", "game mode", "configuration"
-        };
+        // Subtle accent line at bottom of header
+        dl->AddRectFilled(wp + ImVec2(20.f, kHeaderH - 1.f),
+            wp + ImVec2(ws.x - 20.f, kHeaderH),
+            IM_COL32(0, 174, 255, 30), 0.f);
 
-        const ImVec2 tp = { contentX + 18.f, wp.y + 12.f };
-        ImFont* titleFont = font::bold();
-        const float titleSize = titleFont ? titleFont->LegacySize : ImGui::GetFontSize();
+        // Logo text
+        ImFont* logoF = font::logo();
+        const float logoSize = logoF->LegacySize;
+        const ImVec2 logoPos = wp + ImVec2(padX, 14.f);
+        dl->AddText(logoF, logoSize, logoPos + ImVec2(1.f, 1.f),
+            IM_COL32(15, 25, 40, 180), "AUTOPSY");
+        dl->AddText(logoF, logoSize, logoPos,
+            theme::col_text(), "AUTOPSY");
 
-        auto drawTitle = [&](int idx, float a, ImVec2 off) {
-            const ImVec2 p = tp + off;
-            dl->AddText(titleFont, titleSize, p + ImVec2(0.f, 1.f),
-                theme::alpha(IM_COL32(0, 0, 0, 180), a), kTabTitles[idx]);
-            dl->AddText(titleFont, titleSize, p,
-                theme::alpha(theme::col_accent(), a), kTabTitles[idx]);
-            dl->AddText({ p.x, p.y + 24.f },
-                theme::alpha(theme::col_muted(), a), kTabSubtitles[idx]);
-        };
+        // Beta badge
+        ImVec2 logoSize2 = logoF->CalcTextSizeA(logoSize, FLT_MAX, 0.f, "AUTOPSY");
+        dl->AddRectFilled(logoPos + ImVec2(logoSize2.x + 6.f, 2.f),
+            logoPos + ImVec2(logoSize2.x + 34.f, logoSize - 2.f),
+            IM_COL32(0, 78, 116, 200), 4.f);
+        dl->AddText(logoPos + ImVec2(logoSize2.x + 9.f, 3.f),
+            IM_COL32(0, 174, 255, 235), "BETA");
 
-        if (headerAlpha < 0.995f)
-            drawTitle(prevSection, 1.f - headerAlpha,
-                { -headerAlpha * 14.f, -headerAlpha * 4.f });
-        drawTitle(section, headerAlpha,
-            { (1.f - headerAlpha) * 18.f, (1.f - headerAlpha) * 5.f });
+        // Pill tabs
+        const float tabStartX = 210.f;
+        const float tabGap = 4.f;
+        const float tabH = 32.f;
+        float cx = wp.x + tabStartX;
 
-        // Brand
-        const char* brand = "autopsy.lol";
-        const float bw = ImGui::CalcTextSize(brand).x;
-        const ImVec2 bp = { contentX + contentW - bw - 22.f, wp.y + 20.f };
-        dl->AddText(bp, theme::col_text(), brand);
-        dl->AddCircleFilled({ bp.x - 12.f, bp.y + 7.f }, 3.f,
-            theme::col_accent(), 16);
+        bool sectionChanged = false;
+
+        for (int i = 0; i < icon::kTabCount; i++) {
+            const bool active = (i == section);
+
+            // Measure tab size
+            const char* iconChar = icon::tabIconChars[i];
+            const char* label = icon::tabLabels[i];
+            char tabText[64];
+            snprintf(tabText, sizeof(tabText), "%s  %s", iconChar, label);
+
+            ImFont* tabF = font::bold();
+            ImVec2 textSize = tabF->CalcTextSizeA(16.f * 0.85f, FLT_MAX, 0.f, label);
+            ImVec2 iconSize = tabF->CalcTextSizeA(16.f * 0.85f, FLT_MAX, 0.f, iconChar);
+            float tabW = iconSize.x + textSize.x + 18.f;
+            if (tabW < 72.f) tabW = 72.f;
+
+            ImVec2 tMin(cx, wp.y + (kHeaderH - tabH) * 0.5f);
+            ImVec2 tMax(cx + tabW, tMin.y + tabH);
+
+            ImGui::SetCursorScreenPos(tMin);
+            ImGui::PushID(i);
+            ImGui::InvisibleButton("##tab", { tabW, tabH });
+
+            const bool clicked = ImGui::IsItemClicked();
+            const bool hov = ImGui::IsItemHovered();
+            const ImGuiID id = ImGui::GetItemID();
+            ImGui::PopID();
+
+            if (clicked && i != section) {
+                section = i;
+                sectionChanged = true;
+            }
+
+            const float t = anim::ease_out_cubic(anim::g_anim.get(id, active || hov, 10.f));
+            const float at = anim::ease_out_cubic(anim::g_anim.get(id ^ 0x8A13C4u, active, 11.f));
+
+            // Tab background
+            const ImU32 bg = theme::lerp_u32(
+                IM_COL32(6, 14, 26, (int)(80.f * (hov ? 1.5f : 1.f))),
+                IM_COL32(0, 60, 90, 200), at);
+            dl->AddRectFilled(tMin, tMax, bg, tabH * 0.5f);
+
+            // Active glow
+            if (at > 0.05f) {
+                dl->AddRectFilled(tMin, tMax,
+                    IM_COL32(0, 174, 255, (int)(at * 8.f)), tabH * 0.5f);
+                dl->AddRect(tMin, tMax,
+                    IM_COL32(0, 174, 255, (int)(at * 80.f)), tabH * 0.5f, 0, 1.2f);
+            }
+
+            // Vertical divider (non-active only)
+            if (!active && i > 0 && at < 0.05f) {
+                dl->AddLine(
+                    { tMin.x - tabGap * 0.5f, tMin.y + 8.f },
+                    { tMin.x - tabGap * 0.5f, tMax.y - 8.f },
+                    IM_COL32(60, 75, 90, 60), 1.f);
+            }
+
+            // Icon + label text
+            const float iconColorFade = active ? 0.85f : (hov ? 0.6f : 0.35f);
+            const float textColorFade = active ? 1.0f : (hov ? 0.9f : 0.6f);
+            const float textOff = at * 1.5f;
+
+            dl->AddText(tabF, 16.f * 0.85f,
+                tMin + ImVec2(7.f + textOff, (tabH - 16.f * 0.85f) * 0.5f),
+                theme::alpha(active ? theme::col_accent() : theme::col_muted(), iconColorFade),
+                iconChar);
+
+            dl->AddText(tabF, 16.f * 0.85f,
+                tMin + ImVec2(7.f + iconSize.x + 4.f + textOff,
+                    (tabH - 16.f * 0.85f) * 0.5f),
+                theme::alpha(theme::col_text(), textColorFade),
+                label);
+
+            cx += tabW + tabGap;
+        }
+
+        return sectionChanged;
     }
 
-    // ---- Menu backdrop shadow -------------------------------------------
+    // ========================================================================
+    // Content area background
+    // ========================================================================
+    static void contentBg(ImDrawList* dl, ImVec2 wp, ImVec2 ws) {
+        const float kHeaderH = 56.f;
+        const ImVec2 cMin = wp + ImVec2(0.f, kHeaderH);
+        const ImVec2 cMax = wp + ws;
+
+        dl->AddRectFilled(cMin, cMax,
+            IM_COL32(5, 9, 16, 240), theme::r_window,
+            ImDrawFlags_RoundCornersBottom);
+
+        // Subtle inner gradient
+        dl->AddRectFilledMultiColor(cMin, ImVec2(cMin.x + 1.f, cMax.y),
+            IM_COL32(0, 174, 255, 16), IM_COL32(0, 0, 0, 0),
+            IM_COL32(0, 0, 0, 0), IM_COL32(0, 174, 255, 16));
+    }
+
+    // ========================================================================
+    // Menu backdrop
+    // ========================================================================
     static void backdrop(ImDrawList* dl, ImVec2 menuMin, ImVec2 menuMax,
         float menuT, float r) {
 
-        // Dark overlay
         const ImVec2 display = ImGui::GetIO().DisplaySize;
         const float bt = anim::ease_in_out_cubic(menuT);
+
+        // Dark overlay
         dl->AddRectFilled({ 0.f, 0.f }, display,
-            IM_COL32(2, 4, 8, (int)(bt * 18.f)));
+            IM_COL32(2, 4, 8, (int)(bt * 28.f)));
 
         // Shadow rings
         for (int i = 0; i < 5; i++) {
-            const float spread = 18.f + i * 11.f;
-            const int alpha = (int)((12.f - i * 1.85f) * bt);
-            dl->AddRectFilled(menuMin - ImVec2(spread, spread * .55f),
+            const float spread = 20.f + i * 12.f;
+            const int alpha = (int)((10.f - i * 1.5f) * bt);
+            dl->AddRectFilled(menuMin - ImVec2(spread, spread * 0.5f),
                 menuMax + ImVec2(spread, spread),
-                IM_COL32(7, 13, 21, alpha), r + spread);
+                IM_COL32(6, 12, 20, alpha), r + spread);
         }
 
         // Outer glow
-        dl->AddRectFilledMultiColorRounded(menuMin - ImVec2(28.f, 20.f),
-            menuMax + ImVec2(28.f, 32.f),
-            IM_COL32(0, 174, 255, (int)(bt * 5.f)),
+        dl->AddRectFilledMultiColorRounded(menuMin - ImVec2(30.f, 20.f),
+            menuMax + ImVec2(30.f, 30.f),
+            IM_COL32(0, 174, 255, (int)(bt * 6.f)),
             IM_COL32(100, 117, 255, (int)(bt * 5.f)),
-            IM_COL32(0, 0, 0, 0),
-            IM_COL32(0, 0, 0, 0), r + 26.f);
+            IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 0), r + 28.f);
     }
 
-    // ---- Dissolve particles effect --------------------------------------
+    // ========================================================================
+    // Particles effect
+    // ========================================================================
     static void dissolve(ImDrawList* dl, ImVec2 mn, ImVec2 mx, float t, float time) {
         const float a = sinf(anim::saturate(t) * 3.14159265f);
         if (a <= .01f) return;
 
         const float w = mx.x - mn.x;
         const float h = mx.y - mn.y;
-        for (int i = 0; i < 30; i++) {
-            const float seed = (float)i * 12.9898f;
+        for (int i = 0; i < 25; i++) {
+            const float seed = (float)i * 13.37f;
             const float u = fmodf(fabsf(sinf(seed) * 43758.5453f), 1.f);
-            const float v = fmodf(fabsf(sinf(seed + 41.371f) * 24634.6345f), 1.f);
-            const float drift = sinf(time * 2.1f + seed) * 5.f * (1.f - fabsf(t - .5f) * 1.55f);
-            const float size = 1.0f + v * 1.8f;
+            const float v = fmodf(fabsf(sinf(seed + 42.0f) * 24634.6345f), 1.f);
+            const float drift = sinf(time * 1.8f + seed) * 6.f * (1.f - fabsf(t - .5f) * 1.5f);
+            const float size = 1.2f + v * 1.5f;
+
             ImVec2 p;
             if ((i & 3) == 0)
-                p = { mn.x + u * w, mn.y - 11.f + drift };
+                p = { mn.x + u * w, mn.y - 10.f + drift };
             else if ((i & 3) == 1)
                 p = { mn.x + u * w, mx.y + 8.f + drift };
             else if ((i & 3) == 2)
@@ -256,11 +209,11 @@ namespace layout {
             else
                 p = { mx.x + 8.f + drift, mn.y + u * h };
 
-            const int alpha = (int)(a * (14.f + v * 28.f));
+            const int alpha = (int)(a * (12.f + v * 24.f));
             const ImU32 col = (i % 5) == 0
                 ? IM_COL32(100, 117, 255, alpha)
                 : IM_COL32(0, 174, 255, alpha);
-            dl->AddRectFilled(p, p + ImVec2(size, size), col, 1.5f);
+            dl->AddRectFilled(p, p + ImVec2(size, size), col, 1.f);
         }
     }
 

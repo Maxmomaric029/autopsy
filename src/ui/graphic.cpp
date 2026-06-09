@@ -15,14 +15,11 @@
 
 #include <imgui/imgui_internal.h>
 #include <imgui/misc/imgui_freetype.h>
-#include "imgui/imgui_internal.h"
 
-// Fonts loaded from files via fonts.h (Inter + FontAwesome 6)
 #include "../features/esp.h"
 #include "../features/ball.h"
 #include "../features/silent.h"
 
-// New modular UI includes
 #include "ui/core/theme.h"
 #include "ui/core/animation.h"
 #include "ui/core/fonts.h"
@@ -33,7 +30,6 @@
 #include "ui/layout/menulayout.h"
 #include "ui/pages/pages.h"
 
-// stb_image implementation (single-header image loader)
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
 
@@ -58,11 +54,9 @@ LRESULT CALLBACK wndproc(HWND Hwnd, UINT Msg, WPARAM WParam, LPARAM LParam) {
     return DefWindowProcA(Hwnd, Msg, WParam, LParam);
 }
 
-// ---- Constructor / Destructor ------------------------------------------
 graphic::graphic() { Detail = std::make_unique<detail>(); }
 graphic::~graphic() { dropimgui(); dropwindow(); dropdevice(); }
 
-// ---- Window creation ---------------------------------------------------
 bool graphic::window() {
     Detail->WindowClass.cbSize = sizeof(Detail->WindowClass);
     Detail->WindowClass.style = CS_CLASSDC;
@@ -97,7 +91,6 @@ bool graphic::window() {
     return true;
 }
 
-// ---- D3D11 Device / SwapChain ------------------------------------------
 bool graphic::device() {
     DXGI_SWAP_CHAIN_DESC sd{};
     sd.BufferCount = 2;
@@ -144,7 +137,6 @@ bool graphic::device() {
     return false;
 }
 
-// ---- ImGui initialization --------------------------------------------
 bool graphic::imgui() {
     ImGui::CreateContext();
 
@@ -181,7 +173,6 @@ bool graphic::imgui() {
     return true;
 }
 
-// ---- Cleanup -----------------------------------------------------------
 void graphic::dropdevice() {
     if (Detail->GraphicsTargetView) Detail->GraphicsTargetView->Release();
     if (Detail->SwapChain) Detail->SwapChain->Release();
@@ -207,7 +198,6 @@ void graphic::dropimgui() {
     ImGui::DestroyContext();
 }
 
-// ---- Key to VK mapping ------------------------------------------------
 static int menukey(ImGuiKey key) {
     if (key >= ImGuiKey_0 && key <= ImGuiKey_9)   return '0' + (key - ImGuiKey_0);
     if (key >= ImGuiKey_A && key <= ImGuiKey_Z)    return 'A' + (key - ImGuiKey_A);
@@ -268,7 +258,6 @@ static int menukey(ImGuiKey key) {
     }
 }
 
-// ---- Begin frame -------------------------------------------------------
 void graphic::begin() {
     MSG Msg;
     while (PeekMessage(&Msg, nullptr, 0, 0, PM_REMOVE)) {
@@ -305,7 +294,6 @@ void graphic::begin() {
     }
 }
 
-// ---- Silent aim cursor -------------------------------------------------
 static void cursor() {
     if (!SilentAimInstance.Address) return;
     if (!drive->read<bool>(SilentAimInstance.Address + offset::gui::Visible)) return;
@@ -324,7 +312,6 @@ static void cursor() {
     dl->AddRectFilled({ c.x + gap,    c.y - lw * .5f }, { c.x + gap + ll, c.y + lw * .5f }, col);
 }
 
-// ---- Roblox focus helpers ----------------------------------------------
 static bool focusroblox() {
     HWND roblox = FindWindowA(nullptr, "Roblox");
     if (!roblox || !IsWindow(roblox)) return false;
@@ -353,7 +340,6 @@ static void keepfocus(float elapsed) {
     focusroblox();
 }
 
-// ---- Welcome splash ----------------------------------------------------
 static void welcome(bool menuOpen) {
     static double startTime = -1.0;
     if (startTime < 0.0) startTime = ImGui::GetTime();
@@ -401,19 +387,14 @@ static void welcome(bool menuOpen) {
     dl->AddRect(bm, bM, IM_COL32(210, 247, 255, (int)(82.f * alpha)), 3.f);
 }
 
-// ========================================================================
-// Color namespace (refreshed from global config each frame)
-// ========================================================================
 namespace color {
     static ImU32 fromfloat(const float col[4], float alphaMul = 1.f) {
         return ImGui::ColorConvertFloat4ToU32(ImVec4(col[0], col[1], col[2], col[3] * alphaMul));
     }
     static void refresh() {
-        // Colors are now handled by theme.h; this is kept for hud namespace compatibility
     }
 }
 
-// ---- PC Username helper ------------------------------------------------
 static const char* pcuser() {
     static std::string name = []() {
         char buffer[257]{};
@@ -424,9 +405,6 @@ static const char* pcuser() {
     return name.c_str();
 }
 
-// ========================================================================
-// HUD overlay namespace (watermark, hotkeys, radar, aim warning)
-// ========================================================================
 namespace hud {
     static ImU32 accent(float a = 1.f) { return theme::col_accent(a); }
     static ImU32 accent2(float a = 1.f) { return theme::col_accent2(a); }
@@ -578,7 +556,6 @@ namespace hud {
             dl->AddText(p + ImVec2(14.f, 50.f), theme::col_muted(), "No hotkeys selected");
     }
 
-    // ---- Radar helpers ----
     static float dot(const sdk::vector3& a, const sdk::vector3& b) {
         return a.x * b.x + a.y * b.y + a.z * b.z;
     }
@@ -768,25 +745,25 @@ namespace hud {
     }
 } // namespace hud
 
-// ---- Menu (main) --------------------------------------------------------
+// ========================================================================
+// NEW: Horizontal Pill Tab Menu
+// ========================================================================
 void graphic::menu() {
     color::refresh();
 
     static int section = 0;
     static int prevSection = 0;
     static float sectionAlpha = 1.f;
-    static float headerAlpha = 1.f;
     static float menuT = 0.f;
     static bool menuPosReady = false;
     static ImVec2 menuPos = {};
 
-    ImGuiIO& IO = ImGui::GetIO();
-    const bool compact = global::setting::Compact_UI;
-    const float kWinW = compact ? 674.f : theme::kWinW;
-    const float kWinH = compact ? 512.f : theme::kWinH;
+    constexpr float kWinW = 740.f;
+    constexpr float kWinH = 500.f;
     constexpr float kR = 14.f;
-    const float sbW = compact ? theme::kSidebarCompactW : theme::kSidebarW;
-    const float kHeaderH = compact ? 48.f : theme::kHeaderH;
+    constexpr float kHeaderH = 56.f;
+
+    ImGuiIO& IO = ImGui::GetIO();
 
     menuT = anim::damp(menuT, Running ? 1.f : 0.f, Running ? 8.5f : 7.2f);
     if (!Running && menuT <= .01f) return;
@@ -805,10 +782,12 @@ void graphic::menu() {
     const ImVec2 menuMin = menuPos + menuOffset - ImVec2(kWinW, kWinH) * .5f;
     const ImVec2 menuMax = menuMin + ImVec2(kWinW, kWinH);
 
+    // Backdrop effects
     ImDrawList* BDL = ImGui::GetBackgroundDrawList();
     layout::backdrop(BDL, menuMin, menuMax, menuT, kR);
     layout::dissolve(BDL, menuMin, menuMax, menuT, (float)ImGui::GetTime());
 
+    // Window setup
     ImGui::SetNextWindowSize({ kWinW, kWinH }, ImGuiCond_Always);
     ImGui::SetNextWindowPos(menuPos + menuOffset, ImGuiCond_Always, { 0.5f, 0.5f });
 
@@ -817,7 +796,7 @@ void graphic::menu() {
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, menuAlpha);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, theme::to_u32(theme::c_bg));
 
-    const bool open = ImGui::Begin("##autopsy.lol", nullptr,
+    const bool open = ImGui::Begin("##autopsy", nullptr,
         ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoBackground);
     ImGui::PopStyleColor();
@@ -827,25 +806,19 @@ void graphic::menu() {
     ImVec2 WP = ImGui::GetWindowPos();
     const ImVec2 WS = ImGui::GetWindowSize();
     ImDrawList* DL = ImGui::GetWindowDrawList();
-    const float glow = (sinf((float)ImGui::GetTime() * 2.3f) + 1.f) * .5f;
 
-    auto dragMenu = [&]() {
-        if (Running && ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.f)) {
-            menuPos += IO.MouseDelta;
-            menuPos.x = maxX > minX ? ImClamp(menuPos.x, minX, maxX) : IO.DisplaySize.x * .5f;
-            menuPos.y = maxY > minY ? ImClamp(menuPos.y, minY, maxY) : IO.DisplaySize.y * .5f;
-            ImGui::SetWindowPos(menuPos + menuOffset - WS * .5f, ImGuiCond_Always);
-            WP = ImGui::GetWindowPos();
-        }
-    };
-
+    // Drag handle (entire header area)
     ImGui::SetCursorScreenPos(WP);
-    ImGui::InvisibleButton("##drag_logo", { sbW, compact ? 8.f : theme::kLogoH });
-    dragMenu();
-    ImGui::SetCursorScreenPos({ WP.x + sbW, WP.y });
-    ImGui::InvisibleButton("##drag_header", { WS.x - sbW, kHeaderH });
-    dragMenu();
+    ImGui::InvisibleButton("##drag", { WS.x, kHeaderH });
+    if (Running && ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.f)) {
+        menuPos += IO.MouseDelta;
+        menuPos.x = maxX > minX ? ImClamp(menuPos.x, minX, maxX) : IO.DisplaySize.x * .5f;
+        menuPos.y = maxY > minY ? ImClamp(menuPos.y, minY, maxY) : IO.DisplaySize.y * .5f;
+        ImGui::SetWindowPos(menuPos + menuOffset - WS * .5f, ImGuiCond_Always);
+        WP = ImGui::GetWindowPos();
+    }
 
+    // Window background with shadow effect
     DL->PushClipRect(WP - ImVec2(40.f, 40.f), WP + WS + ImVec2(40.f, 40.f), false);
     DL->AddRectFilledMultiColorRounded(WP - ImVec2(12.f, 2.f) + ImVec2(0.f, 20.f),
         WP + WS + ImVec2(12.f, 34.f),
@@ -864,40 +837,35 @@ void graphic::menu() {
     DL->AddRectFilled(WP + ImVec2(1.f, 1.f), WP + WS - ImVec2(1.f, 1.f),
         IM_COL32(0, 174, 255, 7), kR - 1.f);
     DL->AddRect(WP, WP + WS, theme::col_border(), kR, 0, 1.f);
-    DL->AddRect(WP + ImVec2(1.f, 1.f), WP + WS - ImVec2(1.f, 1.f),
-        theme::lerp_u32(IM_COL32(0, 174, 255, 28),
-            IM_COL32(100, 117, 255, 24), glow), kR, 0, 1.f);
     DL->PopClipRect();
 
-    layout::sidebar(DL, WP, WS, compact, section, pcuser());
+    // ---- NEW: Header with pill tabs (replaces old sidebar + header) ----
+    layout::header(DL, WP, WS, section, menuEase);
 
+    // Section transition animation
     if (prevSection != section) {
         prevSection = section;
         sectionAlpha = 0.f;
-        headerAlpha = 0.f;
     }
     sectionAlpha = anim::damp(sectionAlpha, 1.f, 8.5f);
     const float sectionEase = anim::ease_out_cubic(sectionAlpha);
-    headerAlpha = anim::damp(headerAlpha, 1.f, 9.5f);
-    const float headerEase = anim::ease_out_cubic(headerAlpha);
 
-    layout::header(DL, WP, WS, sbW, section, prevSection, headerEase, headerAlpha, compact);
+    // Content area background
+    layout::contentBg(DL, WP, WS);
 
-    const float contentX = WP.x + sbW + 1.f;
-    const float contentW = WS.x - sbW - 1.f;
-    const float bodyY = WP.y + kHeaderH + 1.f;
-    DL->AddRectFilled({ contentX, bodyY },
-        { contentX + contentW - 1.f, WP.y + WS.y - 1.f },
-        IM_COL32(5, 9, 15, 255), kR, ImDrawFlags_RoundCornersBottomRight);
+    // Content layout
+    constexpr float kPad = 14.f;
+    const float contentY = WP.y + kHeaderH + 1.f;
+    const float contentW = WS.x - 2.f;
+    const float contentH = (WP.y + WS.y) - contentY - 2.f;
 
-    constexpr float kPad = 12.f;
-    ImGui::SetCursorScreenPos({ contentX + kPad + (1.f - sectionEase) * 18.f, bodyY + kPad });
-    ImGui::PushClipRect({ contentX, bodyY }, { contentX + contentW, WP.y + WS.y }, true);
+    ImGui::SetCursorScreenPos({ WP.x + kPad + (1.f - sectionEase) * 14.f, contentY + kPad });
+    ImGui::PushClipRect({ WP.x + 1.f, contentY }, { WP.x + WS.x - 1.f, WP.y + WS.y }, true);
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, sectionEase);
     ImGui::BeginGroup();
 
     const float bInW = contentW - kPad * 2.f;
-    const float bInH = bodyY + WS.y - bodyY - kPad * 2.f;
+    const float bInH = contentH - kPad * 2.f;
 
     switch (section) {
     case 0: page::aimbot(bInW, bInH); break;
@@ -914,7 +882,6 @@ void graphic::menu() {
     ImGui::End();
 }
 
-// ---- Visual (overlay rendering) -----------------------------------------
 void graphic::visual() {
     ball::render();
     esp::run();
@@ -944,7 +911,6 @@ void graphic::visual() {
     welcome(Running);
 }
 
-// ---- End frame ----------------------------------------------------------
 void graphic::end() {
     if (!Detail->DeviceContext || !Detail->GraphicsTargetView || !Detail->SwapChain)
         return;
