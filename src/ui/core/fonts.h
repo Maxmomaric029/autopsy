@@ -6,9 +6,11 @@
 #include <string>
 #include <array>
 
-// Embedded font data (global scope, NOT inside namespace)
-#include "../font/regular.h"
-#include "../font/bold.h"
+// Embedded font data forward declarations (global scope, defs in graphic.cpp)
+extern unsigned char font_regular[];
+extern unsigned int  font_regular_len;
+extern unsigned char font_bold[];
+extern unsigned int  font_bold_len;
 
 namespace font {
 
