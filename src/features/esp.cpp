@@ -1194,7 +1194,8 @@ namespace esp {
             // Use effectivefov() so GunBasedFov is reflected visually
             float silentFov = effectivefov();
             DrawFovCircle(global::silent::DrawFov && global::silent::Enabled,
-            silentFov, global::silent::FovColor,
-            global::silent::FillFov, global::silent::FovSpin, global::silent::FovSpinSpeed);
+                silentFov, global::silent::FovColor,
+                global::silent::FillFov, global::silent::FovSpin, global::silent::FovSpinSpeed);
+        }
     }
 }
