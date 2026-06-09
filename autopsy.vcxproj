@@ -277,6 +277,14 @@
     <ClInclude Include="src\features\world.h" />
     <ClInclude Include="src\ui\font\regular.h" />
     <ClInclude Include="src\ui\font\bold.h" />
+    <ClInclude Include="src\ui\core\animation.h" />
+    <ClInclude Include="src\ui\core\theme.h" />
+    <ClInclude Include="src\ui\core\fonts.h" />
+    <ClInclude Include="src\ui\core\icons.h" />
+    <ClInclude Include="src\ui\core\notifications.h" />
+    <ClInclude Include="src\ui\widgets\controls.h" />
+    <ClInclude Include="src\ui\layout\menulayout.h" />
+    <ClInclude Include="src\ui\pages\pages.h" />
     <ClInclude Include="src\ui\graphic.h" />
     <ClInclude Include="src\sdk\sdk.h" />
     <ClInclude Include="src\sdk\offsets\offset.h" />
@@ -309,6 +317,7 @@
     <ClCompile Include="src\features\esp.cpp" />
     <ClCompile Include="src\features\wallcheck.cpp" />
     <ClCompile Include="src\features\world.cpp" />
+    <ClCompile Include="src\ui\widgets\controls.cpp" />
     <ClCompile Include="src\ui\graphic.cpp" />
     <ClCompile Include="src\sdk\sdk.cpp" />
 

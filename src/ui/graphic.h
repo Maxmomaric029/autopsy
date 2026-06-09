@@ -5,22 +5,21 @@
 #include <imgui/imgui.h>
 #include <imgui/backends/imgui_impl_win32.h>
 #include <imgui/backends/imgui_impl_dx11.h>
-
 #include <string>
-#include <vector> 
+#include <vector>
 
-inline ImFont* Tahoma_BoldXP = nullptr;
-inline ImFont* UiFont = nullptr;
-inline ImFont* TitleFont = nullptr;
-inline ImFont* LogoFont = nullptr;
+// ========================================================================
+// Thin wrapper class for DirectX11 + Win32 overlay
+// Delegates rendering and UI logic to the new modular system under ui/
+// ========================================================================
 
 struct detail {
-	HWND Window = nullptr;
-	WNDCLASSEX WindowClass = {};
-	ID3D11Device* Device = nullptr;
-	ID3D11DeviceContext* DeviceContext = nullptr;
-	ID3D11RenderTargetView* GraphicsTargetView = nullptr;
-	IDXGISwapChain* SwapChain = nullptr;
+    HWND Window = nullptr;
+    WNDCLASSEX WindowClass = {};
+    ID3D11Device* Device = nullptr;
+    ID3D11DeviceContext* DeviceContext = nullptr;
+    ID3D11RenderTargetView* GraphicsTargetView = nullptr;
+    IDXGISwapChain* SwapChain = nullptr;
 };
 
 class graphic {
@@ -29,12 +28,10 @@ public:
     ~graphic();
 
     bool Running = false;
-
     void begin();
     void menu();
     void visual();
     void end();
-
     bool device();
     bool window();
     bool imgui();
