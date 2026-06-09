@@ -6,6 +6,10 @@
 #include <string>
 #include <array>
 
+// Embedded font data (global scope, NOT inside namespace)
+#include "../font/regular.h"
+#include "../font/bold.h"
+
 namespace font {
 
     // Exposed font pointers
@@ -108,20 +112,14 @@ namespace font {
 
         // Fallbacks if system fonts missing: use embedded fonts from existing project
         if (!g_regular) {
-            extern const unsigned char font_regular[];
-            extern const int font_regular_len;
             if (font_regular_len > 0)
                 g_regular = io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(font_regular), font_regular_len, 14.0f * dpiScale, &cfg);
         }
         if (!g_medium) {
-            extern const unsigned char font_bold[];
-            extern const int font_bold_len;
             if (font_bold_len > 0)
                 g_medium = io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(font_bold), font_bold_len, 13.0f * dpiScale, &cfg);
         }
         if (!g_bold) {
-            extern const unsigned char font_bold[];
-            extern const int font_bold_len;
             if (font_bold_len > 0)
                 g_bold = io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(font_bold), font_bold_len, 15.0f * dpiScale, &cfg2);
         }
