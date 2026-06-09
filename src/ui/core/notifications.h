@@ -137,7 +137,7 @@ namespace notify {
             dl->AddRect(mn, mx, border, 10.f, 0, 1.f);
 
             // Text
-            dl->AddText(font::medium(), font::medium()->ConfigData->SizePixels,
+            dl->AddText(font::medium(), font::medium()->Size,
                 mn + ImVec2(18.f, 8.f), theme::col_text(alpha), t.text.c_str());
         }
     }

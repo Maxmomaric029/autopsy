@@ -376,7 +376,7 @@ static void welcome(bool menuOpen) {
     }
 
     ImFont* logoF = font::logo();
-    const float logoSize = logoF->ConfigData->SizePixels * 1.65f;
+    const float logoSize = logoF->Size * 1.65f;
     const ImVec2 ts = logoF->CalcTextSizeA(logoSize, FLT_MAX, 0.f, "AUTOPSY");
     const ImVec2 tp(center.x - ts.x * .5f, center.y - 34.f);
     dl->AddText(logoF, logoSize, tp + ImVec2(0.f, 3.f),
@@ -495,7 +495,7 @@ namespace hud {
     static void watermark(ImDrawList* dl, ImVec2 p, ImVec2 s, bool hovered, bool active) {
         panelbase(dl, p, s, hovered, active);
         ImFont* logo = font::bold();
-        const float logoSize = logo->ConfigData->SizePixels;
+        const float logoSize = logo->Size;
         const ImVec2 text = p + ImVec2(15.f, 7.f);
         const ImVec2 nameSize = logo->CalcTextSizeA(logoSize, FLT_MAX, 0.f, "AUTOPSY");
         char fps[32]{};
@@ -544,7 +544,7 @@ namespace hud {
     static void hotkey(ImDrawList* dl, ImVec2 p, ImVec2 s, bool hovered, bool active) {
         panelbase(dl, p, s, hovered, active);
         ImFont* title = font::bold();
-        dl->AddText(title, title->ConfigData->SizePixels, p + ImVec2(14.f, 11.f), theme::col_text(), "HOTKEYS");
+        dl->AddText(title, title->Size, p + ImVec2(14.f, 11.f), theme::col_text(), "HOTKEYS");
         dl->AddLine(p + ImVec2(14.f, 36.f), p + ImVec2(s.x - 14.f, 36.f),
             theme::col_border(), 1.f);
 
@@ -688,7 +688,7 @@ namespace hud {
         dl->AddTriangleFilled(tri[0] + ImVec2(0.f, 1.f), tri[1] + ImVec2(0.f, 1.f), tri[2] + ImVec2(0.f, 1.f), IM_COL32(0, 0, 0, 150));
         dl->AddTriangleFilled(tri[0], tri[1], tri[2], theme::col_text());
         ImFont* tf = font::bold();
-        dl->AddText(tf, tf->ConfigData->SizePixels, p + ImVec2(14.f, 10.f), theme::col_text(), "RADAR");
+        dl->AddText(tf, tf->Size, p + ImVec2(14.f, 10.f), theme::col_text(), "RADAR");
         char zt[32]{}; std::snprintf(zt, sizeof(zt), "%.2fx", global::overlay::Radar_Zoom);
         const ImVec2 zs = ImGui::CalcTextSize(zt);
         dl->AddText(ImVec2(p.x + s.x - zs.x - 14.f, p.y + 11.f), accent2(), zt);
@@ -728,7 +728,7 @@ namespace hud {
             std::snprintf(detail, sizeof(detail), "%dx players aiming at you", threat.Count);
 
         ImFont* font = font::bold();
-        const float fontSize = font->ConfigData->SizePixels;
+        const float fontSize = font->Size;
         const ImVec2 ts = font->CalcTextSizeA(fontSize, FLT_MAX, 0.f, title);
         const ImVec2 ds = ImGui::CalcTextSize(detail);
         const float width = ImClamp(ImMax(ts.x, ds.x) + 74.f, 258.f, 420.f);

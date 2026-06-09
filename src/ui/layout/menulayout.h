@@ -98,7 +98,7 @@ namespace layout {
         if (!compact) {
             const ImVec2 lp = { wp.x + 30.f, wp.y + 25.f };
             ImFont* logoF = font::logo();
-            const float logoSize = logoF->ConfigData->SizePixels;
+            const float logoSize = logoF->Size;
             const ImVec2 aw = logoF->CalcTextSizeA(logoSize, FLT_MAX, 0.f, "AUTOPSY");
             dl->AddRectFilled(lp + ImVec2(-8.f, 3.f), lp + ImVec2(-5.f, 25.f),
                 theme::col_accent(), 2.f);
@@ -169,7 +169,7 @@ namespace layout {
 
         const ImVec2 tp = { contentX + 18.f, wp.y + 12.f };
         ImFont* titleFont = font::bold();
-        const float titleSize = titleFont ? titleFont->ConfigData->SizePixels : ImGui::GetFontSize();
+        const float titleSize = titleFont ? titleFont->Size : ImGui::GetFontSize();
 
         auto drawTitle = [&](int idx, float a, ImVec2 off) {
             const ImVec2 p = tp + off;
