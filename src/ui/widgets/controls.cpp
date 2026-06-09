@@ -19,8 +19,8 @@ bool w::card::begin(const char* id, ImVec2 size, const char* title) {
                 IM_COL32(0, 0, 0, alpha), 14.f + spread);
         }
 
-        // ---- Card background ----
-        dl->AddRectFilled(p, p + size, IM_COL32(9, 15, 25, 242), 12.f);
+        // ---- Card background (dark maroon/red-black instead of blue-purple) ----
+        dl->AddRectFilled(p, p + size, IM_COL32(12, 6, 10, 245), 12.f);
 
         // ---- Shimmer on top edge (glass feel) ----
         dl->AddRectFilledMultiColor(
@@ -39,11 +39,11 @@ bool w::card::begin(const char* id, ImVec2 size, const char* title) {
             IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 0), 12.f);
     }
 
-    ImGui::PushStyleColor(ImGuiCol_ChildBg,  IM_COL32(9, 15, 25, 0)); // transparent — we draw bg
+    ImGui::PushStyleColor(ImGuiCol_ChildBg,  IM_COL32(12, 6, 10, 0)); // transparent — we draw bg
     ImGui::PushStyleColor(ImGuiCol_Border,   IM_COL32(0, 0, 0, 0));
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding,    12.f);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize,  0.f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    ImVec2(14.f, 13.f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    ImVec2(16.f, 14.f));
 
     const bool open = ImGui::BeginChild(id, size, false, ImGuiWindowFlags_None);
     if (open && title) {

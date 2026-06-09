@@ -26,7 +26,7 @@ namespace layout {
         constexpr float kTabH = 48.f;
         constexpr float kLogoH = 78.f;
 
-        // ---- Sidebar background (glassmorphism gray) ----
+        // ---- Sidebar background (pure black with red edge) ----
         ImVec2 sbMin = wp;
         ImVec2 sbMax = wp + ImVec2(kSideW, ws.y);
 
@@ -38,23 +38,21 @@ namespace layout {
                 IM_COL32(0, 0, 0, (int)((22.f - i * 3.5f))), theme::r_window + spread);
         }
 
-        // Main glass bg
+        // Main pure black bg (was gray)
         dl->AddRectFilled(sbMin, sbMax,
-            IM_COL32(16, 18, 22, 235), theme::r_window, ImDrawFlags_RoundCornersLeft);
+            IM_COL32(0, 0, 0, 240), theme::r_window, ImDrawFlags_RoundCornersLeft);
 
-        // Subtle inner glow (top->bottom)
-        dl->AddRectFilledMultiColor(sbMin, sbMax + ImVec2(0.f, kLogoH),
-            IM_COL32(130, 140, 160, 8), IM_COL32(130, 140, 160, 2),
-            IM_COL32(130, 140, 160, 0), IM_COL32(130, 140, 160, 0));
+        // Red accent line on the right edge
+        dl->AddRectFilled(sbMax - ImVec2(2.f, 0.f), sbMax,
+            IM_COL32(220, 60, 70, 90), 0.f);
 
-        // Right edge line
-        dl->AddRectFilled(sbMax - ImVec2(1.f, 0.f), sbMax,
-            IM_COL32(180, 190, 210, 26), 0.f);
-
-        // Bottom accent line
+        // Bottom accent line (red)
         dl->AddRectFilled(sbMin + ImVec2(16.f, kLogoH),
             sbMin + ImVec2(kSideW - 16.f, kLogoH + 1.f),
-            IM_COL32(180, 190, 210, 32));
+            IM_COL32(220, 60, 70, 80));
+
+        // Version text color update to match
+        // (already below)
 
         // ---- Logo ----
         if (g_sidebar_logo) {

@@ -23,7 +23,7 @@ namespace global {
 
 	namespace overlay {
 
-		inline bool watermark = true;
+		inline bool watermark = false;
 		inline bool hotkey = true;
 		inline bool Hotkey_Aimbot = true;
 		inline bool Hotkey_Silent = true;

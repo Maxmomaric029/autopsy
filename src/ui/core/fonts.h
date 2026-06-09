@@ -51,9 +51,9 @@ namespace font {
             return f;
         };
 
-        loadFont(font_inter_regular,  font_inter_regular_size,  14.f, &g_regular, true);
-        loadFont(font_inter_semibold, font_inter_semibold_size, 14.f, &g_medium,  true);
-        loadFont(font_inter_bold,     font_inter_bold_size,     15.f, &g_bold,    true);
+        loadFont(font_inter_regular,  font_inter_regular_size,  16.f, &g_regular, true);
+        loadFont(font_inter_semibold, font_inter_semibold_size, 16.f, &g_medium,  true);
+        loadFont(font_inter_bold,     font_inter_bold_size,     17.f, &g_bold,    true);
         loadFont(font_inter_black,    font_inter_black_size,    22.f, &g_logo,    false);
         loadFont(font_inter_regular,  font_inter_regular_size,  12.f, &g_mono,    false);
 

@@ -186,12 +186,22 @@ std::int32_t main(std::int32_t argc, char** argv[])
         return 1;
     }
 
+    // Console auto-refresh timer (every 2 seconds to show updated offsets)
+    double lastConsoleRefresh = 0.0;
+
     for (;;)
     {
         screen->begin();
         screen->visual();
         screen->menu();
         screen->end();
+
+        // Refresh console offsets display every 2 seconds
+        double now = ImGui::GetTime();
+        if (now - lastConsoleRefresh >= 2.0) {
+            lastConsoleRefresh = now;
+            console::refresh();
+        }
     }
 
     return 0;

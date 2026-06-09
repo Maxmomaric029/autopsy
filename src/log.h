@@ -170,7 +170,16 @@ namespace console {
     }
 
     // ========================================================================
-    // Full render — called ONCE
+    // Refresh — auto-re-render when offsets change
+    // ========================================================================
+    inline void refresh() {
+        // Re-render the console view to show updated offset values
+        // Called periodically from the main loop
+        render();
+    }
+
+    // ========================================================================
+    // Full render
     // ========================================================================
     inline void render() {
         cls();

@@ -24,14 +24,17 @@ namespace w {
     // ---- Toggle ---------------------------------------------------------
     inline bool toggle(const char* label, bool* v) {
         ImGui::PushID(label);
-        const ImVec2 p = ImGui::GetCursorScreenPos();
         ImDrawList* dl = ImGui::GetWindowDrawList();
 
-        constexpr float kTW = 34.f, kTH = 18.f;
+        // Left padding so non-icon toggles don't stick to wall
+        ImGui::Dummy({ 0.f, 0.f });
+
+        constexpr float kTW = 36.f, kTH = 20.f;
+        const ImVec2 p = ImGui::GetCursorScreenPos();
         ImGui::InvisibleButton("##t", { kTW, kTH });
         const bool clicked = ImGui::IsItemClicked();
         const bool hov = ImGui::IsItemHovered();
-        if (clicked) *v = !*v;
+        if (clicked) { *v = !*v; Beep(800, 24); }
 
         const float t = anim::toggle(ImGui::GetItemID(), *v);
         const ImU32 trk = theme::lerp_u32(
@@ -49,7 +52,7 @@ namespace w {
         dl->AddCircleFilled({ tx + tr, cy }, tr + (hov ? 0.5f : 0.f),
             hov ? theme::col_text() : IM_COL32(224, 224, 232, 255), 18);
 
-        ImGui::SameLine(0.f, 8.f);
+        ImGui::SameLine(0.f, 10.f);
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (kTH - ImGui::GetFontSize()) * .5f);
         ImGui::TextColored(
             ImGui::ColorConvertU32ToFloat4(*v ? theme::col_text() : theme::col_muted()),
@@ -188,9 +191,9 @@ namespace w {
         // Track
         const ImVec2 p = ImGui::GetCursorScreenPos();
         const float  w = ImGui::GetContentRegionAvail().x;
-        constexpr float kH    = 20.f;
-        constexpr float kTrkY = 10.f;  // vertical center of track
-        constexpr float kTrkH = 3.f;
+        constexpr float kH    = 24.f;
+        constexpr float kTrkY = 12.f;  // vertical center of track
+        constexpr float kTrkH = 4.f;
 
         ImGui::InvisibleButton("##sl", { w, kH });
         const bool active = ImGui::IsItemActive();
