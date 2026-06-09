@@ -78,12 +78,12 @@ namespace console {
     // ========================================================================
     inline void draw_header(float hue_offset = 0.0f) {
         const char* art[] = {
-            "  __  __ _____ _____ ____  _____ ____  _     _____ _____ ",
-            " |  \\/  |_   _| ____|  _ \\| ____|  _ \\| |   | ____|_   _|",
-            " | |\\/| | | | |  _| | |_) |  _| | |_) | |   |  _|   | |  ",
-            " | |  | | | | | |___|  _ <| |___|  _ <| |___| |___  | |  ",
-            " |_|  |_| |_| |_____|_| \\_\\_____|_| \\_\\_____|_____| |_|  ",
-            "                                                          ",
+            "  MM   MM IIIII SSSSS EEEEE RRRR   AAA  BBBB  L     EEEEE",
+            "  M M M M  I   S     E     R   R A   A B   B L     E    ",
+            "  M  M  M  I   SSSSS EEEE  RRRR  AAAAA BBBB  L     EEEE ",
+            "  M     M  I       S E     R  R  A   A B   B L     E    ",
+            "  M     M IIIII SSSSS EEEEE R   R A   A BBBB  LLLLL EEEEE",
+            "                                                        ",
             "     ╔══════════════════════════════════════════════╗      ",
             "     ║       Bloodie & Xchino presents...          ║      ",
             "     ╚══════════════════════════════════════════════╝      "
