@@ -157,9 +157,9 @@ namespace layout {
         const ImVec2 cMin = wp + ImVec2(kSideW, 0.f);
         const ImVec2 cMax = wp + ws;
 
-        // Dark background
+        // Dark background — pure black, no purple tint
         dl->AddRectFilled(cMin, cMax,
-            IM_COL32(8, 9, 12, 245), theme::r_window,
+            IM_COL32(1, 1, 2, 248), theme::r_window,
             ImDrawFlags_RoundCornersRight);
 
         // Subtle gradient at left edge

@@ -56,18 +56,21 @@ namespace page {
             }
             w::gap(4.f);
             w::labelsection("SMOOTHING");
+            w::toggle("Smooth Advanced", &global::aim::SmoothAdvanced);
             if (global::aim::Aimbot_type == 0 || global::aim::Aimbot_type == 1) {
                 // Free Aim and Mouse Aim show mouse smoothing
-                w::sliderfloat("Smooth X", &global::aim::mouse::Smoothing_X, 0.f, 12.f);
-                w::helptooltip("Mouse movement smoothing (0 = instant)");
-                w::sliderfloat("Smooth Y", &global::aim::mouse::Smoothing_Y, 0.f, 12.f);
-                w::helptooltip("Mouse movement smoothing (0 = instant)");
+                if (global::aim::SmoothAdvanced) {
+                    w::sliderfloat("Smooth X", &global::aim::mouse::Smoothing_X, 0.f, 12.f);
+                    w::sliderfloat("Smooth Y", &global::aim::mouse::Smoothing_Y, 0.f, 12.f);
+                }
                 w::sliderfloat("Sensitivity", &global::aim::mouse::Mouse_Sensitivty, 0.f, 5.f);
                 w::helptooltip("Mouse movement scale factor");
             } else {
                 // Cam Lock shows camera smoothing
-                w::sliderfloat("Smooth X", &global::aim::camera::Smoothing_X, 0.f, 12.f);
-                w::sliderfloat("Smooth Y", &global::aim::camera::Smoothing_Y, 0.f, 12.f);
+                if (global::aim::SmoothAdvanced) {
+                    w::sliderfloat("Smooth X", &global::aim::camera::Smoothing_X, 0.f, 12.f);
+                    w::sliderfloat("Smooth Y", &global::aim::camera::Smoothing_Y, 0.f, 12.f);
+                }
             }
             w::gap(4.f);
             w::toggle_icon(ICON_FA_HAND, "Trigger Bot", &global::aim::TriggerBot);

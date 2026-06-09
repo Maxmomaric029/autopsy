@@ -163,6 +163,9 @@ namespace misc {
             writegravity(world, 0.f);
             platform(lp.humanoid.Address, true);
 
+            // Brief delay to let gravity take effect before applying velocity
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+
             const bool W = GetAsyncKeyState('W') & 0x8000;
             const bool S = GetAsyncKeyState('S') & 0x8000;
             const bool A = GetAsyncKeyState('A') & 0x8000;

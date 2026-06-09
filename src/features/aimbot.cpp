@@ -288,7 +288,9 @@ namespace aim {
                     (ScreenPos.x - CursorPos.x) * (ScreenPos.x - CursorPos.x) +
                     (ScreenPos.y - CursorPos.y) * (ScreenPos.y - CursorPos.y));
 
-                if ((global::aim::useFov || global::aim::Aimbot_type == 1) && Dist2D > global::aim::FovSize) {
+                // Sticky target gets 50% larger FOV tolerance to avoid losing target on camera movement
+                const float stickyFov = global::aim::FovSize * 1.5f;
+                if ((global::aim::useFov || global::aim::Aimbot_type == 1) && Dist2D > stickyFov) {
                     IsPersisting = false;
                     PersistenceName = "";
                     global::aim::AimTarget = sdk::instance(0);

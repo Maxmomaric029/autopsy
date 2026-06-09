@@ -61,7 +61,7 @@ namespace console {
     // ========================================================================
     inline void offset_line(const char* label, uintptr_t value, int w) {
         gray();
-        printf("  \xBA  ");
+        printf("  |  ");
         reset();
         darkred();
         printf("%-20s", label);
@@ -77,10 +77,10 @@ namespace console {
         if (used < w) {
             gray();
             for (int i = used; i < w - 3; i++) putchar(' ');
-            printf(" \xBA");
+            printf(" |");
         } else {
             gray();
-            printf("  \xBA");
+            printf("  |");
         }
         reset();
         printf("\n");
@@ -91,7 +91,7 @@ namespace console {
     // ========================================================================
     inline void status_line(const char* label, const char* value, int w, bool highlight = false) {
         gray();
-        printf("  \xBA  ");
+        printf("  |  ");
         reset();
         darkred();
         printf("%-20s", label);
@@ -101,7 +101,7 @@ namespace console {
         printf("%-16s", value);
         reset();
         gray();
-        printf("  \xBA");
+        printf("  |");
         reset();
         printf("\n");
     }
@@ -111,7 +111,7 @@ namespace console {
     // ========================================================================
     inline void section_header(const char* title, int w) {
         brightred();
-        printf("  \xBA  ");
+        printf("  |  ");
         red();
         printf(">> %s", title);
         reset();
@@ -119,10 +119,10 @@ namespace console {
         if (used < w - 3) {
             gray();
             for (int i = used; i < w - 3; i++) putchar(' ');
-            printf(" \xBA");
+            printf(" |");
         } else {
             gray();
-            printf("  \xBA");
+            printf("  |");
         }
         reset();
         printf("\n");
@@ -132,44 +132,40 @@ namespace console {
     // Draw box characters
     // ========================================================================
     inline void draw_hline(int len) {
-        for (int i = 0; i < len; i++) putchar(0xCD);
+        for (int i = 0; i < len; i++) putchar('-');
     }
 
     inline void draw_box_top(int w) {
-        putchar(0xC9);
+        putchar('+');
         draw_hline(w - 2);
-        putchar(0xBB);
+        putchar('+');
     }
 
     inline void draw_box_bottom(int w) {
-        putchar(0xC0);
+        putchar('+');
         draw_hline(w - 2);
-        putchar(0xD9);
+        putchar('+');
     }
 
     inline void draw_box_sep(int w) {
-        putchar(0xCC);
+        putchar('+');
         draw_hline(w - 2);
-        putchar(0xB9);
+        putchar('+');
     }
 
     // ========================================================================
     // Draw "MISERABLE" ASCII header
     // ========================================================================
     inline void draw_header() {
-        const char* header[] = {
-            "    ╔═══╗╔════╗╔════╗╔════╗╔═══╗╔════╗╔═══╗╔════╗",
-            "    ║╔═╗║║╔╗╔╗║║╔╗╔╗║║╔╗╔╗║║╔══╝║╔╗╔╗║║╔══╝╚═╗╔═╝",
-            "    ║╚═╝║║║║║║║╚╝║║╚╝║║║║║║║╚══╗║║║║║║║╚══╗  ║║  ",
-            "    ║╔╗╔╝║║║║║║  ║║  ║║║║║║║╔══╝║║║║║║║╔══╝  ║║  ",
-            "    ║║║╚╗║║║║║║  ║║  ║║║║║║║╚══╗║║║║║║║╚══╗  ║║  ",
-            "    ╚╝╚═╝╚╝╚╝╚╝  ╚╝  ╚╝╚╝╚╝╚═══╝╚╝╚╝╚╝╚═══╝  ╚╝  ",
-        };
-
+        // Simple ASCII header — no Unicode, always renders
         brightred();
-        for (int i = 0; i < 6; i++) {
-            printf("  %s\n", header[i]);
-        }
+        printf("\n");
+        printf("    M M M   III   SSS   EEEEE  RRRR    AAA   BBBB   L      EEEEE\n");
+        printf("    M   M    I   S      E      R   R  A   A  B   B  L      E    \n");
+        printf("    M M M    I    SSS   EEEE   RRRR   AAAAA  BBBB   L      EEEE \n");
+        printf("    M   M    I       S  E      R  R   A   A  B   B  L      E    \n");
+        printf("    M   M   III   SSS   EEEEE  R   R  A   A  BBBB   LLLLL  EEEEE\n");
+        printf("\n");
         reset();
     }
 
@@ -190,7 +186,7 @@ namespace console {
         printf("\n");
 
         brightred();
-        printf("  \xBA  MISERABLE \\xBB OFFSETS MONITOR              \xBA\n");
+        printf("  |  MISERABLE - OFFSETS MONITOR              |\n");
         printf("  ");
         draw_box_sep(w);
         reset();

@@ -21,8 +21,11 @@ namespace world {
 
         while (true)
         {
+            try {
             if (global::world::Skybox)
             {
+                // Safety: verify light address is valid
+                if (!global::light.Address) { std::this_thread::sleep_for(std::chrono::milliseconds(100)); continue; }
                 auto sky = global::light.child("Sky");
 
                 if (sky.Address)
@@ -142,7 +145,8 @@ namespace world {
                 }
             }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(30));
+            } catch (...) {}
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
     }
 
@@ -150,8 +154,10 @@ namespace world {
 
         while (true)
         {
+            try {
             if (global::world::Ambience)
             {
+                if (!global::light.Address) { std::this_thread::sleep_for(std::chrono::milliseconds(200)); continue; }
                 if (!s_ambienceSaved) {
                     s_origAmbient = drive->read<sdk::vector3>(global::light.Address + offset::light::Ambient);
                     s_origOutdoorAmbient = drive->read<sdk::vector3>(global::light.Address + offset::light::OutdoorAmbient);
@@ -165,8 +171,8 @@ namespace world {
                 sdk::view::invalidate();
                 s_ambienceSaved = false;
             }
-
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            } catch (...) {}
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
     }
 
@@ -174,8 +180,10 @@ namespace world {
 
         while (true)
         {
+            try {
             if (global::world::Fog)
             {
+                if (!global::light.Address) { std::this_thread::sleep_for(std::chrono::milliseconds(200)); continue; }
                 if (!s_fogSaved) {
                     s_origFogEnd = drive->read<float>(global::light.Address + offset::light::FogEnd);
                     s_origFogColor = drive->read<sdk::vector3>(global::light.Address + offset::light::FogColor);
@@ -189,8 +197,8 @@ namespace world {
                 sdk::view::invalidate();
                 s_fogSaved = false;
             }
-
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            } catch (...) {}
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
     }
 
@@ -198,8 +206,10 @@ namespace world {
 
         while (true)
         {
+            try {
             if (global::world::Brightness)
             {
+                if (!global::light.Address) { std::this_thread::sleep_for(std::chrono::milliseconds(200)); continue; }
                 if (!s_brightnessSaved) {
                     s_origBrightness = drive->read<float>(global::light.Address + offset::light::Brightness);
                     s_brightnessSaved = true;
@@ -212,8 +222,8 @@ namespace world {
                 sdk::view::invalidate();
                 s_brightnessSaved = false;
             }
-
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            } catch (...) {}
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
     }
 
@@ -221,8 +231,10 @@ namespace world {
 
         while (true)
         {
+            try {
             if (global::world::Exposure)
             {
+                if (!global::light.Address) { std::this_thread::sleep_for(std::chrono::milliseconds(200)); continue; }
                 if (!s_exposureSaved) {
                     s_origExposure = drive->read<float>(global::light.Address + offset::light::ExposureCompensation);
                     s_exposureSaved = true;
@@ -235,8 +247,8 @@ namespace world {
                 sdk::view::invalidate();
                 s_exposureSaved = false;
             }
-
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            } catch (...) {}
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
     }
 
@@ -244,11 +256,13 @@ namespace world {
 
         while (true)
         {
-            if (global::world::FOV)
+            try {
+            if (global::world::FOV && global::camera.Address)
             {
 				sdk::light::fov(global::camera.Address, global::world::FOV_Distance);
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            } catch (...) {}
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
 
     }

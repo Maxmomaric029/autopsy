@@ -169,6 +169,8 @@ namespace global {
 			inline float Smoothing_Y{ 1.0f };
 		}
 
+		inline bool SmoothAdvanced = false;
+
 		namespace mouse {
 			inline float Smoothing_X{ 1.0f };
 			inline float Smoothing_Y{ 1.0f };

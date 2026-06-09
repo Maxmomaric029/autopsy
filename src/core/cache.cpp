@@ -117,15 +117,23 @@ namespace cache {
         }
     }
 
+    bool is_dead(const sdk::player& player) {
+        if (!player.character.Address) return true;
+        if (!player.humanoid.Address) return false; // can't determine, assume alive
+        float health = drive->read<float>(player.humanoid.Address + offset::humanoid::Health);
+        return health <= 0.f;
+    }
+
     void data(sdk::player& player, const sdk::vector3& Local_Pos, bool Is_Local) {
         if (player.character.Address == 0) return;
 
         auto children = player.character.children();
         for (const auto& part : children) {
-
-            auto it = Part_Lookup.find(part.name());
+            std::string pname = part.name();
+            // Fix: "Torso" parts are sometimes misidentified as arm parts
+            // Only map if the name exactly matches
+            auto it = Part_Lookup.find(pname);
             if (it != Part_Lookup.end()) {
-
                 player.*(it->second) = part;
             }
         }
@@ -225,11 +233,14 @@ namespace cache {
                 }
             }
 
-            // Always include if Client_Check is off; if on, skip own player
-            if (!global::setting::Client_Check || player.HumanoidRootPart.Address != global::LocalPlayer.HumanoidRootPart.Address) {
+            // Skip dead players
+            if (is_dead(player)) continue;
 
-                actor.push_back(std::move(player));
-            }
+            // Skip local player
+            if (global::LocalPlayer.character.Address && player.character.Address == global::LocalPlayer.character.Address)
+                continue;
+
+            actor.push_back(std::move(player));
         }
 
         {
