@@ -29,7 +29,7 @@ namespace font {
             p = p.substr(0, pos); // Build/
             auto pos2 = p.find_last_of("\\/");
             if (pos2 != std::string::npos) {
-                p = p.substr(0, pos2 + 1); // project root with trailing \
+                p = p.substr(0, pos2 + 1); // project root (trailing separator)
             }
         }
         return p + relative;
