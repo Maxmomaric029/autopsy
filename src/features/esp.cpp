@@ -247,7 +247,7 @@ namespace style
         if (!text || !*text)
             return;
 
-        ImFont* font = Tahoma_BoldXP ? Tahoma_BoldXP : ImGui::GetFont();
+        ImFont* font = ImGui::GetFont();
         ImGui::PushFont(font);
         const float fontSize = ImGui::GetFontSize();
         ImGui::PopFont();
@@ -878,7 +878,7 @@ namespace esp {
                 if (global::esp::Healthbar)
                     X_Text -= global::esp::Thickness + global::esp::gap;
                 float Y_text = Pos.y - 3.0f;
-                ImGui::PushFont(Tahoma_BoldXP);
+                ImGui::PushFont(ImGui::GetFont());
                 ImVec2 Text_Size = ImGui::CalcTextSize(HealthStr.c_str());
                 ImGui::PopFont();
                 ImVec2 Text_Pos(X_Text - Text_Size.x, Y_text);
@@ -887,14 +887,14 @@ namespace esp {
 
             if (global::esp::name) {
                 if (global::esp::Name_Type == 0) {
-                    ImGui::PushFont(Tahoma_BoldXP);
+                    ImGui::PushFont(ImGui::GetFont());
                     ImVec2 Text_Size = ImGui::CalcTextSize(player.name.c_str());
                     ImGui::PopFont();
                     ImVec2 Text_Position(Pos.x + (Size.x * 0.5f) - (Text_Size.x * 0.5f), Pos.y - Text_Size.y - 3.f);
                     outline(Text_Position, player.name.c_str(), global::esp::color::name);
                 }
                 else if (global::esp::Name_Type == 1) {
-                    ImGui::PushFont(Tahoma_BoldXP);
+                    ImGui::PushFont(ImGui::GetFont());
                     ImVec2 Text_Size = ImGui::CalcTextSize(player.Display_Name.c_str());
                     ImGui::PopFont();
                     ImVec2 Text_Position(Pos.x + (Size.x * 0.5f) - (Text_Size.x * 0.5f), Pos.y - Text_Size.y - 3.f);
@@ -902,7 +902,7 @@ namespace esp {
                 }
                 else if (global::esp::Name_Type == 2) {
                     std::string text = player.name + " [" + player.Display_Name + "]";
-                    ImGui::PushFont(Tahoma_BoldXP);
+                    ImGui::PushFont(ImGui::GetFont());
                     ImVec2 Text_Size = ImGui::CalcTextSize(text.c_str());
                     float NameW = ImGui::CalcTextSize((player.name + " ").c_str()).x;
                     float BracketW = ImGui::CalcTextSize("[").x;
@@ -918,7 +918,7 @@ namespace esp {
             }
 
             if (global::esp::Distance) {
-                ImGui::PushFont(Tahoma_BoldXP);
+                ImGui::PushFont(ImGui::GetFont());
                 char Buffer[16];
                 snprintf(Buffer, sizeof(Buffer), "[%dm]", static_cast<int>(player.Distance));
                 ImVec2 Text_Size = ImGui::CalcTextSize(Buffer);
@@ -929,7 +929,7 @@ namespace esp {
 
             if (global::esp::Rig_Type)
             {
-                ImGui::PushFont(Tahoma_BoldXP);
+                ImGui::PushFont(ImGui::GetFont());
                 const char* Rig_Type = nullptr;
                 if (player.Rig_Type == 1)
                     Rig_Type = "[R15]";
@@ -960,7 +960,7 @@ namespace esp {
                         Cl_Name.push_back(']');
                     }
                 }
-                ImGui::PushFont(Tahoma_BoldXP);
+                ImGui::PushFont(ImGui::GetFont());
                 ImVec2 Text_Size = ImGui::CalcTextSize(Cl_Name.c_str());
                 ImGui::PopFont();
                 float Offset = global::esp::Distance ? 18.0f : 3.0f;

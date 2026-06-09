@@ -5,9 +5,9 @@
 #include <string>
 #include <cstdio>
 #include <cmath>
-#include "core/theme.h"
-#include "core/animation.h"
-#include "core/fonts.h"
+#include "../core/theme.h"
+#include "../core/animation.h"
+#include "../core/fonts.h"
 
 // ========================================================================
 // Custom ImGui widgets — all drawn with ImDrawList for premium Aurora look
@@ -220,7 +220,7 @@ namespace w {
             6.f, 0, 1.f);
 
         const char* cur = (*idx >= 0 && *idx < (int)items.size()) ? items[*idx] : "---";
-        dl->AddText(font::regular(), font::regular()->FontSize,
+        dl->AddText(font::regular(), font::regular()->ConfigData->SizePixels,
             { p.x + 7.f, p.y + (h - ImGui::GetFontSize()) * .5f },
             theme::col_text(), cur);
 
