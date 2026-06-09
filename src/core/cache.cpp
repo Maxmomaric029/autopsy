@@ -20,6 +20,7 @@ namespace cache {
         sdk::instance sdk::player::* Member;
     };
 
+    // Support both naming conventions: "Left Arm" (space) and "LeftArm" (no space)
     constexpr partmap Part_Mappings[] = {
 
         {"Humanoid", &sdk::player::humanoid},
@@ -29,9 +30,13 @@ namespace cache {
         {"UpperTorso", &sdk::player::UpperTorso},
         {"LowerTorso", &sdk::player::LowerTorso},
         {"Left Arm", &sdk::player::LeftArm},
+        {"LeftArm", &sdk::player::LeftArm},
         {"Right Arm", &sdk::player::RightArm},
+        {"RightArm", &sdk::player::RightArm},
         {"Left Leg", &sdk::player::LeftLeg},
+        {"LeftLeg", &sdk::player::LeftLeg},
         {"Right Leg", &sdk::player::RightLeg},
+        {"RightLeg", &sdk::player::RightLeg},
         {"LeftUpperLeg", &sdk::player::LeftUpperLeg},
         {"RightUpperLeg", &sdk::player::RightUpperLeg},
         {"LeftLowerLeg", &sdk::player::LeftLowerLeg},
@@ -157,6 +162,64 @@ namespace cache {
         }
         if (!player.LowerTorso.Address) {
             player.LowerTorso = player.character.childclass("LowerTorso");
+        }
+
+        // Fallback lookups for arms and legs (try both naming conventions)
+        if (!player.LeftArm.Address) {
+            player.LeftArm = player.character.childclass("Left Arm");
+            if (!player.LeftArm.Address)
+                player.LeftArm = player.character.childclass("LeftArm");
+        }
+        if (!player.RightArm.Address) {
+            player.RightArm = player.character.childclass("Right Arm");
+            if (!player.RightArm.Address)
+                player.RightArm = player.character.childclass("RightArm");
+        }
+        if (!player.LeftLeg.Address) {
+            player.LeftLeg = player.character.childclass("Left Leg");
+            if (!player.LeftLeg.Address)
+                player.LeftLeg = player.character.childclass("LeftLeg");
+        }
+        if (!player.RightLeg.Address) {
+            player.RightLeg = player.character.childclass("Right Leg");
+            if (!player.RightLeg.Address)
+                player.RightLeg = player.character.childclass("RightLeg");
+        }
+        if (!player.LeftUpperArm.Address) {
+            player.LeftUpperArm = player.character.childclass("LeftUpperArm");
+        }
+        if (!player.RightUpperArm.Address) {
+            player.RightUpperArm = player.character.childclass("RightUpperArm");
+        }
+        if (!player.LeftLowerArm.Address) {
+            player.LeftLowerArm = player.character.childclass("LeftLowerArm");
+        }
+        if (!player.RightLowerArm.Address) {
+            player.RightLowerArm = player.character.childclass("RightLowerArm");
+        }
+        if (!player.LeftUpperLeg.Address) {
+            player.LeftUpperLeg = player.character.childclass("LeftUpperLeg");
+        }
+        if (!player.RightUpperLeg.Address) {
+            player.RightUpperLeg = player.character.childclass("RightUpperLeg");
+        }
+        if (!player.LeftLowerLeg.Address) {
+            player.LeftLowerLeg = player.character.childclass("LeftLowerLeg");
+        }
+        if (!player.RightLowerLeg.Address) {
+            player.RightLowerLeg = player.character.childclass("RightLowerLeg");
+        }
+        if (!player.LeftFoot.Address) {
+            player.LeftFoot = player.character.childclass("LeftFoot");
+        }
+        if (!player.RightFoot.Address) {
+            player.RightFoot = player.character.childclass("RightFoot");
+        }
+        if (!player.LeftHand.Address) {
+            player.LeftHand = player.character.childclass("LeftHand");
+        }
+        if (!player.RightHand.Address) {
+            player.RightHand = player.character.childclass("RightHand");
         }
 
         if (player.humanoid.Address) {

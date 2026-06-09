@@ -62,6 +62,13 @@ namespace page {
                 if (global::aim::SmoothAdvanced) {
                     w::sliderfloat("Smooth X", &global::aim::mouse::Smoothing_X, 0.f, 12.f);
                     w::sliderfloat("Smooth Y", &global::aim::mouse::Smoothing_Y, 0.f, 12.f);
+                } else {
+                    // Single combined slider when advanced is off
+                    float avg = (global::aim::mouse::Smoothing_X + global::aim::mouse::Smoothing_Y) * 0.5f;
+                    if (w::sliderfloat("Smooth", &avg, 0.f, 12.f)) {
+                        global::aim::mouse::Smoothing_X = avg;
+                        global::aim::mouse::Smoothing_Y = avg;
+                    }
                 }
                 w::sliderfloat("Sensitivity", &global::aim::mouse::Mouse_Sensitivty, 0.f, 5.f);
                 w::helptooltip("Mouse movement scale factor");
@@ -70,6 +77,12 @@ namespace page {
                 if (global::aim::SmoothAdvanced) {
                     w::sliderfloat("Smooth X", &global::aim::camera::Smoothing_X, 0.f, 12.f);
                     w::sliderfloat("Smooth Y", &global::aim::camera::Smoothing_Y, 0.f, 12.f);
+                } else {
+                    float avg = (global::aim::camera::Smoothing_X + global::aim::camera::Smoothing_Y) * 0.5f;
+                    if (w::sliderfloat("Smooth", &avg, 0.f, 12.f)) {
+                        global::aim::camera::Smoothing_X = avg;
+                        global::aim::camera::Smoothing_Y = avg;
+                    }
                 }
             }
             w::gap(4.f);
