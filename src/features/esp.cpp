@@ -605,7 +605,7 @@ namespace style
             return;
 
         const float ds = 8.f; // diamond size
-        const ImU32 col = theme::col_accent(0.85f);
+        const ImU32 col = style::Accent;
         const ImU32 shd = IM_COL32(0, 0, 0, 160);
 
         // Shadow

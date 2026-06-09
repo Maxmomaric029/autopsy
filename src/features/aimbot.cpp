@@ -120,12 +120,23 @@ namespace aim {
         return A.x * B.x + A.y * B.y + A.z * B.z;
     }
 
+    static HWND robloxHwnd() {
+        static HWND cached = 0;
+        static DWORD lastCheck = 0;
+        DWORD now = GetTickCount();
+        if (!cached || now - lastCheck > 1000) {
+            cached = FindWindowA(0, "Roblox");
+            lastCheck = now;
+        }
+        return cached;
+    }
+
     static bool visible(const sdk::camera& Cam, const sdk::vector3& TargetPos, const sdk::vector2& ScreenPos)
     {
         (void)Cam;
         (void)TargetPos;
 
-        HWND Window = FindWindowA(0, "Roblox");
+        HWND Window = robloxHwnd();
         RECT ClientRect{};
         if (!Window || !GetClientRect(Window, &ClientRect))
             return false;
@@ -418,17 +429,6 @@ namespace aim {
             LastShot = Now;
             return;
         }
-    }
-
-    static HWND robloxHwnd() {
-        static HWND cached = 0;
-        static DWORD lastCheck = 0;
-        DWORD now = GetTickCount();
-        if (!cached || now - lastCheck > 1000) {
-            cached = FindWindowA(0, "Roblox");
-            lastCheck = now;
-        }
-        return cached;
     }
 
     void update() {

@@ -38,6 +38,7 @@ namespace anim {
         std::unordered_map<ImGuiID, float> values;
 
         float get(ImGuiID id, bool on, float speed = 10.f) {
+            if (values.empty()) values.reserve(128);
             float& v = values[id];
             v = damp(v, on ? 1.f : 0.f, speed);
             return v;
