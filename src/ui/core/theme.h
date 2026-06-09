@@ -12,15 +12,20 @@ namespace theme {
     // ========================================================================
     // Aurora Dark palette
     // ========================================================================
-    inline ImVec4 c_bg       = ImVec4(0.0117f, 0.0235f, 0.0392f, 1.f); // #03060A
-    inline ImVec4 c_surface  = ImVec4(0.0274f, 0.0627f, 0.1020f, 1.f); // #07101A
-    inline ImVec4 c_surface2 = ImVec4(0.0431f, 0.0863f, 0.1412f, 1.f); // #0B1624
-    inline ImVec4 c_card     = ImVec4(0.0509f, 0.1020f, 0.1686f, 1.f); // #0D1A2B
+    // ========================================================================
+    // Deeper, more premium palette
+    // ========================================================================
+    inline ImVec4 c_bg       = ImVec4(0.0078f, 0.0118f, 0.0196f, 1.f); // #020306 casi negro
+    inline ImVec4 c_surface  = ImVec4(0.0196f, 0.0314f, 0.0510f, 1.f); // #050810
+    inline ImVec4 c_surface2 = ImVec4(0.0353f, 0.0549f, 0.0863f, 1.f); // #090E16
+    inline ImVec4 c_card     = ImVec4(0.0471f, 0.0706f, 0.1059f, 1.f); // #0C121B
     inline ImVec4 c_border   = ImVec4(0.1020f, 0.2000f, 0.2824f, 1.f); // #1A3348
-    inline ImVec4 c_accent   = ImVec4(0.8627f, 0.2353f, 0.2745f, 1.f); // #DC3C46 blood red
-    inline ImVec4 c_accent2  = ImVec4(0.7020f, 0.1961f, 0.2392f, 1.f); // #B3323D dark red accent
-    inline ImVec4 c_text     = ImVec4(0.9176f, 0.9569f, 1.0000f, 1.f); // #EAF4FF
-    inline ImVec4 c_muted    = ImVec4(0.5569f, 0.6431f, 0.7098f, 1.f); // #8EA4B5
+
+    inline ImVec4 c_accent   = ImVec4(0.9020f, 0.1960f, 0.2549f, 1.f); // #E63241
+    inline ImVec4 c_accent2  = ImVec4(1.0000f, 0.3372f, 0.3372f, 1.f); // #FF5656 highlight
+
+    inline ImVec4 c_text     = ImVec4(0.9412f, 0.9647f, 1.0000f, 1.f); // #F0F6FF
+    inline ImVec4 c_muted    = ImVec4(0.4706f, 0.5490f, 0.6275f, 1.f); // #788CA0
     inline ImVec4 c_danger   = ImVec4(1.0000f, 0.3020f, 0.4275f, 1.f); // #FF4D6D
     inline ImVec4 c_success  = ImVec4(0.3373f, 0.9412f, 0.6980f, 1.f); // #56F0B2
     inline ImVec4 c_warning  = ImVec4(1.0000f, 0.7843f, 0.3412f, 1.f); // #FFC857

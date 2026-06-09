@@ -281,6 +281,32 @@ void ModernUI::RenderMenu() {
     // ---- Content area ----
     layout::contentBg(DL, WP, WS);
 
+    // ---- Vignette overlay on content area ----
+    {
+        const ImVec2 cMin = WP + ImVec2(theme::kSidebarW, 0.f);
+        const ImVec2 cMax = WP + WS;
+        // Darker edges — 6 concentric rings fading out
+        for (int i = 0; i < 6; i++) {
+            float expand = 10.f + i * 15.f;
+            int a = (int)((5 - i) * 4);
+            if (a <= 0) continue;
+            DL->AddRect(
+                cMin + ImVec2(expand, expand),
+                cMax - ImVec2(expand, expand),
+                IM_COL32(0, 0, 0, a),
+                theme::r_window * (1.f - (float)i * 0.15f), 0, expand * 0.7f);
+        }
+        // Subtle scanline overlay (very faint)
+        if (menuEase > 0.5f) {
+            float scanAlpha = (menuEase - 0.5f) * 2.f * 3.f;
+            for (float sy = cMin.y; sy < cMax.y; sy += 4.f) {
+                DL->AddLine(
+                    { cMin.x, sy }, { cMax.x, sy },
+                    IM_COL32(0, 0, 0, (int)scanAlpha), 1.f);
+            }
+        }
+    }
+
     constexpr float kSideW = 190.f;
     constexpr float kPad = 14.f;
     float contentX = WP.x + kSideW + 1.f;

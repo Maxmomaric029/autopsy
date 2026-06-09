@@ -134,57 +134,106 @@ namespace w {
         color4(lc, cc);
     }
 
-    // ---- Section label --------------------------------------------------
+    // ---- Section label — premium with gradient accent bar ----
     inline void labelsection(const char* text) {
         ImDrawList* dl = ImGui::GetWindowDrawList();
-        const ImVec2 p = ImGui::GetCursorScreenPos();
-        dl->AddRectFilled(p, { p.x + 3.f, p.y + ImGui::GetFontSize() + 1.f },
-            theme::col_accent(), 1.5f);
+        const ImVec2 p  = ImGui::GetCursorScreenPos();
+        const float  fh = ImGui::GetFontSize();
+
+        // Left accent bar with vertical gradient fade
+        dl->AddRectFilledMultiColor(
+            p, { p.x + 3.f, p.y + fh + 2.f },
+            theme::col_accent(), theme::col_accent(),
+            theme::alpha(theme::col_accent(), 0.0f),
+            theme::alpha(theme::col_accent(), 0.0f));
+
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 10.f);
-        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "%s", text);
-        ImGui::PushStyleColor(ImGuiCol_Separator,
-            ImGui::ColorConvertU32ToFloat4(theme::col_border()));
-        ImGui::Separator();
-        ImGui::PopStyleColor();
+        ImGui::PushFont(font::medium());
+        ImGui::TextColored(
+            ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
+            "%s", text);
+        ImGui::PopFont();
+
+        // Gradient separator line that fades out to the right
+        const ImVec2 lp = ImGui::GetCursorScreenPos();
+        const float  lw = ImGui::GetContentRegionAvail().x;
+        dl->AddRectFilledMultiColor(
+            { lp.x, lp.y }, { lp.x + lw * 0.7f, lp.y + 1.f },
+            theme::col_border(), IM_COL32(0, 0, 0, 0),
+            IM_COL32(0, 0, 0, 0), theme::col_border());
+        ImGui::Dummy({ 0.f, 1.f }); // space for the line
         ImGui::Dummy({ 0.f, 4.f });
     }
 
     inline void gap(float px = 4.f) { ImGui::Dummy({ 0.f, px }); }
 
-    // ---- Float slider ---------------------------------------------------
+    // ---- Float slider — premium with gradient track + glow handle ----
     inline bool sliderfloat(const char* label, float* v, float mn, float mx) {
         ImGui::PushID(label);
         ImDrawList* dl = ImGui::GetWindowDrawList();
         const float avail = ImGui::GetContentRegionAvail().x;
 
-        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "%s", label);
+        // Label + value on the same line
+        const ImVec2 labelPos = ImGui::GetCursorScreenPos();
+        ImGui::PushFont(font::regular());
+        ImGui::TextColored(
+            ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "%s", label);
+        ImGui::PopFont();
+
         char buf[32]; std::snprintf(buf, sizeof(buf), "%.2f", *v);
-        ImGui::SameLine(avail - ImGui::CalcTextSize(buf).x);
-        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::alpha(theme::col_accent(), 0.85f)), "%s", buf);
+        ImGui::SameLine(avail - ImGui::CalcTextSize(buf).x - 2.f);
+        ImGui::TextColored(
+            ImGui::ColorConvertU32ToFloat4(theme::alpha(theme::col_accent(), 0.9f)), "%s", buf);
 
+        // Track
         const ImVec2 p = ImGui::GetCursorScreenPos();
-        const float w = ImGui::GetContentRegionAvail().x;
-        const float cy = p.y + 11.f;
-        constexpr float kTrkH = 4.f;
+        const float  w = ImGui::GetContentRegionAvail().x;
+        constexpr float kH    = 20.f;
+        constexpr float kTrkY = 10.f;  // vertical center of track
+        constexpr float kTrkH = 3.f;
 
-        ImGui::InvisibleButton("##sl", { w, 22.f });
+        ImGui::InvisibleButton("##sl", { w, kH });
         const bool active = ImGui::IsItemActive();
-        const bool hov = ImGui::IsItemHovered();
+        const bool hov    = ImGui::IsItemHovered();
         if (active) {
             float rel = (ImGui::GetIO().MousePos.x - p.x) / w;
             *v = mn + ImClamp(rel, 0.f, 1.f) * (mx - mn);
         }
-        const float t = mx == mn ? 0.f : ImClamp((*v - mn) / (mx - mn), 0.f, 1.f);
+        const float t  = mx == mn ? 0.f : ImClamp((*v - mn) / (mx - mn), 0.f, 1.f);
+        const float cx = p.y + kTrkY;
 
-        dl->AddRectFilled({ p.x, cy - kTrkH * .5f }, { p.x + w, cy + kTrkH * .5f },
-            theme::col_border(), kTrkH);
-        dl->AddRectFilled({ p.x, cy - kTrkH * .5f }, { p.x + w * t, cy + kTrkH * .5f },
-            active ? theme::col_accent2() : theme::col_accent(), kTrkH);
+        // Track background
+        dl->AddRectFilled(
+            { p.x,       cx - kTrkH * .5f },
+            { p.x + w,   cx + kTrkH * .5f },
+            IM_COL32(20, 35, 55, 200), kTrkH);
 
-        const float hh = active ? 7.5f : (hov ? 6.5f : 5.5f);
+        // Track fill with gradient
+        if (t > 0.001f) {
+            dl->AddRectFilledMultiColor(
+                { p.x,           cx - kTrkH * .5f },
+                { p.x + w * t,   cx + kTrkH * .5f },
+                theme::alpha(theme::col_accent(), 0.6f),
+                active ? theme::col_accent() : theme::alpha(theme::col_accent(), 0.85f),
+                active ? theme::col_accent() : theme::alpha(theme::col_accent(), 0.85f),
+                theme::alpha(theme::col_accent(), 0.6f));
+        }
+
+        // Handle (circle with glow)
         const float hx = p.x + w * t;
-        dl->AddCircleFilled({ hx, cy }, hh,
-            active ? theme::col_accent2() : theme::col_accent(), 22);
+        const float hr = active ? 7.f : (hov ? 6.f : 5.f);
+
+        // Handle glow
+        if (active || hov) {
+            dl->AddCircleFilled({ hx, cx }, hr + 4.f,
+                theme::alpha(theme::col_accent(), active ? 0.25f : 0.12f), 24);
+        }
+
+        // Main handle
+        dl->AddCircleFilled({ hx, cx }, hr,
+            active ? theme::col_accent2() : theme::col_accent(), 24);
+        dl->AddCircleFilled({ hx, cx }, hr * 0.45f,
+            IM_COL32(255, 255, 255, 200), 12);
 
         ImGui::PopID();
         return ImGui::IsItemDeactivatedAfterEdit();
