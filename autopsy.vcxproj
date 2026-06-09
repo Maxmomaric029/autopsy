@@ -143,7 +143,7 @@
       <AdditionalIncludeDirectories>C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\shared;C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\um</AdditionalIncludeDirectories>
     </ResourceCompile>
     <PostBuildEvent>
-      <Command>xcopy /E /I /Y "$(ProjectDir)Dependencies\Fonts" "$(OutDir)Fonts\" &amp;&amp; xcopy /E /I /Y "$(ProjectDir)Dependencies\FontAwesome" "$(OutDir)FontAwesome\"</Command>
+      <Command>xcopy /E /I /Y "$(ProjectDir)Dependencies\Fonts" "$(OutDir)fonts\" &amp;&amp; xcopy /E /I /Y "$(ProjectDir)Dependencies\FontAwesome\fa-solid-900.ttf" "$(OutDir)fonts\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

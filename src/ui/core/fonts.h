@@ -55,13 +55,13 @@ namespace font {
             return rootDir + sub;
         };
 
-        // On deployed builds:  Build/Fonts/Inter/...   Build/FontAwesome/...
+        // On deployed builds:  Build/fonts/Inter/...   Build/fonts/fa-solid-900.ttf
         // On dev builds:        Dependencies/Fonts/Inter/...  Dependencies/FontAwesome/...
-        std::string interRegular = tryPath("Fonts\\Inter\\Inter-Regular.ttf");
-        std::string interSemiBld = tryPath("Fonts\\Inter\\Inter-SemiBold.ttf");
-        std::string interBold    = tryPath("Fonts\\Inter\\Inter-Bold.ttf");
-        std::string interBlack   = tryPath("Fonts\\Inter\\Inter-Black.ttf");
-        std::string faSolid      = tryPath("FontAwesome\\fa-solid-900.ttf");
+        std::string interRegular = tryPath("fonts\\Inter\\Inter-Regular.ttf");
+        std::string interSemiBld = tryPath("fonts\\Inter\\Inter-SemiBold.ttf");
+        std::string interBold    = tryPath("fonts\\Inter\\Inter-Bold.ttf");
+        std::string interBlack   = tryPath("fonts\\Inter\\Inter-Black.ttf");
+        std::string faSolid      = tryPath("fonts\\fa-solid-900.ttf");
 
         ImFontConfig cfg;
         cfg.PixelSnapH = false;

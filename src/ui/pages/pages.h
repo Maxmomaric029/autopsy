@@ -467,31 +467,20 @@ namespace page {
 
         ImGui::SameLine(0.f, 6.f);
 
-        if (w::card::begin("##stheme", { halfW, bInH }, "THEME")) {
-            w::labelsection("COLORS");
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Accent");
-            w::color4("##acc", global::setting::color::Accent);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Accent 2");
-            w::color4("##acc2", global::setting::color::Accent2);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Background");
-            w::color4("##bg", global::setting::color::Window);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Card");
-            w::color4("##card", global::setting::color::card);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Text");
-            w::color4("##text", global::setting::color::text);
+        if (w::card::begin("##sabout", { halfW, bInH }, "ABOUT")) {
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(IM_COL32(220, 60, 70, 245)),
+                "MISERABLE");
+            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 30.f);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
+                "Version 1.0.0");
+            w::gap(4.f);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
+                "Built with ImGui + DirectX 11");
             w::gap(8.f);
-
-            // HUD colors
-            w::labelsection("HUD");
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "HUD Accent");
-            w::color4("##hudacc", global::overlay::color::Accent);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "HUD Accent 2");
-            w::color4("##hudacc2", global::overlay::color::Accent2);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "HUD Panel");
-            w::color4("##hudpnl", global::overlay::color::panel);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "HUD Text");
-            w::color4("##hudtxt", global::overlay::color::text);
-
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
+                "Menu Key");
+            ImGui::SameLine(ImGui::GetContentRegionMax().x - 60.f);
+            w::keyselect("##menukey", &global::setting::Menu_Key);
         }
         w::card::end();
     }

@@ -346,51 +346,6 @@ namespace {
         dl->AddRectFilled({ c.x + gap, c.y - 1.f }, { c.x + gap + 10.f, c.y + 1.f }, col);
     }
 
-    // ---- Welcome splash ----
-    static void welcome() {
-        static double startTime = -1.0;
-        if (startTime < 0.0) startTime = ImGui::GetTime();
-        float elapsed = (float)(ImGui::GetTime() - startTime);
-        if (elapsed > 4.85f) return;
-
-        float inT = anim::ease_out_cubic(ImClamp(elapsed / .55f, 0.f, 1.f));
-        float outT = elapsed <= 4.0f ? 1.f
-            : 1.f - anim::ease_out_cubic(ImClamp((elapsed - 4.0f) / .85f, 0.f, 1.f));
-        float alpha = inT * outT;
-        if (alpha <= .01f) return;
-
-        ImDrawList* dl = ImGui::GetForegroundDrawList();
-        ImVec2 display = ImGui::GetIO().DisplaySize;
-        ImVec2 center = display * .5f;
-        float pulse = (sinf(elapsed * 4.2f) + 1.f) * .5f;
-
-        dl->AddRectFilled({ 0.f, 0.f }, display, IM_COL32(2, 3, 6, (int)(232.f * alpha)));
-        for (int i = 0; i < 5; ++i) {
-            float r = 54.f + i * 34.f + pulse * 12.f;
-            dl->AddCircle(center, r, IM_COL32(200, 50, 60, (int)((42.f - i * 6.f) * alpha)), 96, 1.2f);
-        }
-
-        ImFont* logoF = font::logo();
-        float logoSize = logoF->LegacySize * 1.65f;
-        ImVec2 ts = logoF->CalcTextSizeA(logoSize, FLT_MAX, 0.f, "MISERABLE");
-        ImVec2 tp(center.x - ts.x * .5f, center.y - 34.f);
-        dl->AddText(logoF, logoSize, tp + ImVec2(0.f, 3.f), IM_COL32(0, 0, 0, (int)(190.f * alpha)), "MISERABLE");
-        dl->AddText(logoF, logoSize, tp, IM_COL32(230, 60, 70, 245), "MISERABLE");
-        dl->AddText(tp + ImVec2(ts.x + 8.f, 6.f), IM_COL32(220, 50, 60, 220), "BETA");
-
-        const char* sub = "loading overlay";
-        ImVec2 ss = ImGui::CalcTextSize(sub);
-        dl->AddText(ImVec2(center.x - ss.x * .5f, center.y + 14.f), IM_COL32(140, 150, 170, 200), sub);
-
-        float barW = ImMin(360.f, display.x * .42f);
-        float progress = ImClamp(elapsed / 4.0f, 0.f, 1.f);
-        ImVec2 bm(center.x - barW * .5f, center.y + 48.f);
-        ImVec2 bM(center.x + barW * .5f, center.y + 54.f);
-        dl->AddRectFilled(bm, bM, IM_COL32(12, 18, 26, (int)(220.f * alpha)), 3.f);
-        dl->AddRectFilled(bm, ImVec2(bm.x + barW * progress, bM.y), IM_COL32(220, 60, 70, 230), 3.f);
-        dl->AddRect(bm, bM, IM_COL32(200, 50, 60, (int)(82.f * alpha)), 3.f);
-    }
-
     // ---- HUD panel helpers ----
     namespace hud {
         static ImU32 accent(float a = 1.f) { return IM_COL32(220, 60, 70, (int)(255 * a)); }
@@ -694,9 +649,6 @@ void ModernUI::RenderESP() {
         hud::panel("##miserable_watermark", global::overlay::Watermark_Pos,
             ImVec2(258.f, 42.f), movable,
             [](ImDrawList* dl, ImVec2 p, ImVec2 s, bool h, bool a) { hud::watermark(dl, p, s, h, a); });
-    if (global::overlay::hotkey) {
-        int rows = hud::hotkeycount();
-    }
     if (global::overlay::radar) {
         float radarSize = ImClamp(global::overlay::Radar_Size, 130.f, 280.f);
         hud::panel("##miserable_radar", global::overlay::Radar_Pos,
@@ -704,7 +656,6 @@ void ModernUI::RenderESP() {
             [](ImDrawList* dl, ImVec2 p, ImVec2 s, bool h, bool a) { hud::radar(dl, p, s, h, a); });
     }
 
-    welcome();
 }
 
 // ========================================================================
