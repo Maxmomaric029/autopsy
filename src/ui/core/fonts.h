@@ -24,8 +24,8 @@ namespace font {
 
         ImFontConfig cfg;
         cfg.PixelSnapH  = false;
-        cfg.OversampleH = 3;
-        cfg.OversampleV = 3;
+        cfg.OversampleH = 1;
+        cfg.OversampleV = 1;
 
         // FontAwesome glyph ranges (16-bit Private Use Area)
         static const ImWchar fa_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };

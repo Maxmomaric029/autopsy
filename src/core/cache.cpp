@@ -308,6 +308,8 @@ namespace cache {
 
         {
             std::lock_guard<std::mutex> Lock(Mutex);
+            // Replace cache and trim excess capacity
+            actor.shrink_to_fit();
             global::Player_Cache = std::move(actor);
         }
         console::playerCount = (int)global::Player_Cache.size();

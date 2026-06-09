@@ -8,37 +8,24 @@
 // Loads PNG/JPG/... files into ID3D11ShaderResourceView for ImGui::Image
 // ========================================================================
 
+// Forward declarations for stb_image (implemented in graphic.cpp)
+extern "C" {
+    extern unsigned char* stbi_load_from_memory(const unsigned char* buffer,
+        int len, int* x, int* y, int* n, int req_comp);
+    extern unsigned char* stbi_load(const char* filename, int* x, int* y,
+        int* n, int req_comp);
+    extern void stbi_image_free(void*);
+}
+
 namespace tex {
 
     // ========================================================================
-    // Load a texture from a file into a D3D11 shader resource view
-    // Returns true on success. The caller must Release() the SRV when done.
+    // Helper: create a D3D11 SRV from raw RGBA pixel data
     // ========================================================================
-    inline bool load(ID3D11Device* device, const char* filePath,
-        ID3D11ShaderResourceView** outSRV, int* outWidth = nullptr,
-        int* outHeight = nullptr) {
+    inline bool create_srv(ID3D11Device* device,
+        unsigned char* imageData, int width, int height,
+        ID3D11ShaderResourceView** outSRV) {
 
-        if (!device || !filePath || !outSRV) return false;
-        *outSRV = nullptr;
-
-        // stb_image implementation is in graphic.cpp where STB_IMAGE_IMPLEMENTATION
-        // is defined. This header only uses it as a forward-declared function.
-        // We define the stb_image functions as extern here since they're
-        // implemented in graphic.cpp via the #define STB_IMAGE_IMPLEMENTATION.
-
-        // Load via stb_image
-        int width = 0, height = 0, channels = 0;
-
-        // Forward declaration - implemented in graphic.cpp
-        extern unsigned char* stbi_load(const char* filename, int* x, int* y,
-            int* n, int req_comp);
-
-        unsigned char* imageData = stbi_load(filePath, &width, &height,
-            &channels, 4); // Force RGBA
-
-        if (!imageData) return false;
-
-        // Create D3D11 texture
         D3D11_TEXTURE2D_DESC desc{};
         desc.Width = (UINT)width;
         desc.Height = (UINT)height;
@@ -57,12 +44,9 @@ namespace tex {
         ID3D11Texture2D* texture = nullptr;
         HRESULT hr = device->CreateTexture2D(&desc, &initData, &texture);
         if (FAILED(hr) || !texture) {
-            extern void stbi_image_free(void*);
-            stbi_image_free(imageData);
             return false;
         }
 
-        // Create shader resource view
         D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc{};
         srvDesc.Format = desc.Format;
         srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
@@ -71,15 +55,62 @@ namespace tex {
         hr = device->CreateShaderResourceView(texture, &srvDesc, outSRV);
         texture->Release();
 
-        extern void stbi_image_free(void*);
+        return SUCCEEDED(hr) && *outSRV;
+    }
+
+    // ========================================================================
+    // Load a texture from embedded memory (e.g. PNG->C array)
+    // Returns true on success. The caller must Release() the SRV when done.
+    // ========================================================================
+    inline bool load_from_memory(ID3D11Device* device,
+        const unsigned char* data, unsigned int dataSize,
+        ID3D11ShaderResourceView** outSRV,
+        int* outWidth = nullptr, int* outHeight = nullptr) {
+
+        if (!device || !data || !dataSize || !outSRV) return false;
+        *outSRV = nullptr;
+
+        int width = 0, height = 0, channels = 0;
+        unsigned char* imageData = stbi_load_from_memory(
+            data, (int)dataSize, &width, &height, &channels, 4);
+
+        if (!imageData) return false;
+
+        bool ok = create_srv(device, imageData, width, height, outSRV);
         stbi_image_free(imageData);
 
-        if (FAILED(hr) || !*outSRV) return false;
+        if (ok) {
+            if (outWidth)  *outWidth  = width;
+            if (outHeight) *outHeight = height;
+        }
+        return ok;
+    }
 
-        if (outWidth)  *outWidth  = width;
-        if (outHeight) *outHeight = height;
+    // ========================================================================
+    // Load a texture from a file into a D3D11 shader resource view
+    // Returns true on success. The caller must Release() the SRV when done.
+    // ========================================================================
+    inline bool load(ID3D11Device* device, const char* filePath,
+        ID3D11ShaderResourceView** outSRV, int* outWidth = nullptr,
+        int* outHeight = nullptr) {
 
-        return true;
+        if (!device || !filePath || !outSRV) return false;
+        *outSRV = nullptr;
+
+        int width = 0, height = 0, channels = 0;
+        unsigned char* imageData = stbi_load(filePath, &width, &height,
+            &channels, 4); // Force RGBA
+
+        if (!imageData) return false;
+
+        bool ok = create_srv(device, imageData, width, height, outSRV);
+        stbi_image_free(imageData);
+
+        if (ok) {
+            if (outWidth)  *outWidth  = width;
+            if (outHeight) *outHeight = height;
+        }
+        return ok;
     }
 
 } // namespace tex

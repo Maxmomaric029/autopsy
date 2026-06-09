@@ -39,8 +39,21 @@ namespace anim {
 
         float get(ImGuiID id, bool on, float speed = 10.f) {
             if (values.empty()) values.reserve(128);
+            // Read/update current entry FIRST so it's never pruned
             float& v = values[id];
             v = damp(v, on ? 1.f : 0.f, speed);
+            // Then prune settled entries if the cache is bloated
+            if (values.size() > 256) {
+                static int pruneCounter = 0;
+                if (++pruneCounter % 30 == 0) {
+                    for (auto it = values.begin(); it != values.end(); ) {
+                        if (it->second == 0.f || it->second == 1.f)
+                            it = values.erase(it);
+                        else
+                            ++it;
+                    }
+                }
+            }
             return v;
         }
 

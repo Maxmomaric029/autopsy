@@ -1,10 +1,14 @@
 #pragma once
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
+#include <d3d11.h>
 #include "../core/theme.h"
 #include "../core/animation.h"
 #include "../core/fonts.h"
 #include "../core/icons.h"
+
+// Logo textures (defined in modern_ui.cpp, exported via modern_ui.h)
+#include "../modern_ui.h"
 
 // ========================================================================
 // Menu layout: glassmorphism gray sidebar + content area
@@ -53,13 +57,25 @@ namespace layout {
             IM_COL32(180, 190, 210, 32));
 
         // ---- Logo ----
-        ImFont* logoF = font::logo();
-        float logoS = logoF->LegacySize * 0.9f;
-        ImVec2 logoPos = sbMin + ImVec2(18.f, 22.f);
-        dl->AddText(logoF, logoS, logoPos + ImVec2(1.f, 1.f),
-            IM_COL32(255, 40, 50, 180), "MISERABLE");
-        dl->AddText(logoF, logoS, logoPos,
-            IM_COL32(230, 60, 70, 245), "MISERABLE");
+        if (g_sidebar_logo) {
+            float logoAreaH = kLogoH - 22.f;
+            float aspect = (float)g_sidebar_logoW / (float)g_sidebar_logoH;
+            float logoH = ImMin(logoAreaH, 44.f);
+            float logoW = logoH * aspect;
+            float maxLogoW = kSideW - 40.f;
+            if (logoW > maxLogoW) { logoW = maxLogoW; logoH = logoW / aspect; }
+            ImVec2 logoMin = sbMin + ImVec2(18.f, (kLogoH - logoH) * 0.5f);
+            dl->AddImage(g_sidebar_logo, logoMin, logoMin + ImVec2(logoW, logoH));
+        } else {
+            // Fallback: text logo
+            ImFont* logoF = font::logo();
+            float logoS = logoF->LegacySize * 0.9f;
+            ImVec2 logoPos = sbMin + ImVec2(18.f, 22.f);
+            dl->AddText(logoF, logoS, logoPos + ImVec2(1.f, 1.f),
+                IM_COL32(255, 40, 50, 180), "MISERABLE");
+            dl->AddText(logoF, logoS, logoPos,
+                IM_COL32(230, 60, 70, 245), "MISERABLE");
+        }
 
         // Version text
         dl->AddText(font::mono(), font::mono()->LegacySize * 0.85f,

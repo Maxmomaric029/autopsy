@@ -15,6 +15,9 @@
 #include "ui/core/icons.h"
 #include "ui/core/notifications.h"
 #include "ui/core/texture.h"
+
+// Embedded logo data
+#include "ui/embedded/cuervo_logo.h"
 #include "ui/widgets/controls.h"
 #include "ui/layout/menulayout.h"
 #include "ui/pages/pages.h"
@@ -23,8 +26,25 @@
 // ModernUI — public API implementation
 // ========================================================================
 
+// Logo SRVs for sidebar/hud
+ID3D11ShaderResourceView* g_sidebar_logo = nullptr;
+int g_sidebar_logoW = 0;
+int g_sidebar_logoH = 0;
+
 ModernUI::ModernUI() = default;
 ModernUI::~ModernUI() { Destroy(); }
+
+bool ModernUI::load_logos(ID3D11Device* device) {
+    if (!device) return false;
+    tex::load_from_memory(device, cuervo_logo, cuervo_logo_size,
+        &g_sidebar_logo, &g_sidebar_logoW, &g_sidebar_logoH);
+    return g_sidebar_logo != nullptr;
+}
+
+void ModernUI::free_logos() {
+    if (g_sidebar_logo) { g_sidebar_logo->Release(); g_sidebar_logo = nullptr; }
+    g_sidebar_logoW = g_sidebar_logoH = 0;
+}
 
 bool ModernUI::Create(HWND window, ID3D11Device* device, ID3D11DeviceContext* context) {
     if (m_initialized) return true;
@@ -65,12 +85,16 @@ bool ModernUI::Create(HWND window, ID3D11Device* device, ID3D11DeviceContext* co
     if (!device || !context) return false;
     if (!ImGui_ImplDX11_Init(device, context)) return false;
 
+    // ---- Load embedded logos ----
+    load_logos(device);
+
     m_initialized = true;
     return true;
 }
 
 void ModernUI::Destroy() {
     if (!m_initialized) return;
+    free_logos();
     ImGui_ImplDX11_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
@@ -490,16 +514,38 @@ namespace {
 
         static void watermark(ImDrawList* dl, ImVec2 p, ImVec2 s, bool hovered, bool active) {
             panelbase(dl, p, s, hovered, active);
-            ImFont* logo = font::bold();
-            float logoSize = logo->LegacySize;
-            ImVec2 text = p + ImVec2(15.f, 7.f);
-            ImVec2 nameSize = logo->CalcTextSizeA(logoSize, FLT_MAX, 0.f, "MISERABLE");
             char fps[32]{}; std::snprintf(fps, sizeof(fps), "%.0ffps  %.0f%%", realfps(), cpuusage());
-            dl->AddRectFilled(p + ImVec2(7.f, 9.f), p + ImVec2(10.f, s.y - 9.f), accent(), 2.f);
-            dl->AddText(logo, logoSize, text + ImVec2(1.f, 1.f), IM_COL32(0, 0, 0, 180), "MISERABLE");
-            dl->AddText(logo, logoSize, text, IM_COL32(230, 60, 70, 245), "MISERABLE");
-            dl->AddText(text + ImVec2(nameSize.x + 8.f, logoSize * .28f), accent(), "BETA");
-            dl->AddText(p + ImVec2(16.f, 25.f), IM_COL32(140, 150, 170, 132), pcuser());
+
+            // Draw CUERVO logo image if loaded
+            if (g_sidebar_logo) {
+                float logoH = ImMin(s.y - 12.f, 32.f);
+                float aspect = (float)g_sidebar_logoW / (float)g_sidebar_logoH;
+                float logoW = logoH * aspect;
+                float logoX = p.x + 12.f;
+                float logoY = p.y + (s.y - logoH) * 0.5f;
+                dl->AddImage(g_sidebar_logo, { logoX, logoY }, { logoX + logoW, logoY + logoH });
+
+                // Left accent bar next to logo
+                dl->AddRectFilled(p + ImVec2(logoX + logoW + 6.f, 9.f),
+                    p + ImVec2(logoX + logoW + 9.f, s.y - 9.f), accent(), 2.f);
+
+                // Username
+                dl->AddText(p + ImVec2(logoX + logoW + 16.f, 7.f),
+                    IM_COL32(140, 150, 170, 132), pcuser());
+            } else {
+                // Fallback: text logo
+                ImFont* logo = font::bold();
+                float logoSize = logo->LegacySize;
+                ImVec2 text = p + ImVec2(15.f, 7.f);
+                ImVec2 nameSize = logo->CalcTextSizeA(logoSize, FLT_MAX, 0.f, "MISERABLE");
+                dl->AddRectFilled(p + ImVec2(7.f, 9.f), p + ImVec2(10.f, s.y - 9.f), accent(), 2.f);
+                dl->AddText(logo, logoSize, text + ImVec2(1.f, 1.f), IM_COL32(0, 0, 0, 180), "MISERABLE");
+                dl->AddText(logo, logoSize, text, IM_COL32(230, 60, 70, 245), "MISERABLE");
+                dl->AddText(text + ImVec2(nameSize.x + 8.f, logoSize * .28f), accent(), "BETA");
+                dl->AddText(p + ImVec2(16.f, 25.f), IM_COL32(140, 150, 170, 132), pcuser());
+            }
+
+            // FPS pill (always)
             float keyW = ImMax(72.f, ImGui::CalcTextSize(fps).x + 20.f);
             ImVec2 pillMin = ImVec2(p.x + s.x - keyW - 18.f, p.y + 10.f);
             ImVec2 pillMax = ImVec2(p.x + s.x - 10.f, p.y + 29.f);
