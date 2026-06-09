@@ -2,11 +2,11 @@
 #include <dwmapi.h>
 #include <cstdio>
 #include <chrono>
-#include <thread>
+#include <thread>#include "global.h"
 
-#include "global.h"
 #include "../features/esp.h"
 #include "../features/ball.h"
+#include "../features/silent.h"
 
 #include "ui/core/theme.h"
 #include "ui/core/animation.h"
@@ -38,7 +38,6 @@ bool ModernUI::Create(HWND window, ID3D11Device* device, ID3D11DeviceContext* co
 
     ImGuiIO& IO = ImGui::GetIO();
     IO.IniFilename = nullptr;
-    IO.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
     font::load(dpiScale);
 
