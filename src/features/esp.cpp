@@ -750,7 +750,7 @@ namespace esp {
                     auto Bones = esp::bone(player);
                     for (auto* Inst : Bones) {
                         if (!Inst || !Inst->Address) continue;
-                        sdk::part bp(*Inst);
+                        sdk::part bp(Inst->Address);
                         if (bp.Address && bp.primitive().Address) {
                             HeadPosition = bp.primitive().position();
                             break;
