@@ -17,8 +17,6 @@
 #include <imgui/misc/imgui_freetype.h>
 #include "imgui/imgui_internal.h"
 
-#include "ui/font/regular.h"
-#include "ui/font/bold.h"
 #include "../features/esp.h"
 #include "../features/ball.h"
 #include "../features/silent.h"
