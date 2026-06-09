@@ -165,15 +165,6 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    // ---- Animation state cache reserve ----
-    {
-        static bool reserved = false;
-        if (!reserved) {
-            anim::g_anim.reserve(128);
-            reserved = true;
-        }
-    }
-
     // ---- Menu toggle (Insert key) ----
     HWND roblox = FindWindowA(0, "Roblox");
     HWND fg = GetForegroundWindow();
