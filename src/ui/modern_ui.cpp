@@ -198,9 +198,9 @@ void ModernUI::RenderMenu() {
     static bool menuPosReady = false;
     static ImVec2 menuPos = {};
 
-    constexpr float kWinW = theme::kWinW;
-    constexpr float kWinH = theme::kWinH;
-    constexpr float kR = theme::r_window;
+    const float kWinW = theme::kWinW;
+    const float kWinH = theme::kWinH;
+    const float kR = theme::r_window;
 
     ImGuiIO& IO = ImGui::GetIO();
 
