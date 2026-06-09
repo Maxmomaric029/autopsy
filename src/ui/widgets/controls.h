@@ -220,7 +220,7 @@ namespace w {
             6.f, 0, 1.f);
 
         const char* cur = (*idx >= 0 && *idx < (int)items.size()) ? items[*idx] : "---";
-        dl->AddText(font::regular(), font::regular()->Size,
+        dl->AddText(font::regular(), font::regular()->LegacySize,
             { p.x + 7.f, p.y + (h - ImGui::GetFontSize()) * .5f },
             theme::col_text(), cur);
 
