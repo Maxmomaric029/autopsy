@@ -17,8 +17,7 @@
 #include <imgui/misc/imgui_freetype.h>
 #include "imgui/imgui_internal.h"
 
-#include "ui/font/regular.h"
-#include "ui/font/bold.h"
+// Fonts loaded from files via fonts.h (Inter + FontAwesome 6)
 #include "../features/esp.h"
 #include "../features/ball.h"
 #include "../features/silent.h"
@@ -29,9 +28,14 @@
 #include "ui/core/fonts.h"
 #include "ui/core/icons.h"
 #include "ui/core/notifications.h"
+#include "ui/core/texture.h"
 #include "ui/widgets/controls.h"
 #include "ui/layout/menulayout.h"
 #include "ui/pages/pages.h"
+
+// stb_image implementation (single-header image loader)
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND Hwnd, UINT Msg, WPARAM WParam, LPARAM LParam);
 

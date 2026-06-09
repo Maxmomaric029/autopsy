@@ -275,8 +275,7 @@
     <ClInclude Include="src\features\esp.h" />
     <ClInclude Include="src\features\wallcheck.h" />
     <ClInclude Include="src\features\world.h" />
-    <ClInclude Include="src\ui\font\regular.h" />
-    <ClInclude Include="src\ui\font\bold.h" />
+    <!-- Font loading now uses Inter from Dependencies/Fonts/Inter/ and FontAwesome from Dependencies/FontAwesome/ -->
     <ClInclude Include="src\ui\core\animation.h" />
     <ClInclude Include="src\ui\core\theme.h" />
     <ClInclude Include="src\ui\core\fonts.h" />
@@ -286,6 +285,15 @@
     <ClInclude Include="src\ui\layout\menulayout.h" />
     <ClInclude Include="src\ui\pages\pages.h" />
     <ClInclude Include="src\ui\graphic.h" />
+    <ClInclude Include="src\ui\core\texture.h" />
+    <ClInclude Include="Dependencies\stb\stb_image.h" />
+    <ClInclude Include="Dependencies\FontAwesome\IconsFontAwesome6.h" />
+    <ClInclude Include="Dependencies\Fonts\Inter\Inter-Regular.ttf" />
+    <ClInclude Include="Dependencies\Fonts\Inter\Inter-SemiBold.ttf" />
+    <ClInclude Include="Dependencies\Fonts\Inter\Inter-Bold.ttf" />
+    <ClInclude Include="Dependencies\Fonts\Inter\Inter-Black.ttf" />
+    <ClInclude Include="Dependencies\FontAwesome\fa-solid-900.ttf" />
+    <ClInclude Include="Dependencies\FontAwesome\fa-regular-400.ttf" />
     <ClInclude Include="src\sdk\sdk.h" />
     <ClInclude Include="src\sdk\offsets\offset.h" />
 

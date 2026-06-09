@@ -2,136 +2,131 @@
 #include <imgui/imgui.h>
 #include <imgui/backends/imgui_impl_win32.h>
 #include <imgui/misc/imgui_freetype.h>
+#include "FontAwesome/IconsFontAwesome6.h"
 #include <cstdio>
 #include <string>
 #include <array>
 
-// Embedded font data forward declarations (global scope, defs in graphic.cpp)
-extern unsigned char font_regular[];
-extern unsigned int  font_regular_len;
-extern unsigned char font_bold[];
-extern unsigned int  font_bold_len;
-
 namespace font {
 
     // Exposed font pointers
-    inline ImFont* g_regular = nullptr;
-    inline ImFont* g_medium  = nullptr;
-    inline ImFont* g_bold    = nullptr;
-    inline ImFont* g_mono    = nullptr;
-    inline ImFont* g_logo    = nullptr;
-    inline ImFont* g_icon    = nullptr;
-
-    // Map Icon font codepoints
-    namespace icon {
-        inline constexpr auto Search    = u8"\uF002";
-        inline constexpr auto Gear      = u8"\uF013";
-        inline constexpr auto Home      = u8"\uF015";
-        inline constexpr auto Crosshair = u8"\uF05B";
-        inline constexpr auto Eye       = u8"\uF06E";
-        inline constexpr auto Globe     = u8"\uF0AC";
-        inline constexpr auto Layers    = u8"\uF0C8";
-        inline constexpr auto Diamond   = u8"\uF219";
-        inline constexpr auto Save      = u8"\uF0C7";
-        inline constexpr auto Folder    = u8"\uF07C";
-        inline constexpr auto Trash     = u8"\uF1F8";
-        inline constexpr auto Check     = u8"\uF00C";
-        inline constexpr auto Close     = u8"\uF00D";
-        inline constexpr auto Warning   = u8"\uF071";
-        inline constexpr auto Info      = u8"\uF05A";
-        inline constexpr auto ChevronR  = u8"\uF054";
-        inline constexpr auto ChevronL  = u8"\uF053";
-        inline constexpr auto Moon      = u8"\uF186";
-        inline constexpr auto Sun       = u8"\uF185";
-        inline constexpr auto User      = u8"\uF007";
-    }
+    inline ImFont* g_regular = nullptr;  // Body 14px (Inter Regular + FA6 merged)
+    inline ImFont* g_medium  = nullptr;  // Medium 14px (Inter SemiBold + FA6 merged)
+    inline ImFont* g_bold    = nullptr;  // Bold 16px (Inter Bold + FA6 merged)
+    inline ImFont* g_mono    = nullptr;  // Mono 13px (Inter Regular)
+    inline ImFont* g_logo    = nullptr;  // Logo/Header 24px (Inter Black)
 
     // ========================================================================
-    // Load all fonts with DPI-aware sizing and FreeType
+    // Load all fonts with DPI-aware sizing, FreeType, and FontAwesome 6 icons
     // ========================================================================
     inline bool load(float dpiScale = 1.0f) {
         ImGuiIO& io = ImGui::GetIO();
         io.Fonts->Clear();
 
-        // Use FreeType for all fonts
+        // Use FreeType for superior anti-aliasing
         const unsigned int ftFlags =
             ImGuiFreeTypeLoaderFlags_LoadColor |
             ImGuiFreeTypeLoaderFlags_LightHinting;
         io.Fonts->SetFontLoader(ImGuiFreeType::GetFontLoader());
         io.Fonts->FontLoaderFlags = ftFlags;
 
-        ImFontConfig cfg;
-        cfg.PixelSnapH = false;
-        cfg.OversampleH = 3;
-        cfg.OversampleV = 3;
-        cfg.RasterizerMultiply = 1.02f;
-        cfg.FontLoaderFlags = 0;
+        // Paths to Inter font files (local in project)
+        const char* interRegular = "Dependencies/Fonts/Inter/Inter-Regular.ttf";
+        const char* interSemiBld = "Dependencies/Fonts/Inter/Inter-SemiBold.ttf";
+        const char* interBold    = "Dependencies/Fonts/Inter/Inter-Bold.ttf";
+        const char* interBlack   = "Dependencies/Fonts/Inter/Inter-Black.ttf";
 
-        // System font paths for fallback
-        const char* segoeUi   = "C:\\Windows\\Fonts\\segoeui.ttf";
-        const char* segoeSemib = "C:\\Windows\\Fonts\\seguisb.ttf";
-        const char* segoeBold = "C:\\Windows\\Fonts\\segoeuib.ttf";
-        const char* segoeBlk  = "C:\\Windows\\Fonts\\seguibl.ttf";
-        const char* consolas  = "C:\\Windows\\Fonts\\consola.ttf";
-        const char* consolasB = "C:\\Windows\\Fonts\\consolab.ttf";
-        const char* segoeMono = "C:\\Windows\\Fonts\\cour.ttf"; // Courier New fallback
-        const char* fontAwesom = "C:\\Windows\\Fonts\\fa-regular-400.ttf";
+        // FontAwesome paths
+        const char* faSolid   = "Dependencies/FontAwesome/fa-solid-900.ttf";
+        const char* faRegular = "Dependencies/FontAwesome/fa-regular-400.ttf";
 
         auto fileExists = [](const char* p) -> bool {
             return GetFileAttributesA(p) != INVALID_FILE_ATTRIBUTES;
         };
 
-        // Regular text (14px)
-        if (fileExists(segoeUi))
-            g_regular = io.Fonts->AddFontFromFileTTF(segoeUi, 14.0f * dpiScale, &cfg);
-        // Medium labels (13px)
-        if (fileExists(segoeSemib))
-            g_medium = io.Fonts->AddFontFromFileTTF(segoeSemib, 13.0f * dpiScale, &cfg);
-        else if (fileExists(segoeBold))
-            g_medium = io.Fonts->AddFontFromFileTTF(segoeBold, 13.0f * dpiScale, &cfg);
-        // Bold / Cards (15px)
-        if (fileExists(segoeSemib))
-            g_bold = io.Fonts->AddFontFromFileTTF(segoeSemib, 15.0f * dpiScale, &cfg);
-        else if (fileExists(segoeBold))
-            g_bold = io.Fonts->AddFontFromFileTTF(segoeBold, 15.0f * dpiScale, &cfg);
-        // Mono (13px)
-        if (fileExists(consolas))
-            g_mono = io.Fonts->AddFontFromFileTTF(consolas, 13.0f * dpiScale, &cfg);
-        else if (fileExists(consolasB))
-            g_mono = io.Fonts->AddFontFromFileTTF(consolasB, 13.0f * dpiScale, &cfg);
-        else if (fileExists(segoeMono))
-            g_mono = io.Fonts->AddFontFromFileTTF(segoeMono, 13.0f * dpiScale, &cfg);
+        // ---- Base config ----
+        ImFontConfig cfg;
+        cfg.PixelSnapH = false;
+        cfg.OversampleH = 2;
+        cfg.OversampleV = 2;
+        cfg.RasterizerMultiply = 1.02f;
+        cfg.FontLoaderFlags = 0;
 
-        ImFontConfig cfg2 = cfg;
-        cfg2.OversampleH = 2;
-        cfg2.OversampleV = 2;
-
-        // Logo (22px)
-        if (fileExists(segoeBlk))
-            g_logo = io.Fonts->AddFontFromFileTTF(segoeBlk, 22.0f * dpiScale, &cfg2);
-        else if (fileExists(segoeBold))
-            g_logo = io.Fonts->AddFontFromFileTTF(segoeBold, 21.0f * dpiScale, &cfg2);
-
-        // Fallbacks if system fonts missing: use embedded fonts from existing project
-        if (!g_regular) {
-            if (font_regular_len > 0)
-                g_regular = io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(font_regular), font_regular_len, 14.0f * dpiScale, &cfg);
-        }
-        if (!g_medium) {
-            if (font_bold_len > 0)
-                g_medium = io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(font_bold), font_bold_len, 13.0f * dpiScale, &cfg);
-        }
-        if (!g_bold) {
-            if (font_bold_len > 0)
-                g_bold = io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(font_bold), font_bold_len, 15.0f * dpiScale, &cfg2);
+        // ---- 1. Body: Inter Regular 14px + FontAwesome Solid merged ----
+        if (fileExists(interRegular)) {
+            cfg.MergeMode = false;
+            g_regular = io.Fonts->AddFontFromFileTTF(interRegular, 14.0f * dpiScale, &cfg);
+            // Merge FontAwesome Solid icons into body font
+            if (g_regular && fileExists(faSolid)) {
+                cfg.MergeMode = true;
+                cfg.GlyphMinAdvanceX = 14.0f;
+                cfg.GlyphOffset = { 0.f, 1.f };
+                static const ImWchar faSolidRanges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
+                io.Fonts->AddFontFromFileTTF(faSolid, 14.0f * dpiScale, &cfg, faSolidRanges);
+                cfg.MergeMode = false;
+                cfg.GlyphMinAdvanceX = 0.f;
+                cfg.GlyphOffset = { 0.f, 0.f };
+            }
         }
 
-        // Ultimate fallback just in case
-        if (!g_regular)  g_regular  = io.Fonts->AddFontDefault();
-        if (!g_medium)   g_medium   = g_regular;
-        if (!g_bold)     g_bold     = g_regular;
-        if (!g_mono)     g_mono     = g_regular;
-        if (!g_logo)     g_logo     = g_bold;
+        // ---- 2. Body Medium: Inter SemiBold 14px + FontAwesome Solid merged ----
+        if (fileExists(interSemiBld)) {
+            cfg.MergeMode = false;
+            g_medium = io.Fonts->AddFontFromFileTTF(interSemiBld, 14.0f * dpiScale, &cfg);
+            if (g_medium && fileExists(faSolid)) {
+                cfg.MergeMode = true;
+                cfg.GlyphMinAdvanceX = 14.0f;
+                cfg.GlyphOffset = { 0.f, 1.f };
+                static const ImWchar faSolidRanges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
+                io.Fonts->AddFontFromFileTTF(faSolid, 14.0f * dpiScale, &cfg, faSolidRanges);
+                cfg.MergeMode = false;
+                cfg.GlyphMinAdvanceX = 0.f;
+                cfg.GlyphOffset = { 0.f, 0.f };
+            }
+        }
+
+        // ---- 3. Bold/Tabs: Inter Bold 16px + FontAwesome Solid merged ----
+        if (fileExists(interBold)) {
+            cfg.MergeMode = false;
+            cfg.OversampleH = 3;
+            cfg.OversampleV = 3;
+            g_bold = io.Fonts->AddFontFromFileTTF(interBold, 16.0f * dpiScale, &cfg);
+            if (g_bold && fileExists(faSolid)) {
+                cfg.MergeMode = true;
+                cfg.GlyphMinAdvanceX = 16.0f;
+                cfg.GlyphOffset = { 0.f, 1.f };
+                static const ImWchar faSolidRanges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
+                io.Fonts->AddFontFromFileTTF(faSolid, 16.0f * dpiScale, &cfg, faSolidRanges);
+                cfg.MergeMode = false;
+                cfg.GlyphMinAdvanceX = 0.f;
+                cfg.GlyphOffset = { 0.f, 0.f };
+            }
+            cfg.OversampleH = 2;
+            cfg.OversampleV = 2;
+        }
+
+        // ---- 4. Logo/Header: Inter Black 24px ----
+        if (fileExists(interBlack)) {
+            cfg.MergeMode = false;
+            cfg.OversampleH = 3;
+            cfg.OversampleV = 3;
+            g_logo = io.Fonts->AddFontFromFileTTF(interBlack, 24.0f * dpiScale, &cfg);
+            cfg.OversampleH = 2;
+            cfg.OversampleV = 2;
+        }
+
+        // ---- 5. Mono: Inter Regular 13px (code-like text) ----
+        if (fileExists(interRegular)) {
+            cfg.MergeMode = false;
+            g_mono = io.Fonts->AddFontFromFileTTF(interRegular, 13.0f * dpiScale, &cfg);
+        }
+
+        // ---- 6. Fallbacks ----
+        if (!g_regular) g_regular = io.Fonts->AddFontDefault();
+        if (!g_medium)  g_medium  = g_regular;
+        if (!g_bold)    g_bold    = g_regular;
+        if (!g_mono)    g_mono    = g_regular;
+        if (!g_logo)    g_logo    = g_bold;
 
         // Build font atlas
         io.Fonts->Build();

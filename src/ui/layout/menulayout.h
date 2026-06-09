@@ -14,7 +14,7 @@ namespace layout {
 
     // ---- Sidebar Tab button --------------------------------------------
     static bool tab(ImDrawList* dl, ImVec2 wp, float startY, float sbW, bool compact,
-        int idx, int cur, icon::Fn iconFn, const char* label) {
+        int idx, int cur, const char* iconChar, const char* label) {
 
         const bool   active = (idx == cur);
         const float tabH = theme::kTabH - 6.f;
@@ -54,7 +54,16 @@ namespace layout {
 
         const ImU32 baseCol = hov ? theme::col_text() : theme::col_muted();
         ImU32 iconCol = theme::lerp_u32(baseCol, theme::alpha(theme::col_accent(), 0.85f), at);
-        iconFn(dl, center + ImVec2(at * 1.5f, 0.f), 18.f + at, iconCol);
+
+        // Render FontAwesome icon as text instead of custom draw
+        const float iconSize = 18.f + at;
+        ImFont* f = font::bold();
+        ImVec2 iconS = f->CalcTextSizeA(iconSize, FLT_MAX, 0.f, iconChar);
+        dl->AddText(f, iconSize,
+            ImVec2(center.x - iconS.x * 0.5f + at * 1.5f,
+                   center.y - iconS.y * 0.5f),
+            iconCol, iconChar);
+
         if (!compact)
             dl->AddText({ tMin.x + 42.f, tMin.y + (tabH - ImGui::GetFontSize()) * .5f },
                 iconCol, label);
@@ -123,7 +132,7 @@ namespace layout {
         const float tabY = compact ? 14.f : theme::kLogoH + 28.f;
         for (int i = 0; i < icon::kTabCount; i++)
             if (tab(dl, wp, tabY, sbW, compact, i, section,
-                icon::tabIcons[i], icon::tabLabels[i]))
+                icon::tabIconChars[i], icon::tabLabels[i]))
                 section = i;
 
         // Footer (non-compact)
