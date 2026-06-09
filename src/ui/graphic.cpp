@@ -409,8 +409,16 @@ namespace color {
     }
 }
 
-// ---- PC Username forward declaration ----------------------------------
-static const char* pcuser();
+// ---- PC Username helper ------------------------------------------------
+static const char* pcuser() {
+    static std::string name = []() {
+        char buffer[257]{};
+        DWORD len = GetEnvironmentVariableA("USERNAME", buffer, (DWORD)sizeof(buffer));
+        if (!len || len >= sizeof(buffer)) return std::string("Windows");
+        return std::string(buffer, buffer + len);
+    }();
+    return name.c_str();
+}
 
 // ========================================================================
 // HUD overlay namespace (watermark, hotkeys, radar, aim warning)
