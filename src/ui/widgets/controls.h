@@ -1,4 +1,5 @@
 #pragma once
+#include <Windows.h>
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
 #include <vector>
@@ -27,7 +28,7 @@ namespace w {
         ImDrawList* dl = ImGui::GetWindowDrawList();
 
         // Left padding so non-icon toggles don't stick to wall
-        ImGui::Dummy({ 0.f, 0.f });
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 4.f);
 
         constexpr float kTW = 36.f, kTH = 20.f;
         const ImVec2 p = ImGui::GetCursorScreenPos();
