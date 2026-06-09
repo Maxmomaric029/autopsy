@@ -145,6 +145,7 @@
     <PostBuildEvent>
       <Command>xcopy /E /I /Y "$(ProjectDir)Dependencies\Fonts" "$(OutDir)Fonts\" &amp;&amp; xcopy /E /I /Y "$(ProjectDir)Dependencies\FontAwesome" "$(OutDir)FontAwesome\"</Command>
     </PostBuildEvent>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Dependencies\Clipper2Lib\include\clipper2\clipper.core.h" />
     <ClInclude Include="Dependencies\Clipper2Lib\include\clipper2\clipper.engine.h" />
