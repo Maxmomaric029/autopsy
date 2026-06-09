@@ -142,7 +142,9 @@
     <ResourceCompile>
       <AdditionalIncludeDirectories>C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\shared;C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\um</AdditionalIncludeDirectories>
     </ResourceCompile>
-  </ItemDefinitionGroup>
+    <PostBuildEvent>
+      <Command>xcopy /E /I /Y "$(ProjectDir)Dependencies\Fonts" "$(OutDir)Fonts\" &amp;&amp; xcopy /E /I /Y "$(ProjectDir)Dependencies\FontAwesome" "$(OutDir)FontAwesome\"</Command>
+    </PostBuildEvent>
   <ItemGroup>
     <ClInclude Include="Dependencies\Clipper2Lib\include\clipper2\clipper.core.h" />
     <ClInclude Include="Dependencies\Clipper2Lib\include\clipper2\clipper.engine.h" />

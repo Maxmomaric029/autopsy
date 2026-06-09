@@ -257,20 +257,15 @@ void ModernUI::RenderMenu() {
         WP = ImGui::GetWindowPos();
     }
 
-    // ---- Window shadow ----
-    DL->PushClipRect(WP - ImVec2(40.f, 40.f), WP + WS + ImVec2(40.f, 40.f), false);
-    DL->AddRectFilledMultiColorRounded(WP - ImVec2(12.f, 2.f) + ImVec2(0.f, 20.f),
-        WP + WS + ImVec2(12.f, 34.f),
-        IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 0),
-        IM_COL32(0, 0, 0, (int)(menuEase * 24.f)),
-        IM_COL32(0, 0, 0, (int)(menuEase * 24.f)), kR + 18.f);
-    DL->AddRectFilledMultiColorRounded(WP - ImVec2(5.f, 1.f) + ImVec2(0.f, 10.f),
-        WP + WS + ImVec2(5.f, 18.f),
-        IM_COL32(0, 0, 0, (int)(menuEase * 8.f)),
-        IM_COL32(0, 0, 0, (int)(menuEase * 8.f)),
-        IM_COL32(0, 0, 0, (int)(menuEase * 48.f)),
-        IM_COL32(0, 0, 0, (int)(menuEase * 48.f)), kR + 8.f);
-    DL->PopClipRect();
+    // ---- Web-style shadow (like an Electron app modal) ----
+    const int shadowAlpha = (int)(32.f * menuEase);
+    for (int i = 0; i < 3; i++) {
+        float spread = 3.f + i * 2.5f;
+        int a = (shadowAlpha - i * 8) * (i + 1) / 3;
+        DL->AddRectFilled(WP - ImVec2(spread * 0.5f, spread * 0.2f) + ImVec2(0.f, 5.f + i),
+            WP + WS + ImVec2(spread * 0.5f, spread * 0.6f),
+            IM_COL32(0, 0, 0, ImMax(0, a)), kR + spread);
+    }
 
     // ---- Sidebar ----
     layout::sidebar(DL, WP, WS, section, menuEase);
@@ -701,9 +696,6 @@ void ModernUI::RenderESP() {
             [](ImDrawList* dl, ImVec2 p, ImVec2 s, bool h, bool a) { hud::watermark(dl, p, s, h, a); });
     if (global::overlay::hotkey) {
         int rows = hud::hotkeycount();
-        hud::panel("##miserable_hotkeys", global::overlay::Hotkeys_Pos,
-            ImVec2(258.f, 52.f + ImMax(1, rows) * 30.f), movable,
-            [](ImDrawList* dl, ImVec2 p, ImVec2 s, bool h, bool a) { hud::hotkey(dl, p, s, h, a); });
     }
     if (global::overlay::radar) {
         float radarSize = ImClamp(global::overlay::Radar_Size, 130.f, 280.f);

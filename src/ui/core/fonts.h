@@ -14,8 +14,10 @@ namespace font {
     inline ImFont* g_logo    = nullptr;
 
     // ========================================================================
-    // Resolve font path relative to executable directory
-    // Exe at: .../Build/miserable.exe → baseDir = .../
+    // Resolve font path — checks exe directory first, then falls back to
+    // project root (for development builds that still have Dependencies/)
+    // Exe at: .../Build/miserable.exe
+    // Fonts at: .../Build/Fonts/Inter/...  (post-build copy)
     // ========================================================================
     inline std::string resolvePath(const char* relative) {
         char exePath[MAX_PATH];
@@ -23,56 +25,58 @@ namespace font {
         std::string p(exePath);
         auto pos = p.find_last_of("\\/");
         if (pos != std::string::npos) {
-            p = p.substr(0, pos);
-            auto pos2 = p.find_last_of("\\/");
-            if (pos2 != std::string::npos) {
-                p = p.substr(0, pos2);
-            }
+            p = p.substr(0, pos); // Build/
         }
         return p + "\\" + relative;
     }
 
     // ========================================================================
-    // Load all fonts with FontAwesome 6 icons merged
+    // Try to load a TTF and merge FontAwesome icons
     // ========================================================================
     inline bool load(float dpiScale = 1.0f) {
         ImGuiIO& io = ImGui::GetIO();
         io.Fonts->Clear();
 
-        // Safety fallback: we always have something
+        // Safety fallback — always have something
         g_regular = g_medium = g_bold = g_mono = g_logo = io.Fonts->AddFontDefault();
 
-        // Resolve absolute paths
-        std::string baseDir = resolvePath("Dependencies");
-        std::string interRegular = baseDir + "\\Fonts\\Inter\\Inter-Regular.ttf";
-        std::string interSemiBld = baseDir + "\\Fonts\\Inter\\Inter-SemiBold.ttf";
-        std::string interBold    = baseDir + "\\Fonts\\Inter\\Inter-Bold.ttf";
-        std::string interBlack   = baseDir + "\\Fonts\\Inter\\Inter-Black.ttf";
-        std::string faSolid      = baseDir + "\\FontAwesome\\fa-solid-900.ttf";
+        // ---- Resolve paths — try exe dir first, then project root ----
+        auto exeDir = resolvePath("");
 
-        auto fileExists = [](const std::string& p) -> bool {
-            return GetFileAttributesA(p.c_str()) != INVALID_FILE_ATTRIBUTES;
+        // Fallback: exe is at Build/, project root is one level up, Dependencies/ is there
+        auto rootDir = exeDir + "..\\Dependencies\\";
+
+        auto tryPath = [&](const char* sub) -> std::string {
+            // First check: fonts copied next to exe via post-build
+            std::string r1 = exeDir + sub;
+            if (GetFileAttributesA(r1.c_str()) != INVALID_FILE_ATTRIBUTES)
+                return r1;
+            // Fallback: Dependencies/ at project root (dev builds)
+            return rootDir + sub;
         };
+
+        // On deployed builds:  Build/Fonts/Inter/...   Build/FontAwesome/...
+        // On dev builds:        Dependencies/Fonts/Inter/...  Dependencies/FontAwesome/...
+        std::string interRegular = tryPath("Fonts\\Inter\\Inter-Regular.ttf");
+        std::string interSemiBld = tryPath("Fonts\\Inter\\Inter-SemiBold.ttf");
+        std::string interBold    = tryPath("Fonts\\Inter\\Inter-Bold.ttf");
+        std::string interBlack   = tryPath("Fonts\\Inter\\Inter-Black.ttf");
+        std::string faSolid      = tryPath("FontAwesome\\fa-solid-900.ttf");
 
         ImFontConfig cfg;
         cfg.PixelSnapH = false;
         cfg.OversampleH = 2;
         cfg.OversampleV = 2;
 
-        // Helper to load a font and merge FA6 icons
         auto loadWithIcons = [&](const std::string& path, float size, ImFont** out, bool mergeFA) -> ImFont* {
-            if (!fileExists(path)) return nullptr;
+            if (GetFileAttributesA(path.c_str()) == INVALID_FILE_ATTRIBUTES) return nullptr;
             cfg.MergeMode = false;
             ImFont* fnt = io.Fonts->AddFontFromFileTTF(path.c_str(), size * dpiScale, &cfg);
-            if (fnt && mergeFA && fileExists(faSolid)) {
+            if (fnt && mergeFA && GetFileAttributesA(faSolid.c_str()) != INVALID_FILE_ATTRIBUTES) {
                 cfg.MergeMode = true;
-                cfg.GlyphMinAdvanceX = size;
-                cfg.GlyphOffset = { 0.f, 1.f };
                 static const ImWchar faRanges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
                 io.Fonts->AddFontFromFileTTF(faSolid.c_str(), size * dpiScale, &cfg, faRanges);
                 cfg.MergeMode = false;
-                cfg.GlyphMinAdvanceX = 0.f;
-                cfg.GlyphOffset = { 0.f, 0.f };
             }
             if (out) *out = fnt;
             return fnt;
@@ -84,7 +88,6 @@ namespace font {
         loadWithIcons(interBlack, 24.f, &g_logo, false);
         loadWithIcons(interRegular, 13.f, &g_mono, false);
 
-        // Fallbacks
         if (!g_regular) g_regular = io.Fonts->AddFontDefault();
         if (!g_medium)  g_medium  = g_regular;
         if (!g_bold)    g_bold    = g_regular;

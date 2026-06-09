@@ -17,8 +17,8 @@ namespace theme {
     inline ImVec4 c_surface2 = ImVec4(0.0431f, 0.0863f, 0.1412f, 1.f); // #0B1624
     inline ImVec4 c_card     = ImVec4(0.0509f, 0.1020f, 0.1686f, 1.f); // #0D1A2B
     inline ImVec4 c_border   = ImVec4(0.1020f, 0.2000f, 0.2824f, 1.f); // #1A3348
-    inline ImVec4 c_accent   = ImVec4(0.0000f, 0.6824f, 1.0000f, 1.f); // #00AEFF
-    inline ImVec4 c_accent2  = ImVec4(0.4196f, 0.4863f, 1.0000f, 1.f); // #6B7CFF
+    inline ImVec4 c_accent   = ImVec4(0.8627f, 0.2353f, 0.2745f, 1.f); // #DC3C46 blood red
+    inline ImVec4 c_accent2  = ImVec4(0.7020f, 0.1961f, 0.2392f, 1.f); // #B3323D dark red accent
     inline ImVec4 c_text     = ImVec4(0.9176f, 0.9569f, 1.0000f, 1.f); // #EAF4FF
     inline ImVec4 c_muted    = ImVec4(0.5569f, 0.6431f, 0.7098f, 1.f); // #8EA4B5
     inline ImVec4 c_danger   = ImVec4(1.0000f, 0.3020f, 0.4275f, 1.f); // #FF4D6D
