@@ -2,7 +2,8 @@
 #include <dwmapi.h>
 #include <cstdio>
 #include <chrono>
-#include <thread>#include "global.h"
+#include <thread>
+#include "global.h"
 
 #include "../features/esp.h"
 #include "../features/ball.h"
@@ -17,8 +18,6 @@
 #include "ui/widgets/controls.h"
 #include "ui/layout/menulayout.h"
 #include "ui/pages/pages.h"
-
-// stb_image implementation is in graphic.cpp
 
 // ========================================================================
 // ModernUI — public API implementation
@@ -41,7 +40,7 @@ bool ModernUI::Create(HWND window, ID3D11Device* device, ID3D11DeviceContext* co
 
     font::load(dpiScale);
 
-    // ---- Aurora Dark style ----
+    // ---- Dark style ----
     ImGui::StyleColorsDark();
     ImGuiStyle& S = ImGui::GetStyle();
     S.WindowRounding = theme::r_window;
@@ -49,7 +48,7 @@ bool ModernUI::Create(HWND window, ID3D11Device* device, ID3D11DeviceContext* co
     S.FrameRounding = theme::r_frame;
     S.PopupRounding = 10.f;
     S.ScrollbarRounding = 8.f;
-    S.GrabRounding = 8.f;          // <-- User requested rounded grabs
+    S.GrabRounding = 8.f;
     S.ItemSpacing = { 8.f, 7.f };
     S.FramePadding = { 8.f, 5.f };
     S.WindowPadding = { 0.f, 0.f };
@@ -183,11 +182,10 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
 }
 
 // ========================================================================
-// RenderMenu — Config menu with horizontal pill tabs (Section-aware)
+// RenderMenu — Config menu with glassmorphism gray sidebar
 // ========================================================================
 void ModernUI::RenderMenu() {
     if (!m_open) {
-        // Still run minimal menu logic to animate out
         static float menuT = 0.f;
         menuT = anim::damp(menuT, 0.f, 7.2f);
         if (menuT <= .01f) return;
@@ -200,10 +198,9 @@ void ModernUI::RenderMenu() {
     static bool menuPosReady = false;
     static ImVec2 menuPos = {};
 
-    constexpr float kWinW = 740.f;
-    constexpr float kWinH = 500.f;
-    constexpr float kR = 14.f;
-    constexpr float kHeaderH = 56.f;
+    constexpr float kWinW = theme::kWinW;
+    constexpr float kWinH = theme::kWinH;
+    constexpr float kR = theme::r_window;
 
     ImGuiIO& IO = ImGui::GetIO();
 
@@ -224,10 +221,9 @@ void ModernUI::RenderMenu() {
     const ImVec2 menuMin = menuPos + menuOffset - ImVec2(kWinW, kWinH) * .5f;
     const ImVec2 menuMax = menuMin + ImVec2(kWinW, kWinH);
 
-    // ---- Backdrop effects ----
+    // ---- Backdrop ----
     ImDrawList* BDL = ImGui::GetBackgroundDrawList();
     layout::backdrop(BDL, menuMin, menuMax, menuT, kR);
-    layout::dissolve(BDL, menuMin, menuMax, menuT, (float)ImGui::GetTime());
 
     // ---- Window ----
     ImGui::SetNextWindowSize({ kWinW, kWinH }, ImGuiCond_Always);
@@ -238,7 +234,7 @@ void ModernUI::RenderMenu() {
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, menuAlpha);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, theme::to_u32(theme::c_bg));
 
-    bool open = ImGui::Begin("##autopsy", nullptr,
+    bool open = ImGui::Begin("##miserable", nullptr,
         ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoBackground);
     ImGui::PopStyleColor();
@@ -249,9 +245,10 @@ void ModernUI::RenderMenu() {
     const ImVec2 WS = ImGui::GetWindowSize();
     ImDrawList* DL = ImGui::GetWindowDrawList();
 
-    // ---- Drag handle (header area) ----
+    // ---- Drag handle (full window top bar) ----
+    constexpr float kDragH = 36.f;
     ImGui::SetCursorScreenPos(WP);
-    ImGui::InvisibleButton("##drag", { WS.x, kHeaderH });
+    ImGui::InvisibleButton("##drag", { WS.x, kDragH });
     if (m_open && ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.f)) {
         menuPos += IO.MouseDelta;
         menuPos.x = maxX > minX ? ImClamp(menuPos.x, minX, maxX) : IO.DisplaySize.x * .5f;
@@ -273,18 +270,12 @@ void ModernUI::RenderMenu() {
         IM_COL32(0, 0, 0, (int)(menuEase * 8.f)),
         IM_COL32(0, 0, 0, (int)(menuEase * 48.f)),
         IM_COL32(0, 0, 0, (int)(menuEase * 48.f)), kR + 8.f);
-    DL->AddRectFilled(WP + ImVec2(0.f, 5.f), WP + WS + ImVec2(0.f, 5.f),
-        IM_COL32(0, 0, 0, (int)(menuEase * 72.f)), kR + 2.f);
-    DL->AddRectFilled(WP, WP + WS, IM_COL32(3, 6, 10, 58), kR);
-    DL->AddRectFilled(WP + ImVec2(1.f, 1.f), WP + WS - ImVec2(1.f, 1.f),
-        IM_COL32(0, 174, 255, 7), kR - 1.f);
-    DL->AddRect(WP, WP + WS, theme::col_border(), kR, 0, 1.f);
     DL->PopClipRect();
 
-    // ---- Pill tabs header ----
-    layout::header(DL, WP, WS, section, menuEase);
+    // ---- Sidebar ----
+    layout::sidebar(DL, WP, WS, section, menuEase);
 
-    // ---- Section transition ----
+    // ---- Section transition tracking ----
     if (prevSection != section) {
         prevSection = section;
         sectionAlpha = 0.f;
@@ -295,13 +286,17 @@ void ModernUI::RenderMenu() {
     // ---- Content area ----
     layout::contentBg(DL, WP, WS);
 
+    constexpr float kSideW = 190.f;
     constexpr float kPad = 14.f;
-    float contentY = WP.y + kHeaderH + 1.f;
-    float contentW = WS.x - 2.f;
-    float contentH = (WP.y + WS.y) - contentY - 2.f;
+    float contentX = WP.x + kSideW + 1.f;
+    float contentY = WP.y + 1.f;
+    float contentW = WS.x - kSideW - 2.f;
+    float contentH = WS.y - 2.f;
 
-    ImGui::SetCursorScreenPos({ WP.x + kPad + (1.f - sectionEase) * 14.f, contentY + kPad });
-    ImGui::PushClipRect({ WP.x + 1.f, contentY }, { WP.x + WS.x - 1.f, WP.y + WS.y }, true);
+    // Clip content to content area
+    DL->PushClipRect({ contentX, contentY }, { contentX + contentW, contentY + contentH }, true);
+
+    ImGui::SetCursorScreenPos({ contentX + kPad + (1.f - sectionEase) * 12.f, contentY + kPad });
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, sectionEase);
     ImGui::BeginGroup();
 
@@ -319,12 +314,12 @@ void ModernUI::RenderMenu() {
 
     ImGui::EndGroup();
     ImGui::PopStyleVar();
-    ImGui::PopClipRect();
+    DL->PopClipRect();
     ImGui::End();
 }
 
 // ========================================================================
-// HUD helpers (embedded for clean self-containment)
+// HUD helpers
 // ========================================================================
 namespace {
 
@@ -357,7 +352,7 @@ namespace {
     }
 
     // ---- Welcome splash ----
-    static void welcome(bool menuOpen) {
+    static void welcome() {
         static double startTime = -1.0;
         if (startTime < 0.0) startTime = ImGui::GetTime();
         float elapsed = (float)(ImGui::GetTime() - startTime);
@@ -374,37 +369,37 @@ namespace {
         ImVec2 center = display * .5f;
         float pulse = (sinf(elapsed * 4.2f) + 1.f) * .5f;
 
-        dl->AddRectFilled({ 0.f, 0.f }, display, IM_COL32(2, 5, 9, (int)(232.f * alpha)));
+        dl->AddRectFilled({ 0.f, 0.f }, display, IM_COL32(2, 3, 6, (int)(232.f * alpha)));
         for (int i = 0; i < 5; ++i) {
             float r = 54.f + i * 34.f + pulse * 12.f;
-            dl->AddCircle(center, r, IM_COL32(0, 174, 255, (int)((42.f - i * 6.f) * alpha)), 96, 1.2f);
+            dl->AddCircle(center, r, IM_COL32(200, 50, 60, (int)((42.f - i * 6.f) * alpha)), 96, 1.2f);
         }
 
         ImFont* logoF = font::logo();
         float logoSize = logoF->LegacySize * 1.65f;
-        ImVec2 ts = logoF->CalcTextSizeA(logoSize, FLT_MAX, 0.f, "AUTOPSY");
+        ImVec2 ts = logoF->CalcTextSizeA(logoSize, FLT_MAX, 0.f, "MISERABLE");
         ImVec2 tp(center.x - ts.x * .5f, center.y - 34.f);
-        dl->AddText(logoF, logoSize, tp + ImVec2(0.f, 3.f), IM_COL32(0, 0, 0, (int)(190.f * alpha)), "AUTOPSY");
-        dl->AddText(logoF, logoSize, tp, theme::col_text(), "AUTOPSY");
-        dl->AddText(tp + ImVec2(ts.x + 8.f, 6.f), theme::col_accent(), "BETA");
+        dl->AddText(logoF, logoSize, tp + ImVec2(0.f, 3.f), IM_COL32(0, 0, 0, (int)(190.f * alpha)), "MISERABLE");
+        dl->AddText(logoF, logoSize, tp, IM_COL32(230, 60, 70, 245), "MISERABLE");
+        dl->AddText(tp + ImVec2(ts.x + 8.f, 6.f), IM_COL32(220, 50, 60, 220), "BETA");
 
         const char* sub = "loading overlay";
         ImVec2 ss = ImGui::CalcTextSize(sub);
-        dl->AddText(ImVec2(center.x - ss.x * .5f, center.y + 14.f), theme::col_muted(), sub);
+        dl->AddText(ImVec2(center.x - ss.x * .5f, center.y + 14.f), IM_COL32(140, 150, 170, 200), sub);
 
         float barW = ImMin(360.f, display.x * .42f);
         float progress = ImClamp(elapsed / 4.0f, 0.f, 1.f);
         ImVec2 bm(center.x - barW * .5f, center.y + 48.f);
         ImVec2 bM(center.x + barW * .5f, center.y + 54.f);
-        dl->AddRectFilled(bm, bM, IM_COL32(12, 26, 38, (int)(220.f * alpha)), 3.f);
-        dl->AddRectFilled(bm, ImVec2(bm.x + barW * progress, bM.y), theme::col_accent(), 3.f);
-        dl->AddRect(bm, bM, IM_COL32(210, 247, 255, (int)(82.f * alpha)), 3.f);
+        dl->AddRectFilled(bm, bM, IM_COL32(12, 18, 26, (int)(220.f * alpha)), 3.f);
+        dl->AddRectFilled(bm, ImVec2(bm.x + barW * progress, bM.y), IM_COL32(220, 60, 70, 230), 3.f);
+        dl->AddRect(bm, bM, IM_COL32(200, 50, 60, (int)(82.f * alpha)), 3.f);
     }
 
     // ---- HUD panel helpers ----
     namespace hud {
-        static ImU32 accent(float a = 1.f) { return theme::col_accent(a); }
-        static ImU32 accent2(float a = 1.f) { return theme::col_accent2(a); }
+        static ImU32 accent(float a = 1.f) { return IM_COL32(220, 60, 70, (int)(255 * a)); }
+        static ImU32 accent2(float a = 1.f) { return IM_COL32(180, 80, 90, (int)(255 * a)); }
         static int hotkeycount() {
             int c = 0;
             if (global::overlay::Hotkey_Aimbot) ++c;
@@ -435,14 +430,14 @@ namespace {
             }
             dl->AddRectFilledMultiColorRounded(p - ImVec2(15.f, 10.f), p + s + ImVec2(15.f, 18.f),
                 IM_COL32(8, 8, 12, (int)((8.f + t * 5.f))),
-                IM_COL32(100, 117, 255, (int)((8.f + t * 5.f))),
+                IM_COL32(140, 50, 60, (int)((8.f + t * 5.f))),
                 IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 0), r + 15.f);
-            dl->AddRectFilled(p, p + s, IM_COL32(2, 9, 15, 185), r);
+            dl->AddRectFilled(p, p + s, IM_COL32(2, 6, 10, 185), r);
             dl->AddRectFilledMultiColorRounded(p + ImVec2(1.f, 1.f), p + s - ImVec2(1.f, 1.f),
-                IM_COL32(255, 255, 255, 10), IM_COL32(0, 174, 255, 10),
-                IM_COL32(0, 0, 0, 70), IM_COL32(100, 117, 255, 10), r - 1.f);
+                IM_COL32(255, 255, 255, 10), IM_COL32(200, 60, 70, 10),
+                IM_COL32(0, 0, 0, 70), IM_COL32(140, 50, 60, 10), r - 1.f);
             dl->AddRect(p, p + s,
-                theme::lerp_u32(theme::alpha(accent(), 0.42f), theme::alpha(accent(), 0.82f), t), r, 0, 1.f);
+                theme::lerp_u32(IM_COL32(180, 60, 70, 107), IM_COL32(220, 60, 70, 209), t), r, 0, 1.f);
         }
 
         template <typename DrawFn>
@@ -482,18 +477,18 @@ namespace {
             ImFont* logo = font::bold();
             float logoSize = logo->LegacySize;
             ImVec2 text = p + ImVec2(15.f, 7.f);
-            ImVec2 nameSize = logo->CalcTextSizeA(logoSize, FLT_MAX, 0.f, "AUTOPSY");
+            ImVec2 nameSize = logo->CalcTextSizeA(logoSize, FLT_MAX, 0.f, "MISERABLE");
             char fps[32]{}; std::snprintf(fps, sizeof(fps), "%.0f fps", ImGui::GetIO().Framerate);
             dl->AddRectFilled(p + ImVec2(7.f, 9.f), p + ImVec2(10.f, s.y - 9.f), accent(), 2.f);
-            dl->AddText(logo, logoSize, text + ImVec2(1.f, 1.f), IM_COL32(0, 0, 0, 180), "AUTOPSY");
-            dl->AddText(logo, logoSize, text, theme::col_text(), "AUTOPSY");
+            dl->AddText(logo, logoSize, text + ImVec2(1.f, 1.f), IM_COL32(0, 0, 0, 180), "MISERABLE");
+            dl->AddText(logo, logoSize, text, IM_COL32(230, 60, 70, 245), "MISERABLE");
             dl->AddText(text + ImVec2(nameSize.x + 8.f, logoSize * .28f), accent(), "BETA");
-            dl->AddText(p + ImVec2(16.f, 25.f), theme::alpha(theme::col_muted(), 0.52f), pcuser());
+            dl->AddText(p + ImVec2(16.f, 25.f), IM_COL32(140, 150, 170, 132), pcuser());
             ImVec2 fpsSize = ImGui::CalcTextSize(fps);
             ImVec2 pillMin = ImVec2(p.x + s.x - fpsSize.x - 28.f, p.y + 10.f);
             ImVec2 pillMax = ImVec2(p.x + s.x - 10.f, p.y + 29.f);
-            dl->AddRectFilled(pillMin, pillMax, IM_COL32(8, 18, 29, 185), 6.f);
-            dl->AddRect(pillMin, pillMax, IM_COL32(0, 174, 255, 64), 6.f);
+            dl->AddRectFilled(pillMin, pillMax, IM_COL32(8, 12, 18, 185), 6.f);
+            dl->AddRect(pillMin, pillMax, IM_COL32(200, 60, 70, 64), 6.f);
             dl->AddText(ImVec2(pillMin.x + 9.f, pillMin.y + 2.f), accent2(), fps);
         }
 
@@ -501,30 +496,30 @@ namespace {
             float t = anim::ease_out_cubic(anim::g_anim.get(ImGui::GetID(label, label + strlen(label)), live, 10.f));
             ImVec2 mn = pp;
             ImVec2 mx = pp + ImVec2(w, 24.f);
-            ImU32 bg = theme::lerp_u32(IM_COL32(6, 14, 23, 88), IM_COL32(0, 78, 116, 112), t);
-            ImU32 brd = theme::lerp_u32(IM_COL32(25, 48, 64, 92), IM_COL32(0, 174, 255, 132), t);
+            ImU32 bg = theme::lerp_u32(IM_COL32(6, 10, 16, 88), IM_COL32(80, 20, 28, 112), t);
+            ImU32 brd = theme::lerp_u32(IM_COL32(20, 30, 40, 92), IM_COL32(200, 60, 70, 132), t);
             dl->AddRectFilled(mn, mx, bg, 7.f);
             dl->AddRect(mn, mx, brd, 7.f, 0, 1.f);
             dl->AddRectFilled(mn + ImVec2(7.f, 7.f), mn + ImVec2(10.f, 17.f),
-                theme::lerp_u32(theme::col_muted(), theme::col_accent(), t), 2.f);
-            dl->AddText(mn + ImVec2(17.f, 5.f), theme::lerp_u32(theme::col_muted(), theme::col_text(), t), label);
+                theme::lerp_u32(IM_COL32(160, 170, 190, 200), accent(), t), 2.f);
+            dl->AddText(mn + ImVec2(17.f, 5.f), theme::lerp_u32(IM_COL32(160, 170, 190, 200), IM_COL32(220, 230, 245, 255), t), label);
             const char* kn = ImGui::GetKeyName(ImGuiKey_None);
             if (!kn || !*kn) kn = "NONE";
             float keyW = ImMax(42.f, ImGui::CalcTextSize(kn).x + 18.f);
             ImVec2 keyMin = ImVec2(mx.x - keyW - 8.f, mn.y + 4.f);
             dl->AddRectFilled(keyMin, keyMin + ImVec2(keyW, 16.f),
-                theme::lerp_u32(IM_COL32(4, 12, 20, 170), IM_COL32(0, 70, 104, 205), t), 5.f);
+                theme::lerp_u32(IM_COL32(4, 8, 14, 170), IM_COL32(70, 18, 24, 205), t), 5.f);
             dl->AddRect(keyMin, keyMin + ImVec2(keyW, 16.f),
-                theme::lerp_u32(theme::col_border(), theme::col_accent(), t * .8f), 5.f);
+                theme::lerp_u32(IM_COL32(25, 40, 55, 200), accent(), t * .8f), 5.f);
             dl->AddText(keyMin + ImVec2((keyW - ImGui::CalcTextSize(kn).x) * .5f, 1.f),
-                theme::lerp_u32(theme::col_text(), theme::alpha(theme::col_accent(), 0.85f), t), kn);
+                theme::lerp_u32(IM_COL32(220, 230, 245, 255), accent(), t), kn);
         }
 
         static void hotkey(ImDrawList* dl, ImVec2 p, ImVec2 s, bool hovered, bool active) {
             panelbase(dl, p, s, hovered, active);
             ImFont* title = font::bold();
-            dl->AddText(title, title->LegacySize, p + ImVec2(14.f, 11.f), theme::col_text(), "HOTKEYS");
-            dl->AddLine(p + ImVec2(14.f, 36.f), p + ImVec2(s.x - 14.f, 36.f), theme::col_border(), 1.f);
+            dl->AddText(title, title->LegacySize, p + ImVec2(14.f, 11.f), IM_COL32(220, 230, 245, 255), "HOTKEYS");
+            dl->AddLine(p + ImVec2(14.f, 36.f), p + ImVec2(s.x - 14.f, 36.f), IM_COL32(25, 40, 55, 200), 1.f);
             float rowW = s.x - 28.f;
             float y = p.y + 47.f;
             auto row = [&](const char* lbl, bool live) { hotkeyrow(dl, ImVec2(p.x + 14.f, y), rowW, lbl, live); y += 30.f; };
@@ -534,7 +529,7 @@ namespace {
             if (global::overlay::Hotkey_BladeBallSpam) row("Blade Spam", global::ball::SpamParry);
             if (global::overlay::Hotkey_Walkspeed) row("Walkspeed", global::misc::walkspeed);
             if (global::overlay::Hotkey_HitboxExpander) row("Hitbox", global::misc::hitbox);
-            if (y == p.y + 47.f) dl->AddText(p + ImVec2(14.f, 50.f), theme::col_muted(), "No hotkeys selected");
+            if (y == p.y + 47.f) dl->AddText(p + ImVec2(14.f, 50.f), IM_COL32(140, 150, 170, 200), "No hotkeys selected");
         }
 
         // ---- Radar ----
@@ -592,18 +587,18 @@ namespace {
             ImVec2 rmin = center - ImVec2(radius, radius);
             ImVec2 rmax = center + ImVec2(radius, radius);
             if (circle) {
-                dl->AddCircleFilled(center, radius, IM_COL32(2, 9, 15, 126), 96);
-                dl->AddCircle(center, radius, IM_COL32(0, 174, 255, 132), 96, 1.4f);
-                dl->AddCircle(center, radius * .66f, theme::col_border(), 96, 1.f);
-                dl->AddCircle(center, radius * .33f, theme::col_border(), 96, 1.f);
+                dl->AddCircleFilled(center, radius, IM_COL32(2, 6, 10, 126), 96);
+                dl->AddCircle(center, radius, IM_COL32(200, 60, 70, 132), 96, 1.4f);
+                dl->AddCircle(center, radius * .66f, IM_COL32(25, 40, 55, 200), 96, 1.f);
+                dl->AddCircle(center, radius * .33f, IM_COL32(25, 40, 55, 200), 96, 1.f);
             } else {
-                dl->AddRectFilled(rmin, rmax, IM_COL32(2, 9, 15, 126), 5.f);
-                dl->AddRect(rmin, rmax, IM_COL32(0, 174, 255, 132), 5.f, 0, 1.4f);
-                dl->AddRect(center - ImVec2(radius * .66f, radius * .66f), center + ImVec2(radius * .66f, radius * .66f), theme::col_border(), 3.f);
-                dl->AddRect(center - ImVec2(radius * .33f, radius * .33f), center + ImVec2(radius * .33f, radius * .33f), theme::col_border(), 3.f);
+                dl->AddRectFilled(rmin, rmax, IM_COL32(2, 6, 10, 126), 5.f);
+                dl->AddRect(rmin, rmax, IM_COL32(200, 60, 70, 132), 5.f, 0, 1.4f);
+                dl->AddRect(center - ImVec2(radius * .66f, radius * .66f), center + ImVec2(radius * .66f, radius * .66f), IM_COL32(25, 40, 55, 200), 3.f);
+                dl->AddRect(center - ImVec2(radius * .33f, radius * .33f), center + ImVec2(radius * .33f, radius * .33f), IM_COL32(25, 40, 55, 200), 3.f);
             }
-            dl->AddLine(ImVec2(center.x - radius, center.y), ImVec2(center.x + radius, center.y), theme::alpha(theme::col_accent(), .28f), 1.f);
-            dl->AddLine(ImVec2(center.x, center.y - radius), ImVec2(center.x, center.y + radius), theme::alpha(theme::col_accent(), .28f), 1.f);
+            dl->AddLine(ImVec2(center.x - radius, center.y), ImVec2(center.x + radius, center.y), IM_COL32(200, 60, 70, 71), 1.f);
+            dl->AddLine(ImVec2(center.x, center.y - radius), ImVec2(center.x, center.y + radius), IM_COL32(200, 60, 70, 71), 1.f);
             sdk::vector3 localPos{};
             if (playerposition(global::LocalPlayer, localPos)) {
                 for (const auto& player : global::Player_Cache) {
@@ -612,14 +607,14 @@ namespace {
                     sdk::vector3 pp{}; if (!playerposition(player, pp)) continue;
                     float dist = localPos.distance(pp);
                     float fade = 1.f - ImClamp(dist / 900.f, 0.f, .55f);
-                    radarblip(dl, center, radardelta(localPos, pp), radius - 8.f, circle, theme::alpha(theme::col_accent(), fade * 0.85f), 3.6f);
+                    radarblip(dl, center, radardelta(localPos, pp), radius - 8.f, circle, IM_COL32(200, 60, 70, (int)(fade * 217)), 3.6f);
                 }
             }
             ImVec2 tri[3] = { center + ImVec2(0.f, -7.f), center + ImVec2(5.5f, 6.f), center + ImVec2(-5.5f, 6.f) };
             dl->AddTriangleFilled(tri[0] + ImVec2(0.f, 1.f), tri[1] + ImVec2(0.f, 1.f), tri[2] + ImVec2(0.f, 1.f), IM_COL32(0, 0, 0, 150));
-            dl->AddTriangleFilled(tri[0], tri[1], tri[2], theme::col_text());
+            dl->AddTriangleFilled(tri[0], tri[1], tri[2], IM_COL32(220, 230, 245, 255));
             ImFont* tf = font::bold();
-            dl->AddText(tf, tf->LegacySize, p + ImVec2(14.f, 10.f), theme::col_text(), "RADAR");
+            dl->AddText(tf, tf->LegacySize, p + ImVec2(14.f, 10.f), IM_COL32(220, 230, 245, 255), "RADAR");
             char zt[32]{}; std::snprintf(zt, sizeof(zt), "%.2fx", global::overlay::Radar_Zoom);
             ImVec2 zs = ImGui::CalcTextSize(zt);
             dl->AddText(ImVec2(p.x + s.x - zs.x - 14.f, p.y + 11.f), accent2(), zt);
@@ -676,7 +671,7 @@ namespace {
             }
             dl->AddRectFilled(wm, wM, IM_COL32(23, 6, 12, 222), 9.f);
             dl->AddRectFilledMultiColorRounded(wm + ImVec2(1.f, 1.f), wM - ImVec2(1.f, 1.f),
-                IM_COL32(255, 80, 104, 40 + (int)(pulse * 34.f)), IM_COL32(100, 117, 255, 24),
+                IM_COL32(255, 80, 104, 40 + (int)(pulse * 34.f)), IM_COL32(140, 50, 60, 24),
                 IM_COL32(0, 0, 0, 82), IM_COL32(255, 80, 104, 18), 9.f);
             dl->AddRect(wm, wM, IM_COL32(255, 80, 104, 170 + (int)(pulse * 60.f)), 9.f, 0, 1.35f);
             ImVec2 icon(wm.x + 22.f, wm.y + 29.f);
@@ -689,7 +684,7 @@ namespace {
 } // anonymous namespace
 
 // ========================================================================
-// RenderESP — HUD overlay (watermark, hotkeys, radar, ESP, aim warning)
+// RenderESP — HUD overlay
 // ========================================================================
 void ModernUI::RenderESP() {
     ball::render();
@@ -701,23 +696,23 @@ void ModernUI::RenderESP() {
     if (global::overlay::AimWarning)
         hud::aimwarning(ImGui::GetBackgroundDrawList());
     if (global::overlay::watermark)
-        hud::panel("##autopsy_watermark", global::overlay::Watermark_Pos,
+        hud::panel("##miserable_watermark", global::overlay::Watermark_Pos,
             ImVec2(258.f, 42.f), movable,
             [](ImDrawList* dl, ImVec2 p, ImVec2 s, bool h, bool a) { hud::watermark(dl, p, s, h, a); });
     if (global::overlay::hotkey) {
         int rows = hud::hotkeycount();
-        hud::panel("##autopsy_hotkeys", global::overlay::Hotkeys_Pos,
+        hud::panel("##miserable_hotkeys", global::overlay::Hotkeys_Pos,
             ImVec2(258.f, 52.f + ImMax(1, rows) * 30.f), movable,
             [](ImDrawList* dl, ImVec2 p, ImVec2 s, bool h, bool a) { hud::hotkey(dl, p, s, h, a); });
     }
     if (global::overlay::radar) {
         float radarSize = ImClamp(global::overlay::Radar_Size, 130.f, 280.f);
-        hud::panel("##autopsy_radar", global::overlay::Radar_Pos,
+        hud::panel("##miserable_radar", global::overlay::Radar_Pos,
             ImVec2(radarSize, radarSize), movable,
             [](ImDrawList* dl, ImVec2 p, ImVec2 s, bool h, bool a) { hud::radar(dl, p, s, h, a); });
     }
 
-    welcome(m_open);
+    welcome();
 }
 
 // ========================================================================
@@ -726,7 +721,5 @@ void ModernUI::RenderESP() {
 void ModernUI::EndFrame(IDXGISwapChain* swapChain) {
     if (!swapChain) return;
     ImGui::Render();
-    ImVec4 clearColor(0.f, 0.f, 0.f, 0.f);
-    // Note: rendering and presenting is handled by the parent (graphic class)
-    // because it owns D3D11 device context and render target
+    // Rendering + Present handled by parent (graphic class)
 }

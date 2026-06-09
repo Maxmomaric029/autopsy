@@ -29,17 +29,21 @@ namespace theme {
     inline float r_card   = 12.f;
     inline float r_frame  = 7.f;
 
+    // Glassmorphism sidebar colors
+    inline ImVec4 c_sidebar  = ImVec4(0.063f, 0.071f, 0.086f, 0.92f); // #101216 + alpha
+    inline ImVec4 c_sideAccent = ImVec4(0.902f, 0.235f, 0.275f, 1.f); // #E63C46 blood red accent
+    inline ImVec4 c_sideText = ImVec4(0.627f, 0.667f, 0.745f, 1.f);   // #A0AABE
+    inline ImVec4 c_sideTextActive = ImVec4(0.863f, 0.902f, 0.961f, 1.f); // #DCE6F5
+
     // Layout constants
-    inline constexpr float kSidebarW      = 178.f;
-    inline constexpr float kSidebarCompactW = 58.f;
-    inline constexpr float kTabH          = 42.f;
-    inline constexpr float kLogoH         = 84.f;
-    inline constexpr float kHeaderH       = 58.f;
-    inline constexpr float kPad           = 12.f;
+    inline constexpr float kSidebarW      = 190.f;
+    inline constexpr float kTabH          = 48.f;
+    inline constexpr float kLogoH         = 78.f;
+    inline constexpr float kPad           = 14.f;
     inline constexpr float kCardGap       = 6.f;
 
-    inline float kWinW = 760.f;
-    inline float kWinH = 548.f;
+    inline float kWinW = 810.f;
+    inline float kWinH = 520.f;
 
     // ========================================================================
     // Color helpers

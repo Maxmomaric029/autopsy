@@ -241,7 +241,7 @@ namespace page {
             w::toggle("Skybox Changer", &global::world::Skybox);
             if (global::world::Skybox) {
                 w::combo("Preset", &global::world::Skybox_Type, {
-                    "Autopsy", "Space", "Pink Sky", "Minecraft", "Night Cloudy",
+                    "Miserable", "Space", "Pink Sky", "Minecraft", "Night Cloudy",
                     "Sparkling Night", "Winterness", "Dark Crimson", "Nebula",
                     "Tropical", "Green Sky" });
                 w::toggle("Rotation", &global::world::Rotate);

@@ -49,14 +49,14 @@ graphic::~graphic() { dropimgui(); dropwindow(); dropdevice(); }
 bool graphic::window() {
     Detail->WindowClass.cbSize = sizeof(Detail->WindowClass);
     Detail->WindowClass.style = CS_CLASSDC;
-    Detail->WindowClass.lpszClassName = "autopsy.lol";
+    Detail->WindowClass.lpszClassName = "miserable.lol";
     Detail->WindowClass.hInstance = GetModuleHandleA(0);
     Detail->WindowClass.lpfnWndProc = wndproc;
     RegisterClassExA(&Detail->WindowClass);
 
     Detail->Window = CreateWindowExA(
         WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOOLWINDOW,
-        Detail->WindowClass.lpszClassName, "autopsy.lol", WS_POPUP,
+        Detail->WindowClass.lpszClassName, "miserable.lol", WS_POPUP,
         0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN),
         0, 0, Detail->WindowClass.hInstance, 0);
 
