@@ -8,7 +8,7 @@
 #include "../core/cache.h"
 #include "global.h"
 
-extern std::mutex CMutex;
+inline std::mutex CMutex;
 
 inline float distance(const sdk::vector3& P1, const sdk::vector3& P2) {
     float Dx = P1.x - P2.x;
@@ -21,7 +21,7 @@ inline bool validpos(const sdk::vector3& Pos) {
     return !std::isnan(Pos.x) && !std::isnan(Pos.y) && !std::isnan(Pos.z);
 }
 
-std::vector<sdk::instance> playerlist() {
+inline std::vector<sdk::instance> playerlist() {
     std::vector<sdk::instance> TargetPlayers;
 
     const std::uint64_t WorkspaceAddr = global::workspace.Address;
@@ -65,7 +65,7 @@ std::vector<sdk::instance> playerlist() {
     return TargetPlayers;
 }
 
-void cacheplayer(std::vector<sdk::player>& actor, const sdk::vector3& LocalPos, const std::string& LocalName) {
+inline void cacheplayer(std::vector<sdk::player>& actor, const sdk::vector3& LocalPos, const std::string& LocalName) {
     std::lock_guard<std::mutex> Lock(CMutex);
 
     actor.clear();
@@ -127,7 +127,7 @@ void cacheplayer(std::vector<sdk::player>& actor, const sdk::vector3& LocalPos, 
     }
 }
 
-void rescancache(std::vector<sdk::player>& actor, const sdk::vector3& LocalPos, const std::string& LocalName) {
+inline void rescancache(std::vector<sdk::player>& actor, const sdk::vector3& LocalPos, const std::string& LocalName) {
     std::thread([&actor, &LocalPos, &LocalName]() {
         while (true) {
             cacheplayer(actor, LocalPos, LocalName);
