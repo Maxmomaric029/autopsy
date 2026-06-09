@@ -33,12 +33,6 @@ public:
     bool IsOpen() const { return m_open; }
     void Toggle() { m_open = !m_open; }
 
-    // ---- Logo textures --------------------------------------------------
-    ID3D11ShaderResourceView* GetCuervo() const { return m_cuervo; }
-    ID3D11ShaderResourceView* GetDescarga() const { return m_descarga; }
-    int GetCuervoW() const { return m_cuervoW; }
-    int GetCuervoH() const { return m_cuervoH; }
-
 private:
     bool m_open = false;
     bool m_initialized = false;
