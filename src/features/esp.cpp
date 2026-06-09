@@ -732,16 +732,36 @@ namespace esp {
             if (global::esp::Render_Distance > 0.f && player.Distance > global::esp::Render_Distance)
                 continue;
 
+            // Fallback: try Head first, then HumanoidRootPart, then any available part
             sdk::part Head(player.Head.Address);
-            if (!Head.Address) continue;
+            bool hasHead = Head.Address && Head.primitive().Address;
 
-            const sdk::part HeadPrimitive = Head.primitive();
-            if (!HeadPrimitive.Address)
-                continue;
+            sdk::vector3 HeadPosition{};
+            if (hasHead) {
+                HeadPosition = Head.primitive().position();
+            } else {
+                // Try HumanoidRootPart as fallback reference point
+                sdk::part Root(player.HumanoidRootPart.Address);
+                if (Root.Address && Root.primitive().Address) {
+                    HeadPosition = Root.primitive().position();
+                    HeadPosition.y += 1.5f; // approximate offset from root to head
+                } else {
+                    // Try Torso or any bone
+                    auto Bones = esp::bone(player);
+                    for (auto* Inst : Bones) {
+                        if (!Inst || !Inst->Address) continue;
+                        sdk::part bp(*Inst);
+                        if (bp.Address && bp.primitive().Address) {
+                            HeadPosition = bp.primitive().position();
+                            break;
+                        }
+                    }
+                    if (HeadPosition.x == 0.f && HeadPosition.y == 0.f && HeadPosition.z == 0.f)
+                        continue;
+                }
+            }
 
-            const sdk::vector3 HeadPosition = HeadPrimitive.position();
             auto Head_W2S = global::render.screen(HeadPosition);
-
             if (!validscreen(Head_W2S.x, Head_W2S.y))
                 continue;
 

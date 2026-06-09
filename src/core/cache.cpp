@@ -125,6 +125,27 @@ namespace cache {
             }
         }
 
+        // Fallback: if children() returned empty or incomplete, try direct lookups
+        // for critical parts via childclass
+        if (!player.Head.Address) {
+            player.Head = player.character.childclass("Head");
+        }
+        if (!player.HumanoidRootPart.Address) {
+            player.HumanoidRootPart = player.character.childclass("HumanoidRootPart");
+        }
+        if (!player.humanoid.Address) {
+            player.humanoid = player.character.childclass("Humanoid");
+        }
+        if (!player.Torso.Address) {
+            player.Torso = player.character.childclass("Torso");
+        }
+        if (!player.UpperTorso.Address) {
+            player.UpperTorso = player.character.childclass("UpperTorso");
+        }
+        if (!player.LowerTorso.Address) {
+            player.LowerTorso = player.character.childclass("LowerTorso");
+        }
+
         if (player.humanoid.Address) {
 
             sdk::humanoid humanoid(player.humanoid.Address);
@@ -150,6 +171,16 @@ namespace cache {
 
             if (validpos(Head_Pos) && validpos(Camera_Pos)) {
                 player.Distance = distance(Head_Pos, Camera_Pos);
+            }
+        }
+        // Fallback distance using HumanoidRootPart if Head not available
+        else if (!Is_Local && player.HumanoidRootPart.Address != 0 && global::camera.Address != 0) {
+            sdk::part Root(player.HumanoidRootPart.Address);
+            sdk::vector3 Root_Pos = Root.partposition();
+            sdk::camera camera(global::camera.Address);
+            sdk::vector3 Camera_Pos = camera.position();
+            if (validpos(Root_Pos) && validpos(Camera_Pos)) {
+                player.Distance = distance(Root_Pos, Camera_Pos);
             }
         }
     }
@@ -189,14 +220,18 @@ namespace cache {
                 }
             }
 
+            // Always include if Client_Check is off; if on, skip own player
             if (!global::setting::Client_Check || player.HumanoidRootPart.Address != global::LocalPlayer.HumanoidRootPart.Address) {
 
                 actor.push_back(std::move(player));
             }
         }
 
-        std::lock_guard<std::mutex> Lock(Mutex);
-        global::Player_Cache = std::move(actor);
+        {
+            std::lock_guard<std::mutex> Lock(Mutex);
+            global::Player_Cache = std::move(actor);
+        }
+        console::playerCount = (int)global::Player_Cache.size();
     }
 
     void runtime() {
@@ -226,6 +261,11 @@ namespace cache {
 
         global::LocalPlayer = LocalPlayer;
         global::GameID = Current_GameID.load();
+
+        // Update console status
+        console::cameraAddress = global::camera.Address;
+        console::connected = (global::camera.Address != 0);
+        console::playerCount = (int)global::Player_Cache.size();
         if (global::GameID == global::rivals::PlaceId) {
             global::aim::Aimbot_type = 0;
             global::silent::SpoofMouse = true;

@@ -18,16 +18,18 @@ namespace console {
     inline bool menuVisible = true;
     inline int selectedOption = 0;
     inline float hue = 0.0f;
+    inline bool redraw = true;
+
+    // Status info (set from main thread)
+    inline int playerCount = 0;
+    inline uintptr_t cameraAddress = 0;
+    inline bool connected = false;
 
     // ========================================================================
-    // ANSI RGB helpers
+    // ANSI helpers
     // ========================================================================
     inline void rgb(int r, int g, int b) {
         printf("\033[38;2;%d;%d;%dm", r, g, b);
-    }
-
-    inline void rgb_bg(int r, int g, int b) {
-        printf("\033[48;2;%d;%d;%dm", r, g, b);
     }
 
     inline void reset() {
@@ -38,8 +40,12 @@ namespace console {
         printf("\033[2J\033[H");
     }
 
+    inline void home() {
+        printf("\033[H");
+    }
+
     // ========================================================================
-    // HSV to RGB for rainbow cycling
+    // HSV to RGB
     // ========================================================================
     inline void hsv_to_rgb(float h, float& r, float& g, float& b) {
         float s = 1.0f, v = 1.0f;
@@ -59,7 +65,7 @@ namespace console {
     }
 
     // ========================================================================
-    // Gradient text - writes text with a horizontal gradient
+    // Gradient text
     // ========================================================================
     inline void gradient_text(const char* text, float hue_start, float hue_range) {
         int len = (int)strlen(text);
@@ -74,29 +80,84 @@ namespace console {
     }
 
     // ========================================================================
-    // ASCII Art: MISERABLE
+    // Status bar - shows player count, camera status
+    // ========================================================================
+    inline void draw_status_bar() {
+        rgb(60, 75, 90);
+        printf("  \xC0\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xB4\n");
+        reset();
+
+        // Player count
+        rgb(146, 166, 178);
+        printf("  \xB3  Players: ");
+        if (connected) {
+            rgb(0, 220, 130);
+            printf("%-4d", playerCount);
+        } else {
+            rgb(255, 80, 80);
+            printf("waiting");
+        }
+
+        // Separator
+        rgb(60, 75, 90);
+        printf("  \xB3  ");
+
+        // Camera
+        rgb(146, 166, 178);
+        printf("Camera: ");
+        if (cameraAddress) {
+            rgb(0, 174, 255);
+            printf("0x%llX", (unsigned long long)cameraAddress);
+        } else {
+            rgb(255, 80, 80);
+            printf("N/A");
+        }
+
+        // Separator
+        rgb(60, 75, 90);
+        printf("  \xB3  MISERABLE");
+        reset();
+        printf("\n");
+
+        rgb(60, 75, 90);
+        printf("  \xC0\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xD9\n");
+        reset();
+        printf("\n");
+    }
+
+    // ========================================================================
+    // Unicode block ASCII Art: MISERABLE
+    // Using: \xDB (█ full), \xDF (▄ bottom), \xDC (▀ top), \xDB (█)
     // ========================================================================
     inline void draw_header(float hue_offset = 0.0f) {
         const char* art[] = {
-            "  MM   MM IIIII SSSSS EEEEE RRRR   AAA  BBBB  L     EEEEE",
-            "  M M M M  I   S     E     R   R A   A B   B L     E    ",
-            "  M  M  M  I   SSSSS EEEE  RRRR  AAAAA BBBB  L     EEEE ",
-            "  M     M  I       S E     R  R  A   A B   B L     E    ",
-            "  M     M IIIII SSSSS EEEEE R   R A   A BBBB  LLLLL EEEEE",
-            "                                                        ",
-            "     ╔══════════════════════════════════════════════╗      ",
-            "     ║       Bloodie & Xchino presents...          ║      ",
-            "     ╚══════════════════════════════════════════════╝      "
+            "  \xDB\xDB   \xDB\xDB \xDB\xDB\xDB\xDB\xDB \xDB\xDB\xDB\xDB\xDB \xDB\xDB\xDB\xDB\xDB \xDB\xDB\xDB\xDB  \xDB\xDB\xDB \xDB\xDB\xDB\xDB  \xDB     \xDB\xDB\xDB\xDB\xDB",
+            "  \xDB \xDB \xDB \xDB \xDB      \xDB     \xDB   \xDB \xDB   \xDB \xDB   \xDB \xDB     \xDB    ",
+            "  \xDB  \xDB  \xDB \xDB\xDB\xDB\xDB\xDB \xDB\xDB\xDB\xDB  \xDB\xDB\xDB\xDB  \xDB\xDB\xDB\xDB  \xDB\xDB\xDB\xDB\xDB \xDB\xDB\xDB\xDB  \xDB     \xDB\xDB\xDB\xDB ",
+            "  \xDB     \xDB \xDB      \xDB     \xDB     \xDB  \xDB \xDB   \xDB \xDB   \xDB \xDB     \xDB    ",
+            "  \xDB     \xDB \xDB\xDB\xDB\xDB\xDB \xDB\xDB\xDB\xDB\xDB \xDB   \xDB \xDB   \xDB \xDB\xDB\xDB\xDB  \xDB\xDB\xDB\xDB\xDB \xDB\xDB\xDB\xDB\xDB",
+            "",
         };
 
         int lines = sizeof(art) / sizeof(art[0]);
         for (int i = 0; i < lines; i++) {
-            printf("  ");
-            float h = hue_offset + ((float)i / (float)lines) * 0.3f;
+            float h = hue_offset + ((float)i / 4.0f) * 0.3f;
             if (h > 1.0f) h -= 1.0f;
-            gradient_text(art[i], h, 0.25f);
+            rgb(30, 40, 55);
+            printf(" ");
+            reset();
+            gradient_text(art[i], h, 0.2f);
             printf("\n");
         }
+
+        // Credit line with box drawing
+        rgb(100, 117, 255);
+        printf("  \xC9\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xBB\n");
+        rgb(180, 140, 255);
+        printf("  \xBA         Bloodie & Xchino presents — MISERABLE          \xBA\n");
+        rgb(100, 117, 255);
+        printf("  \xBC\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xBE\n");
+        reset();
         printf("\n");
     }
 
@@ -104,20 +165,20 @@ namespace console {
     // TOS
     // ========================================================================
     inline void draw_tos() {
-        const char* border_top    = "  ╔══════════════════════════════════════════════════════════════╗";
-        const char* border_bottom = "  ╚══════════════════════════════════════════════════════════════╝";
-        const char* sep           = "  ╠══════════════════════════════════════════════════════════════╣";
-
-        rgb(100, 117, 255); printf("%s\n", border_top); reset();
-        rgb(180, 140, 255); printf("  ║                      TERMS OF SERVICE                        ║\n"); reset();
-        rgb(100, 117, 255); printf("%s\n", sep); reset();
+        rgb(100, 117, 255);
+        printf("  \xC9\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xBB\n");
+        rgb(180, 140, 255);
+        printf("  \xBA                      TERMS OF SERVICE                      \xBA\n");
+        rgb(100, 117, 255);
+        printf("  \xCC\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xB9\n");
+        reset();
 
         const char* tos_lines[] = {
-            "  ║  \x95  This software is FREE and provided for EDUCATIONAL purposes  ║",
-            "  ║  \x95  Use at your own risk. The creators assume NO liability.       ║",
-            "  ║  \x95  You MAY be banned from games/services while using this.        ║",
-            "  ║  \x95  Reselling or distributing as paid software is STRICTLY banned. ║",
-            "  ║  \x95  Educational/security research purposes ONLY.                   ║",
+            "  \xBA  >>  This software is FREE and for EDUCATIONAL purposes only  \xBA",
+            "  \xBA  >>  Use at your own risk. Creators assume NO liability.       \xBA",
+            "  \xBA  >>  You MAY be banned from games/services while using this.    \xBA",
+            "  \xBA  >>  Reselling or redistribution for profit is STRICTLY banned. \xBA",
+            "  \xBA  >>  Educational/security research purposes ONLY.               \xBA",
         };
 
         rgb(180, 200, 220);
@@ -126,7 +187,9 @@ namespace console {
         }
         reset();
 
-        rgb(100, 117, 255); printf("%s\n", border_bottom); reset();
+        rgb(100, 117, 255);
+        printf("  \xC0\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xD9\n");
+        reset();
         printf("\n");
     }
 
@@ -136,35 +199,34 @@ namespace console {
     inline void draw_menu_item(const char* label, bool selected, bool enabled = true) {
         if (selected) {
             rgb(0, 174, 255);
-            printf("  ║  \xFE  ");
+            printf("  \xBA  \xFE  ");
             rgb(255, 255, 255);
             printf("%-47s", label);
             rgb(0, 174, 255);
-            printf("  ║");
+            printf("  \xBA");
         }
         else if (enabled) {
             rgb(146, 166, 178);
-            printf("  ║     ");
+            printf("  \xBA     ");
             rgb(180, 200, 220);
             printf("%-47s", label);
             rgb(146, 166, 178);
-            printf("  ║");
+            printf("  \xBA");
         }
         else {
             rgb(86, 101, 114);
-            printf("  ║     ");
+            printf("  \xBA     ");
             printf("%-47s", label);
-            printf("  ║");
+            printf("  \xBA");
         }
         reset();
         printf("\n");
     }
 
     inline void draw_menu() {
-        const char* menu_title = "  ╔══════════════════════  M E N U  ═══════════════════════╗";
-        const char* menu_bot   = "  ╚════════════════════════════════════════════════════════╝";
-
-        rgb(100, 117, 255); printf("%s\n", menu_title); reset();
+        rgb(100, 117, 255);
+        printf("  \xC9\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD  M E N U  \xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xBB\n");
+        reset();
 
         const char* items[] = {
             "Camera Settings",
@@ -182,11 +244,16 @@ namespace console {
         for (int i = 0; i < count; i++) {
             draw_menu_item(items[i], i == selectedOption, true);
             if (i < count - 1) {
-                rgb(60, 75, 90); printf("  ║  \xFA                                            \xFA  ║\n"); reset();
+                rgb(60, 75, 90);
+                printf("  \xBA  \xFA                                            \xFA  \xBA\n");
+                reset();
             }
         }
 
-        rgb(100, 117, 255); printf("%s\n", menu_bot); reset();
+        rgb(100, 117, 255);
+        printf("  \xC0\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xD9\n");
+        reset();
+
         printf("\n");
         rgb(146, 166, 178);
         printf("  [\x18\x19] Navigate  [Enter] Select  [INS] Toggle Menu\n");
@@ -194,25 +261,28 @@ namespace console {
     }
 
     // ========================================================================
-    // Init - prepare console
+    // Init
     // ========================================================================
     inline void init() {
         if (initialized) return;
 
-        // Enable VT100
         DWORD mode = 0;
         if (GetConsoleMode(hConsole, &mode)) {
             mode |= 0x0004;
             SetConsoleMode(hConsole, mode);
         }
 
-        // Hide cursor
         CONSOLE_CURSOR_INFO cursorInfo;
         GetConsoleCursorInfo(hConsole, &cursorInfo);
         cursorInfo.bVisible = false;
         SetConsoleCursorInfo(hConsole, &cursorInfo);
 
-        // Set console title
+        // Set small buffer to minimize scrollback
+        CONSOLE_SCREEN_BUFFER_INFO csbi;
+        GetConsoleScreenBufferInfo(hConsole, &csbi);
+        csbi.dwSize.Y = 800; // limit scrollback
+        SetConsoleScreenBufferSize(hConsole, csbi.dwSize);
+
         SetConsoleTitleA("miserable");
 
         initialized = true;
@@ -220,41 +290,49 @@ namespace console {
     }
 
     // ========================================================================
-    // Full render
+    // Full render — uses cursor home (no cls) to avoid flickering/scrolling
     // ========================================================================
     inline void render(float time) {
-        cls();
+        if (redraw) {
+            cls();
+            redraw = false;
+        } else {
+            home();
+        }
         hue = fmodf(time * 0.05f, 1.0f);
         draw_header(hue);
+        draw_status_bar();
         draw_tos();
         draw_menu();
     }
 
     // ========================================================================
-    // Input handling thread
+    // Input thread
     // ========================================================================
     inline void input_thread() {
         const int item_count = 9;
         while (true) {
             if (GetAsyncKeyState(VK_UP) & 0x0001) {
                 selectedOption = (selectedOption - 1 + item_count) % item_count;
+                redraw = true;
             }
             if (GetAsyncKeyState(VK_DOWN) & 0x0001) {
                 selectedOption = (selectedOption + 1) % item_count;
+                redraw = true;
             }
             if (GetAsyncKeyState(VK_RETURN) & 0x0001) {
-                // Selection handled by main menu
                 Beep(800, 50);
             }
             if (GetAsyncKeyState(VK_INSERT) & 0x0001) {
                 menuVisible = !menuVisible;
+                redraw = true;
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
     }
 
     // ========================================================================
-    // Console render thread
+    // Render loop — slower rate, cursor-home overwrite
     // ========================================================================
     inline void render_loop() {
         while (true) {
@@ -263,12 +341,12 @@ namespace console {
                     std::chrono::steady_clock::now().time_since_epoch()).count() / 1000.0f;
                 render(time);
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
     }
 
     // ========================================================================
-    // Start console UI threads
+    // Start
     // ========================================================================
     inline void start() {
         init();
@@ -279,14 +357,12 @@ namespace console {
 } // namespace console
 
 // ============================================================================
-// Legacy output namespace - simplified, no debug (kept for compatibility)
+// Legacy output namespace — all stubs for compatibility
 // ============================================================================
 namespace output {
-
     inline void info(const char*, ...) {}
     inline void warn(const char*, ...) {}
     inline void error(const char*, ...) {}
     inline void ok(const char*, ...) {}
     inline void core(const char*, const char*, ...) {}
-
 } // namespace output
