@@ -34,6 +34,7 @@ LRESULT CALLBACK wndproc(HWND Hwnd, UINT Msg, WPARAM WParam, LPARAM LParam) {
         PostQuitMessage(0);
         break;
     case WM_CLOSE:
+        DestroyWindow(Hwnd);
         return 0;
     }
     return DefWindowProcA(Hwnd, Msg, WParam, LParam);
@@ -101,8 +102,11 @@ bool graphic::window() {
     Detail->WindowClass.lpfnWndProc = wndproc;
     RegisterClassExA(&Detail->WindowClass);
 
+    // NOTE: We intentionally do NOT use WS_EX_LAYERED here because it conflicts
+    // with DwmExtendFrameIntoClientArea. DWM composition provides per-pixel alpha
+    // via the swapchain clear color {0,0,0,0} — no layered window attributes needed.
     Detail->Window = CreateWindowExA(
-        WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOOLWINDOW,
+        WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW,
         Detail->WindowClass.lpszClassName, "miserable.lol", WS_POPUP,
         0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN),
         0, 0, Detail->WindowClass.hInstance, 0);
@@ -110,11 +114,16 @@ bool graphic::window() {
     if (!Detail->Window) return false;
 
     // Use DWM composition for per-pixel alpha transparency.
-    // On Win10/11, SetLayeredWindowAttributes with LWA_COLORKEY is incompatible
-    // with DXGI_SWAP_EFFECT_FLIP_DISCARD — results in a black rectangle.
-    // DwmExtendFrameIntoClientArea with MARGINS{-1} enables proper alpha blending.
+    // DwmExtendFrameIntoClientArea with MARGINS{-1} enables proper alpha blending
+    // on Win10/11. This replaces the old SetLayeredWindowAttributes(LWA_COLORKEY)
+    // which is incompatible with DXGI_SWAP_EFFECT_FLIP_DISCARD.
     MARGINS margins = { -1, -1, -1, -1 };
-    DwmExtendFrameIntoClientArea(Detail->Window, &margins);
+    HRESULT dwmResult = DwmExtendFrameIntoClientArea(Detail->Window, &margins);
+    if (FAILED(dwmResult)) {
+        // DWM may be unavailable (e.g. Remote Desktop, safe mode).
+        // The window will still render, but without per-pixel alpha.
+        OutputDebugStringA("[graphic] DwmExtendFrameIntoClientArea failed — per-pixel alpha unavailable\n");
+    }
 
     ShowWindow(Detail->Window, SW_SHOW);
     UpdateWindow(Detail->Window);

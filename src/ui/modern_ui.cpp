@@ -220,9 +220,14 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
             now - lastToggle >= .18) {
             lastToggle = now;
             Toggle();
-            LONG exStyle = WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_LAYERED;
+            // NOTE: No WS_EX_LAYERED here! DWM composition handles transparency.
+            LONG exStyle = WS_EX_TOOLWINDOW | WS_EX_TOPMOST;
             if (!m_open) exStyle |= WS_EX_TRANSPARENT;
             SetWindowLong(overlayWindow, GWL_EXSTYLE, exStyle);
+            // Must call SetWindowPos with SWP_FRAMECHANGED after SetWindowLong
+            // for the style change to take effect and preserve DWM composition.
+            SetWindowPos(overlayWindow, NULL, 0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
         }
     }
 }
