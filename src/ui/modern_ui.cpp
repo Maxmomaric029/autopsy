@@ -299,13 +299,7 @@ void ModernUI::RenderMenu() {
     menuPos.x = maxX > minX ? ImClamp(menuPos.x, minX, maxX) : IO.DisplaySize.x * .5f;
     menuPos.y = maxY > minY ? ImClamp(menuPos.y, minY, maxY) : IO.DisplaySize.y * .5f;
 
-    // ---- Backdrop (skip when menuT is tiny) ----
-    if (menuT > 0.02f) {
-        const ImVec2 menuMin = menuPos + menuOffset - ImVec2(kWinW, kWinH) * .5f;
-        const ImVec2 menuMax = menuMin + ImVec2(kWinW, kWinH);
-        ImDrawList* BDL = ImGui::GetBackgroundDrawList();
-        layout::backdrop(BDL, menuMin, menuMax, menuT, kR);
-    }
+    // Backdrop removed (user request — no black screen behind menu)
 
     // ---- Window ----
     ImGui::SetNextWindowSize({ kWinW, kWinH }, ImGuiCond_Always);

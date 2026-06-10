@@ -27,8 +27,8 @@ namespace w {
         ImGui::PushID(label);
         ImDrawList* dl = ImGui::GetWindowDrawList();
 
-        // Left padding so non-icon toggles don't stick to wall
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 4.f);
+        // Left padding (16px = space for icon) so toggles align with toggle_icon
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 16.f);
 
         constexpr float kTW = 36.f, kTH = 20.f;
         const ImVec2 p = ImGui::GetCursorScreenPos();
@@ -437,13 +437,11 @@ namespace w {
             theme::col_danger(), theme::col_danger(), w, h);
     }
 
-    // ---- Icon toggle (FA6 icon + label) ---------------------------------
-    inline bool toggle_icon(const char* icon, const char* label, bool* v) {
+    // ---- Icon toggle (FA6 icon + label) ---------------------------------    inline bool toggle_icon(const char* icon, const char* label, bool* v) {
         ImDrawList* dl = ImGui::GetWindowDrawList();
         const ImVec2 p = ImGui::GetCursorScreenPos();
-        dl->AddText(font::bold(), 11.f, p + ImVec2(0.f, 3.f),
-            theme::col_muted(), icon);
-        ImGui::SetCursorScreenPos(p + ImVec2(16.f, 0.f));
+        dl->AddText(font::bold(), 11.f, p + ImVec2(0.f, 3.f), theme::col_muted(), icon);
+        // No extra offset — toggle() handles 16px left padding
         return toggle(label, v);
     }
 

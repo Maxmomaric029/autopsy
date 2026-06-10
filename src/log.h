@@ -70,7 +70,7 @@ namespace console {
         if (value)
             printf("0x%08llX", (unsigned long long)value);
         else
-            printf("N/A");
+            printf("%-10s", "N/A");
         reset();
         // Fill remaining
         int used = 4 + 20 + 12;
@@ -172,8 +172,8 @@ namespace console {
     // ========================================================================
     // Full render
     // ========================================================================
-    inline void render() {
-        cls();
+    inline void render(bool clearFirst = true) {
+        if (clearFirst) cls();
         const int w = 60;
 
         draw_header();
@@ -248,7 +248,9 @@ namespace console {
     // Refresh — auto-re-render when offsets change (must be after render())
     // ========================================================================
     inline void refresh() {
-        render();
+        COORD top = { 0, 0 };
+        SetConsoleCursorPosition(hConsole, top);
+        render(false);
     }
 
     // ========================================================================
