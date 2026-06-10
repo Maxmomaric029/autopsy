@@ -102,6 +102,11 @@ namespace misc {
 
         while (true)
         {
+            if (!global::misc::fly && !s_flyActive) {
+                Sleep(50);
+                continue;
+            }
+
             Sleep(1);
 
             HWND robloxWnd = FindWindowA(0, "Roblox");

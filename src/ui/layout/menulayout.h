@@ -104,8 +104,8 @@ namespace layout {
             const char* iconChar = icon::tabIconChars[i];
             const char* label = icon::tabLabels[i];
 
-            ImVec2 tMin(sbMin.x + 10.f, tabY);
-            ImVec2 tMax(sbMax.x - 10.f, tabY + kTabH);
+            ImVec2 tMin(sbMin.x + 12.f, tabY);
+            ImVec2 tMax(sbMax.x - 12.f, tabY + kTabH);
 
             // Invisible button for interaction
             ImGui::SetCursorScreenPos(tMin);
@@ -162,7 +162,7 @@ namespace layout {
                 ? IM_COL32(220, 230, 245, 240)
                 : IM_COL32(160, 170, 190, (int)(160 + ht * 60));
             dl->AddText(tabF, labelS,
-                tMin + ImVec2(44.f, (kTabH - labelS) * 0.5f),
+                tMin + ImVec2(46.f, (kTabH - labelS) * 0.5f),
                 textCol, label);
 
             tabY += kTabH + kTabGap;

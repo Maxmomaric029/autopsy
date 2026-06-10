@@ -282,8 +282,10 @@ void ModernUI::RenderMenu() {
 
     ImGuiIO& IO = ImGui::GetIO();
 
-    // ---- Menu animation ----
+    // ---- Menu animation — stagger: sidebar first, content delayed (F2.3) ----
     const float menuEase = anim::ease_out_quint(menuT);
+    const float contentRaw = anim::saturate(menuT * 1.15f - 0.15f);
+    const float contentEase = anim::ease_out_quint(contentRaw);
     const float menuAlpha = anim::ease_out_cubic(menuT);
     const ImVec2 menuOffset = { 0.f, (1.f - menuEase) * 18.f };
 
@@ -380,10 +382,13 @@ void ModernUI::RenderMenu() {
     // Clip content to content area
     DL->PushClipRect({ contentX, contentY }, { contentX + contentW, contentY + contentH }, true);
 
+    // ---- Menu stagger fade for content area ----
+    float menuStaggerAlpha = m_open ? (1.f - menuT > 0.5f ? 1.f : contentEase) : contentEase;
+
     // ---- Page transition: slide + fade (F2.3) ----
     float pageOffsetY = (1.f - tIn) * 22.f * pageTrans.transDir;
     ImGui::SetCursorScreenPos({ contentX + kPad, contentY + kPad + pageOffsetY });
-    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, tIn);
+    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, tIn * menuStaggerAlpha);
     ImGui::BeginGroup();
 
     float bInW = contentW - kPad * 2.f;

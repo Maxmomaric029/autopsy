@@ -553,10 +553,19 @@ namespace aim {
 
             while (true) {
 
+                if (!global::aim::Enabled) {
+                    CurrentLockedName = "";
+                    IsPersisting = false;
+                    PersistenceName = "";
+                    global::aim::AimTarget = sdk::instance(0);
+                    Sleep(50);
+                    continue;
+                }
+
                 if (global::aim::Enabled) {
 
                     int Vk = ImGuiKeyToVK(global::aim::Aimbot_Key);
-                    if (!Vk) { Sleep(1); continue; }
+                    if (!Vk) { Sleep(5); continue; }
 
                     HWND RobloxHwnd = FindWindowA(0, "Roblox");
                     bool RobloxFocused = RobloxHwnd && GetForegroundWindow() == RobloxHwnd;
