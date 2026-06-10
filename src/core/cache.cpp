@@ -10,6 +10,13 @@
 #include <cmath>
 #include "log.h"
 #include "global.h"
+
+// Thread-safe clock (not ImGui::GetTime — not thread-safe, crashes if context doesn't exist yet)
+static double now_sec() {
+    using namespace std::chrono;
+    static const auto epoch = steady_clock::now();
+    return duration<double>(steady_clock::now() - epoch).count();
+}
 #include "../features/phantom.h"
 #include "../features/wallcheck.h"
 
@@ -166,7 +173,7 @@ namespace cache {
         if (player.character.Address == 0) return;
 
         uint64_t charAddr = player.character.Address;
-        double now = ImGui::GetTime();
+        double now = now_sec();
 
         // Check cache
         CachedParts* cached = nullptr;

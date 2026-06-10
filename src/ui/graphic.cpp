@@ -173,16 +173,7 @@ bool graphic::device() {
         return false;
     }
 
-    // ---- Waitable object for FLIP swapchains (F1.2) ----
-    if (sd.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD) {
-        // Get IDXGISwapChain2 interface for frame latency waitable object
-        IDXGISwapChain2* swapChain2 = nullptr;
-        if (SUCCEEDED(Detail->SwapChain->QueryInterface(IID_PPV_ARGS(&swapChain2))) && swapChain2) {
-            swapChain2->SetMaximumFrameLatency(1);
-            m_waitable = swapChain2->GetFrameLatencyWaitableObject();
-            swapChain2->Release();
-        }
-    }
+    // Waitable object removed — FPS limiter is the sole pacing mechanism
 
     ID3D11Texture2D* bb = nullptr;
     if (FAILED(Detail->SwapChain->GetBuffer(0, IID_PPV_ARGS(&bb))) || !bb)
@@ -253,29 +244,25 @@ void graphic::end() {
     Detail->DeviceContext->ClearRenderTargetView(Detail->GraphicsTargetView, cc);
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
-    // ---- Waitable object (FLIP swapchain) — wait before Present ----
-    HANDLE waitable = m_waitable;
-    if (waitable && waitable != INVALID_HANDLE_VALUE)
-        WaitForSingleObjectEx(waitable, 1000, true);
-
-    // ---- FPS cap by mode ----
+    // ---- FPS-only pacing — no waitable object, no VSync (F1.1 fix) ----
+    // The FPS limiter is the SOLE pacing mechanism. Present(0,0) avoids triple-wait lag.
     const int mode = ImClamp(global::setting::Performance_Mode, 0, 2);
     bool menuOpen = m_ui->IsOpen();
 
     if (mode == 0) {
-        // Eco: 60fps cap + VSync
+        // Eco: 60fps cap
         if (!menuOpen && !g_frameHadContent)
             g_fps.wait(30);  // idle 30fps
         else
             g_fps.wait(60);
     } else if (mode == 1) {
-        // Balanced: 144fps cap + VSync
+        // Balanced: 144fps cap
         if (!menuOpen && !g_frameHadContent)
             g_fps.wait(30);
         else
             g_fps.wait(144);
     } else {
-        // Uncapped: safety cap at 240fps, no VSync
+        // Uncapped: safety cap at 240fps
         if (!menuOpen && !g_frameHadContent)
             g_fps.wait(30);
         else
@@ -284,8 +271,8 @@ void graphic::end() {
 
     g_frameHadContent = false; // reset for next frame
 
-    const UINT syncInterval = (mode == 2) ? 0u : 1u;
-    const HRESULT hr = Detail->SwapChain->Present(syncInterval, 0);
+    // Always Present with 0 sync interval — FPS limiter handles pacing, not VSync
+    const HRESULT hr = Detail->SwapChain->Present(0, 0);
     if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
         ExitProcess(0);
 }

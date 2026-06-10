@@ -47,8 +47,6 @@ public:
     std::unique_ptr<detail> Detail = std::make_unique<detail>();
 
 private:
-    HANDLE m_waitable = nullptr;  // FLIP swapchain frame latency waitable object
-
     void dropdevice();
     void dropwindow();
     void dropimgui();
