@@ -1,4 +1,3 @@
-#include <dwmapi.h>
 #include <cstdio>
 #include <chrono>
 #include <thread>
@@ -109,12 +108,12 @@ bool graphic::window() {
 
     if (!Detail->Window) return false;
 
-    // Use LWA_COLORKEY so RGB(0,0,0) pixels are transparent (chroma key)
+    // LWA_COLORKEY makes RGB(0,0,0) pixels transparent via chroma key.
+    // The D3D clear color is {0,0,0,0} so the background is fully transparent.
+    // Do NOT combine with DwmExtendFrameIntoClientArea — that overwrites
+    // the layered window attributes and kills transparency.
     SetLayeredWindowAttributes(Detail->Window, RGB(0, 0, 0), BYTE(0), LWA_COLORKEY);
 
-    // Extend glass frame into entire client area for DWM composition transparency
-    MARGINS Margins{ -1, -1, -1, -1 };
-    DwmExtendFrameIntoClientArea(Detail->Window, &Margins);
     ShowWindow(Detail->Window, SW_SHOW);
     UpdateWindow(Detail->Window);
     return true;
