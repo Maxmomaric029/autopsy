@@ -3,6 +3,7 @@
 #include <thread>
 #include <d3d11.h>
 #include <d3d11_2.h>
+#include <dwmapi.h>
 #include <vector>
 #include <string>
 
@@ -108,11 +109,12 @@ bool graphic::window() {
 
     if (!Detail->Window) return false;
 
-    // LWA_COLORKEY makes RGB(0,0,0) pixels transparent via chroma key.
-    // The D3D clear color is {0,0,0,0} so the background is fully transparent.
-    // Do NOT combine with DwmExtendFrameIntoClientArea — that overwrites
-    // the layered window attributes and kills transparency.
-    SetLayeredWindowAttributes(Detail->Window, RGB(0, 0, 0), BYTE(0), LWA_COLORKEY);
+    // Use DWM composition for per-pixel alpha transparency.
+    // On Win10/11, SetLayeredWindowAttributes with LWA_COLORKEY is incompatible
+    // with DXGI_SWAP_EFFECT_FLIP_DISCARD — results in a black rectangle.
+    // DwmExtendFrameIntoClientArea with MARGINS{-1} enables proper alpha blending.
+    MARGINS margins = { -1, -1, -1, -1 };
+    DwmExtendFrameIntoClientArea(Detail->Window, &margins);
 
     ShowWindow(Detail->Window, SW_SHOW);
     UpdateWindow(Detail->Window);
@@ -130,7 +132,7 @@ bool graphic::device() {
     sd.BufferDesc.RefreshRate.Denominator = 1;
     sd.BufferDesc.Width = 0;
     sd.BufferDesc.Height = 0;
-    sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    sd.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
     sd.OutputWindow = Detail->Window;
     sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     sd.Windowed = 1;

@@ -77,7 +77,12 @@ bool ModernUI::Create(HWND window, ID3D11Device* device, ID3D11DeviceContext* co
     S.WindowPadding = { 0.f, 0.f };
     S.PopupBorderSize = 1.f;
     S.FrameBorderSize = 0.f;
-    S.ScrollbarSize = 6.f;
+    S.ScrollbarSize = 4.f;
+    S.ScrollbarRounding = 2.f;
+    S.Colors[ImGuiCol_ScrollbarBg]    = ImVec4(0.f, 0.f, 0.f, 0.f);
+    S.Colors[ImGuiCol_ScrollbarGrab]  = ImVec4(0.15f, 0.20f, 0.30f, 0.9f);
+    S.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.55f, 0.12f, 0.16f, 0.9f);
+    S.Colors[ImGuiCol_ScrollbarGrabActive]  = ImVec4(0.86f, 0.19f, 0.25f, 1.0f);
     S.Colors[ImGuiCol_WindowBg] = theme::c_bg;
     S.Colors[ImGuiCol_ChildBg] = theme::c_card;
     S.Colors[ImGuiCol_Border] = theme::c_border;
@@ -346,8 +351,10 @@ void ModernUI::RenderMenu() {
         pageTrans.changeTo(section);
 
     // ---- Page transition update ----
+    // NOTE: sidebar() already sets section correctly via reference.
+    // pageTrans only drives the animation offset (pageOffsetY) and easeIn alpha (tIn).
+    // Removing 'section = pageTrans.section' to prevent the revert bug on first click.
     pageTrans.update();
-    section = pageTrans.section;
     float tIn = pageTrans.easeIn();
 
     // ---- Content area ----
@@ -573,9 +580,9 @@ namespace {
                 float logoY = p.y + (s.y - logoH) * 0.5f;
                 dl->AddImage(g_sidebar_logo, { logoX, logoY }, { logoX + logoW, logoY + logoH });
 
-                // Left accent bar next to logo
-                dl->AddRectFilled(p + ImVec2(logoX + logoW + 6.f, 9.f),
-                    p + ImVec2(logoX + logoW + 9.f, s.y - 9.f), accent(), 2.f);
+                // Left accent bar next to logo (fixed: logoX is absolute, not relative to p)
+                dl->AddRectFilled(ImVec2(logoX + logoW + 6.f, p.y + 9.f),
+                    ImVec2(logoX + logoW + 9.f, p.y + s.y - 9.f), accent(), 2.f);
 
                 // Username
                 dl->AddText(p + ImVec2(logoX + logoW + 16.f, 7.f),
@@ -599,7 +606,7 @@ namespace {
             ImVec2 pillMax = ImVec2(p.x + s.x - 10.f, p.y + 29.f);
             dl->AddRectFilled(pillMin, pillMax, IM_COL32(8, 12, 18, 185), 6.f);
             dl->AddRect(pillMin, pillMax, IM_COL32(200, 60, 70, 64), 6.f);
-            dl->AddText(ImVec2(pillMin.x + 9.f, pillMin.y + 2.f), accent2(), fps);
+            dl->AddText(ImVec2(pillMin.x + 9.f, pillMin.y + 3.f), accent2(), fps);
         }
 
         static void hotkeyrow(ImDrawList* dl, ImVec2 pp, float w, const char* label, bool live, ImGuiKey key = ImGuiKey_None) {

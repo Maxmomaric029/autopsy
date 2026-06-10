@@ -39,13 +39,13 @@ namespace layout {
                 IM_COL32(0, 0, 0, (int)((22.f - i * 3.5f))), theme::r_window + spread);
         }
 
-        // Main pure black bg
+        // Main sidebar bg — dark navy-black that harmonizes with card system
         dl->AddRectFilled(sbMin, sbMax,
-            IM_COL32(0, 0, 0, 240), theme::r_window, ImDrawFlags_RoundCornersLeft);
+            IM_COL32(5, 7, 12, 248), theme::r_window, ImDrawFlags_RoundCornersLeft);
 
-        // Red accent line on the right edge
+        // Red accent line on the right edge (increased alpha for visibility)
         dl->AddRectFilled(sbMax - ImVec2(2.f, 0.f), sbMax,
-            IM_COL32(220, 60, 70, 90), 0.f);
+            IM_COL32(220, 60, 70, 140), 0.f);
 
         // Bottom accent line (red)
         dl->AddRectFilled(sbMin + ImVec2(16.f, kLogoH),
@@ -126,10 +126,10 @@ namespace layout {
             const float ht = anim::g_anim.get_hover(id, 10.f);
 
             if (active) {
-                // Active state: horizontal gradient red alpha 36->0 (F2.4)
+                // Active state: horizontal gradient red alpha 55->0 (increased from 36)
                 dl->AddRectFilledMultiColor(tMin, tMax,
-                    IM_COL32(230, 60, 70, (int)(24 + at * 12)),
-                    IM_COL32(230, 60, 70, (int)(8 + at * 8)),
+                    IM_COL32(230, 60, 70, (int)(36 + at * 19)),
+                    IM_COL32(230, 60, 70, (int)(16 + at * 39)),
                     IM_COL32(230, 60, 70, 0),
                     IM_COL32(230, 60, 70, 0));
             } else if (hov) {
@@ -151,7 +151,7 @@ namespace layout {
             float iconS = 16.f;
             ImU32 iconCol = active
                 ? IM_COL32(240, 80, 90, 230)
-                : IM_COL32(140, 150, 170, (int)(120 + ht * 80));
+                : IM_COL32(140, 150, 170, (int)(150 + ht * 80));
             dl->AddText(tabF, iconS,
                 tMin + ImVec2(14.f, (kTabH - iconS) * 0.5f + 1.f),
                 iconCol, iconChar);

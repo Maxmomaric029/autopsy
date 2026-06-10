@@ -14,23 +14,26 @@ bool w::card::begin(const char* id, ImVec2 size, const char* title) {
         // ---- Hover animation ----
         float hoverT = anim::g_anim.get(hoverId, hovered, 8.f);
 
-        // ---- 2-layer shadow (was 5) ----
-        // Ambient layer (large, soft)
-        dl->AddRectFilled(p + ImVec2(0.f, 2.f), p + size + ImVec2(0.f, 6.f),
-            IM_COL32(0, 0, 0, (int)(70 + hoverT * 20)), 12.f + 4.f);
-        // Contact layer (tight, dark)
-        dl->AddRectFilled(p + ImVec2(0.f, 1.f), p + size + ImVec2(0.f, 2.f),
-            IM_COL32(0, 0, 0, (int)(90 + hoverT * 30)), 12.f + 1.f);
+        // ---- 3-layer shadow system ----
+        // Layer 0: tight contact shadow
+        dl->AddRectFilled(p + ImVec2(0.f, 1.f), p + size + ImVec2(0.f, 3.f),
+            IM_COL32(0, 0, 0, 110), 13.f);
+        // Layer 1: ambient
+        dl->AddRectFilled(p + ImVec2(0.f, 3.f), p + size + ImVec2(0.f, 8.f),
+            IM_COL32(0, 0, 0, 65), 16.f);
+        // Layer 2: color tint shadow (gives depth against dark bg)
+        dl->AddRectFilled(p + ImVec2(-1.f, 2.f), p + size + ImVec2(1.f, 6.f),
+            IM_COL32(180, 40, 50, 12), 13.f);
 
-        // ---- Card background with vertical gradient (dark blue-black, no maroon) ----
+        // ---- Card background with vertical gradient (increased contrast) ----
         dl->AddRectFilledMultiColorRounded(p, p + size,
-            IM_COL32(14, 18, 26, 245),             // top #0E121A
-            IM_COL32(8, 11, 17, 245),               // bottom #080B11
-            IM_COL32(14, 18, 26, 245),
-            IM_COL32(8, 11, 17, 245), 12.f);
+            IM_COL32(16, 21, 32, 252),             // top — slightly lighter blue-black
+            IM_COL32(7, 10, 15, 252),               // bottom — darker
+            IM_COL32(16, 21, 32, 252),
+            IM_COL32(7, 10, 15, 252), 12.f);
 
-        // ---- Hairline border (animated alpha on hover) ----
-        int borderAlpha = (int)(14 + hoverT * 12); // 14 -> 26
+        // ---- Hairline border (increased alpha: 22 at rest, 40 on hover) ----
+        int borderAlpha = (int)(22 + hoverT * 18); // 22 -> 40
         dl->AddRect(p, p + size,
             IM_COL32(255, 255, 255, borderAlpha), 12.f, 0, 1.f);
 
@@ -58,7 +61,7 @@ bool w::card::begin(const char* id, ImVec2 size, const char* title) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    ImVec2(16.f, 16.f)); // space::lg
 
     const bool open = ImGui::BeginChild(id, size, false,
-        ImGuiWindowFlags_AlwaysVerticalScrollbar);
+        ImGuiWindowFlags_None);
     if (open && title) {
         w::labelsection(title);
         w::gap(theme::space::sm);

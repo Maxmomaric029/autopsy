@@ -39,8 +39,8 @@ namespace w {
 
         const float t = anim::toggle(ImGui::GetItemID(), *v);
         const ImU32 trk = theme::lerp_u32(
-            theme::to_u32(theme::c_surface2),
-            theme::alpha(theme::col_accent(), 0.34f), t);
+            IM_COL32(28, 35, 50, 255),
+            theme::alpha(theme::col_accent(), 0.45f), t);
 
         dl->AddRectFilled(p, p + ImVec2(kTW, kTH), trk, kTH * .5f);
         if (t > 0.05f)
@@ -51,7 +51,7 @@ namespace w {
         const float tr = (kTH - 4.f) * .5f;
         const float cy = p.y + kTH * .5f;
         dl->AddCircleFilled({ tx + tr, cy }, tr + (hov ? 0.5f : 0.f),
-            hov ? theme::col_text() : IM_COL32(224, 224, 232, 255), 18);
+            hov ? theme::col_text() : IM_COL32(224, 224, 232, 255), 24);
 
         ImGui::SameLine(0.f, 10.f);
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (kTH - ImGui::GetFontSize()) * .5f);
@@ -158,6 +158,13 @@ namespace w {
         const ImVec2 p  = ImGui::GetCursorScreenPos();
         const float  fh = ImGui::GetFontSize();
 
+        // Horizontal gradient behind label text (subtle red tint fade)
+        const float contentWidth = ImGui::GetContentRegionAvail().x;
+        dl->AddRectFilledMultiColor(
+            p, p + ImVec2(contentWidth * 0.4f, fh + 4.f),
+            IM_COL32(220, 50, 65, 8), IM_COL32(0, 0, 0, 0),
+            IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 0));
+
         // Left accent bar with vertical gradient fade
         dl->AddRectFilledMultiColor(
             p, { p.x + 3.f, p.y + fh + 2.f },
@@ -172,13 +179,13 @@ namespace w {
             "%s", text);
         ImGui::PopFont();
 
-        // Gradient separator line that fades out to the right
+        // Gradient separator line that fades out to the right (increased opacity)
         const ImVec2 lp = ImGui::GetCursorScreenPos();
         const float  lw = ImGui::GetContentRegionAvail().x;
         dl->AddRectFilledMultiColor(
             { lp.x, lp.y }, { lp.x + lw * 0.7f, lp.y + 1.f },
-            theme::col_border(), IM_COL32(0, 0, 0, 0),
-            IM_COL32(0, 0, 0, 0), theme::col_border());
+            theme::col_border(1.8f), IM_COL32(0, 0, 0, 0),
+            IM_COL32(0, 0, 0, 0), theme::col_border(1.8f));
         ImGui::Dummy({ 0.f, 1.f }); // space for the line
         ImGui::Dummy({ 0.f, 4.f });
     }
@@ -218,19 +225,19 @@ namespace w {
             *v = mn + ImClamp(rel, 0.f, 1.f) * (mx - mn);
         }
         const float t  = mx == mn ? 0.f : ImClamp((*v - mn) / (mx - mn), 0.f, 1.f);
-        const float cx = p.y + kTrkY;
+        const float trackCenterY = p.y + kTrkY;
 
         // Track background
         dl->AddRectFilled(
-            { p.x,       cx - kTrkH * .5f },
-            { p.x + w,   cx + kTrkH * .5f },
-            IM_COL32(20, 35, 55, 200), kTrkH);
+            { p.x,       trackCenterY - kTrkH * .5f },
+            { p.x + w,   trackCenterY + kTrkH * .5f },
+            IM_COL32(18, 22, 30, 210), kTrkH);
 
         // Track fill with gradient
         if (t > 0.001f) {
             dl->AddRectFilledMultiColor(
-                { p.x,           cx - kTrkH * .5f },
-                { p.x + w * t,   cx + kTrkH * .5f },
+                { p.x,           trackCenterY - kTrkH * .5f },
+                { p.x + w * t,   trackCenterY + kTrkH * .5f },
                 theme::alpha(theme::col_accent(), 0.6f),
                 active ? theme::col_accent() : theme::alpha(theme::col_accent(), 0.85f),
                 active ? theme::col_accent() : theme::alpha(theme::col_accent(), 0.85f),
@@ -243,14 +250,14 @@ namespace w {
 
         // Handle glow
         if (active || hov) {
-            dl->AddCircleFilled({ hx, cx }, hr + 4.f,
+            dl->AddCircleFilled({ hx, trackCenterY }, hr + 2.5f,
                 theme::alpha(theme::col_accent(), active ? 0.25f : 0.12f), 24);
         }
 
         // Main handle
-        dl->AddCircleFilled({ hx, cx }, hr,
+        dl->AddCircleFilled({ hx, trackCenterY }, hr,
             active ? theme::col_accent2() : theme::col_accent(), 24);
-        dl->AddCircleFilled({ hx, cx }, hr * 0.45f,
+        dl->AddCircleFilled({ hx, trackCenterY }, hr * 0.35f,
             IM_COL32(255, 255, 255, 200), 12);
 
         ImGui::PopID();
@@ -472,13 +479,13 @@ namespace w {
         if (clicked) { *v = !*v; }
 
         // Draw icon
-        dl->AddText(font::bold(), 11.f, p + ImVec2(0.f, 3.f), theme::col_muted(), icon);
+        dl->AddText(font::bold(), font::size::icon, p + ImVec2(0.f, 3.f), theme::col_muted(), icon);
 
         // Draw toggle knob (same visuals as toggle())
         const float t = anim::toggle(ImGui::GetItemID(), *v);
         const ImU32 trk = theme::lerp_u32(
-            theme::to_u32(theme::c_surface2),
-            theme::alpha(theme::col_accent(), 0.34f), t);
+            IM_COL32(28, 35, 50, 255),
+            theme::alpha(theme::col_accent(), 0.45f), t);
 
         const ImVec2 tp = ImVec2(p.x + kIconW, p.y);
         dl->AddRectFilled(tp, tp + ImVec2(kTW, kTH), trk, kTH * .5f);
@@ -490,7 +497,7 @@ namespace w {
         const float tr = (kTH - 4.f) * .5f;
         const float cy = tp.y + kTH * .5f;
         dl->AddCircleFilled({ tx + tr, cy }, tr + (hov ? 0.5f : 0.f),
-            hov ? theme::col_text() : IM_COL32(224, 224, 232, 255), 18);
+            hov ? theme::col_text() : IM_COL32(224, 224, 232, 255), 24);
 
         // Draw label
         ImGui::SameLine(0.f, 10.f);
@@ -529,12 +536,15 @@ namespace w {
             if (t > 0.01f) {
                 dl->AddRectFilled(mn + ImVec2(1.f, 1.f), mx - ImVec2(1.f, 1.f),
                     theme::alpha(theme::col_accent(), t * 0.9f), kR - 1.f);
+                // 1px accent-colored border on the selected pill for definition
+                dl->AddRect(mn + ImVec2(1.f, 1.f), mx - ImVec2(1.f, 1.f),
+                    theme::alpha(theme::col_accent(), t * 0.6f), kR - 1.f, 0, 1.f);
             }
             const float fontSize = 11.f;
             ImVec2 ts = font::medium()->CalcTextSizeA(fontSize, FLT_MAX, 0.f, labels[i]);
             dl->AddText(font::medium(), fontSize,
                 mn + ImVec2((itemW - ts.x) * 0.5f, (kH - fontSize) * 0.5f),
-                active ? theme::col_text() : theme::col_muted(0.8f),
+                active ? theme::col_text() : theme::col_muted(0.65f),
                 labels[i]);
         }
         ImGui::SetCursorScreenPos(base + ImVec2(0.f, kH + 4.f));

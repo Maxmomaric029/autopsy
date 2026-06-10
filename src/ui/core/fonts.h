@@ -1,6 +1,7 @@
 #pragma once
 #include <imgui/imgui.h>
 #include <imgui/backends/imgui_impl_win32.h>
+#include <imgui/misc/imgui_freetype.h>
 #include "FontAwesome/IconsFontAwesome6.h"
 
 // Embedded font data (generated from TTFs)
@@ -27,8 +28,8 @@ namespace font {
         inline constexpr float body   = 13.f;  // regular text / values
         inline constexpr float badge  = 12.f;  // badges / pills
         inline constexpr float mono   = 12.f;  // monospace (version, stats)
-        inline constexpr float logo   = 22.f;  // logo / branding
-        inline constexpr float icon   = 11.f;  // FA6 icon in toggles
+        inline constexpr float logo   = 20.f;  // logo / branding (was 22 — too large for sidebar)
+        inline constexpr float icon   = 13.f;  // FA6 icon in toggles (was 11 — appeared tiny)
     }
 
     inline bool load(float dpiScale = 1.0f) {
@@ -36,9 +37,11 @@ namespace font {
         io.Fonts->Clear();
 
         ImFontConfig cfg;
-        cfg.PixelSnapH  = false;
-        cfg.OversampleH = 1;
-        cfg.OversampleV = 1;
+        cfg.PixelSnapH       = true;
+        cfg.OversampleH      = 2;
+        cfg.OversampleV      = 2;
+        cfg.FontBuilderFlags = ImGuiFreeTypeBuilderFlags_LightHinting;
+        cfg.RasterizerMultiply = 1.0f;
 
         // FontAwesome glyph ranges (16-bit Private Use Area)
         static const ImWchar fa_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
@@ -47,6 +50,8 @@ namespace font {
         fa_cfg.MergeMode        = true;
         fa_cfg.PixelSnapH       = true;
         fa_cfg.GlyphMinAdvanceX = 14.f;
+        fa_cfg.OversampleH      = 1;
+        fa_cfg.OversampleV      = 1;
 
         auto loadFont = [&](const unsigned char* data, unsigned int size,
                             float px, ImFont** out, bool mergeFA) -> ImFont* {
