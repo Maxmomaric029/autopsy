@@ -437,7 +437,8 @@ namespace w {
             theme::col_danger(), theme::col_danger(), w, h);
     }
 
-    // ---- Icon toggle (FA6 icon + label) ---------------------------------    inline bool toggle_icon(const char* icon, const char* label, bool* v) {
+    // ---- Icon toggle (FA6 icon + label) ---------------------------------
+    inline bool toggle_icon(const char* icon, const char* label, bool* v) {
         ImDrawList* dl = ImGui::GetWindowDrawList();
         const ImVec2 p = ImGui::GetCursorScreenPos();
         dl->AddText(font::bold(), 11.f, p + ImVec2(0.f, 3.f), theme::col_muted(), icon);
