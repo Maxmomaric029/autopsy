@@ -19,6 +19,9 @@
 #include <ShlObj.h>
 #pragma comment(lib, "Shell32.lib")
 
+// Forward declaration from graphic.cpp
+extern bool g_frameHadContent;
+
 namespace
 {
     bool process(const char* processName)

@@ -14,8 +14,8 @@ namespace page {
 
     // ---- Aimbot page (Section 0) ---------------------------------------
     inline void aimbot(float bInW, float bInH) {
-        const float halfW = (bInW - 8.f) * .5f;
-        const float halfH = (bInH - 8.f) * .5f;
+        const float halfW = (bInW - theme::space::md) * .5f;
+        const float halfH = (bInH - theme::space::md) * .5f;
 
         if (w::card::begin("##abt", { halfW, halfH }, "AIMBOT")) {
             w::toggle_icon(ICON_FA_POWER_OFF, "Enabled", &global::aim::Enabled);
@@ -23,7 +23,7 @@ namespace page {
             ImGui::SameLine(ImGui::GetContentRegionMax().x -
                 w::bindwidth(global::aim::Aimbot_Key, global::aim::Aimbot_Mode) - 4.f);
             w::bind("##abk", &global::aim::Aimbot_Key, &global::aim::Aimbot_Mode);
-            w::gap(2.f);
+            w::gap(theme::space::xs);
             w::toggle_icon(ICON_FA_CROSSHAIRS, "Sticky Aim", &global::aim::AimbotSticky);
             w::helptooltip("Lock onto target until they leave FOV");
             w::toggle("Knocked Check", &global::aim::KnockedCheck);
@@ -32,17 +32,17 @@ namespace page {
             w::helptooltip("Only aim at players visible through walls");
             w::sliderint("Hit Chance", &global::aim::HitChance, 0, 100);
             w::helptooltip("Probability of triggering each frame (100 = always)");
-            w::gap(4.f);
+            w::gap(theme::space::sm);
             w::labelsection("TARGETING");
             w::pill_toolbar("##aimbottype", {"Free Aim","Mouse Aim","Cam Lock"}, &global::aim::Aimbot_type);
             w::helptooltip("How the aim input is delivered to the game");
-            w::gap(2.f);
+            w::gap(theme::space::xs);
             w::pill_toolbar("##priority", {"Crosshair","Distance"}, &global::aim::TargetPriority);
             w::helptooltip("Target selection method");
-            w::gap(2.f);
+            w::gap(theme::space::xs);
             w::pill_toolbar("##hitpart", {"Head","Torso","L.Torso"}, &global::aim::HitPart);
             w::helptooltip("Body part to aim at");
-            w::gap(6.f);
+            w::gap(theme::space::md);
             w::toggle_icon(ICON_FA_BULLSEYE, "Prediction", &global::aim::Prediction);
             w::helptooltip("Lead moving targets");
             if (global::aim::Prediction) {
@@ -54,16 +54,14 @@ namespace page {
                     w::sliderfloat("Pred Z", &global::aim::PredictionZ, 0.f, .5f);
                 }
             }
-            w::gap(4.f);
+            w::gap(theme::space::sm);
             w::labelsection("SMOOTHING");
             w::toggle("Smooth Advanced", &global::aim::SmoothAdvanced);
             if (global::aim::Aimbot_type == 0 || global::aim::Aimbot_type == 1) {
-                // Free Aim and Mouse Aim show mouse smoothing
                 if (global::aim::SmoothAdvanced) {
                     w::sliderfloat("Smooth X", &global::aim::mouse::Smoothing_X, 0.f, 12.f);
                     w::sliderfloat("Smooth Y", &global::aim::mouse::Smoothing_Y, 0.f, 12.f);
                 } else {
-                    // Single combined slider when advanced is off
                     float avg = (global::aim::mouse::Smoothing_X + global::aim::mouse::Smoothing_Y) * 0.5f;
                     if (w::sliderfloat("Smooth", &avg, 0.f, 12.f)) {
                         global::aim::mouse::Smoothing_X = avg;
@@ -73,7 +71,6 @@ namespace page {
                 w::sliderfloat("Sensitivity", &global::aim::mouse::Mouse_Sensitivty, 0.f, 5.f);
                 w::helptooltip("Mouse movement scale factor");
             } else {
-                // Cam Lock shows camera smoothing
                 if (global::aim::SmoothAdvanced) {
                     w::sliderfloat("Smooth X", &global::aim::camera::Smoothing_X, 0.f, 12.f);
                     w::sliderfloat("Smooth Y", &global::aim::camera::Smoothing_Y, 0.f, 12.f);
@@ -85,7 +82,7 @@ namespace page {
                     }
                 }
             }
-            w::gap(4.f);
+            w::gap(theme::space::sm);
             w::toggle_icon(ICON_FA_HAND, "Trigger Bot", &global::aim::TriggerBot);
             w::helptooltip("Auto click when crosshair overlaps target");
             if (global::aim::TriggerBot) {
@@ -97,7 +94,7 @@ namespace page {
         }
         w::card::end();
 
-        ImGui::SameLine(0.f, 6.f);
+        ImGui::SameLine(0.f, theme::space::md);
 
         if (w::card::begin("##sil", { halfW, halfH }, "SILENT AIM")) {
             w::toggle_icon(ICON_FA_POWER_OFF, "Enabled", &global::silent::Enabled);
@@ -105,7 +102,7 @@ namespace page {
             ImGui::SameLine(ImGui::GetContentRegionMax().x -
                 w::bindwidth(global::silent::Silent_Key, global::silent::Silent_Mode) - 4.f);
             w::bind("##sik", &global::silent::Silent_Key, &global::silent::Silent_Mode);
-            w::gap(2.f);
+            w::gap(theme::space::xs);
             w::toggle_icon(ICON_FA_LOCK, "Sticky Aim", &global::silent::StickyAim);
             w::helptooltip("Stay locked on last target");
             w::toggle("Spoof Mouse", &global::silent::SpoofMouse);
@@ -114,13 +111,13 @@ namespace page {
             w::helptooltip("Skip knocked players");
             w::toggle_icon(ICON_FA_EYE, "Visible Check", &global::silent::VisibleCheck);
             w::helptooltip("Only target visible players");
-            w::gap(4.f);
+            w::gap(theme::space::sm);
             w::pill_toolbar("##silpri", {"Crosshair","Distance"}, &global::silent::TargetPriority);
             w::helptooltip("Target selection method");
-            w::gap(2.f);
+            w::gap(theme::space::xs);
             w::pill_toolbar("##silpart", {"Head","Torso","L.Torso"}, &global::silent::AimPart);
             w::helptooltip("Body part to redirect shots toward");
-            w::gap(4.f);
+            w::gap(theme::space::sm);
             w::toggle("Prediction", &global::silent::Prediction);
             w::helptooltip("Lead target movement");
             if (global::silent::Prediction) {
@@ -134,8 +131,8 @@ namespace page {
         }
         w::card::end();
 
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 6.f);
-        const float r2H = halfH - 6.f;
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + theme::space::md);
+        const float r2H = halfH - theme::space::md;
 
         if (w::card::begin("##abfov", { halfW, r2H }, "AIMBOT FOV")) {
             if (global::aim::Enabled) {
@@ -149,19 +146,19 @@ namespace page {
                 }
             }
             else {
-                w::gap(4.f);
+                w::gap(theme::space::sm);
                 ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
                     "Enable aimbot first");
             }
         }
         w::card::end();
 
-        ImGui::SameLine(0.f, 6.f);
+        ImGui::SameLine(0.f, theme::space::md);
 
         if (w::card::begin("##sifov", { halfW, r2H }, "SILENT FOV")) {
             if (global::silent::Enabled) {
                 w::togglecolor("Draw FOV", &global::silent::DrawFov, "##sifc", global::silent::FovColor);
-                w::gap(2.f);
+                w::gap(theme::space::xs);
                 w::toggle("Gun-Based FOV", &global::silent::GunBasedFov);
                 if (global::silent::GunBasedFov) {
                     w::sliderfloat("Default", &global::silent::fov, 0.f, 300.f);
@@ -178,7 +175,7 @@ namespace page {
                 w::toggle("Constrain to FOV", &global::silent::UseFov);
             }
             else {
-                w::gap(4.f);
+                w::gap(theme::space::sm);
                 ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
                     "Enable silent aim first");
             }
@@ -188,7 +185,7 @@ namespace page {
 
     // ---- Visuals page (Section 1) ---------------------------------------
     inline void visuals(float bInW, float bInH) {
-        const float halfW = (bInW - 8.f) * .5f;
+        const float halfW = (bInW - theme::space::md) * .5f;
 
         if (w::card::begin("##esp", { halfW, bInH }, "ESP TOGGLES")) {
             w::toggle_icon(ICON_FA_POWER_OFF, "Master Enable", &global::esp::Enabled);
@@ -201,7 +198,7 @@ namespace page {
                 ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Not Visible");
                 w::color4("##espnotvisc", global::esp::color::NotVisible);
             }
-            w::gap(4.f);
+            w::gap(theme::space::sm);
 
             w::labelsection("BOX");
             w::toggle_icon(ICON_FA_BOX, "Box", &global::esp::Box);
@@ -209,7 +206,7 @@ namespace page {
             if (global::esp::Box) {
                 w::pill_toolbar("##boxtype", {"Bounding","Corner"}, &global::esp::Box_Type);
                 w::helptooltip("Box drawing style");
-                w::gap(2.f);
+                w::gap(theme::space::xs);
                 w::toggle("Box Fill", &global::esp::Box_Fill);
                 w::helptooltip("Fill the box with a semi-transparent color");
                 if (global::esp::Box_Fill) {
@@ -226,7 +223,7 @@ namespace page {
                     }
                 }
             }
-            w::gap(4.f);
+            w::gap(theme::space::sm);
 
             w::labelsection("HEALTH");
             w::toggle_icon(ICON_FA_HEART, "Health Bar", &global::esp::Healthbar);
@@ -246,7 +243,7 @@ namespace page {
             }
             w::toggle("Health Text", &global::esp::Health);
             w::helptooltip("Show numeric HP value");
-            w::gap(4.f);
+            w::gap(theme::space::sm);
 
             w::labelsection("LABELS");
             w::toggle_icon(ICON_FA_TAG, "Name", &global::esp::name);
@@ -258,7 +255,7 @@ namespace page {
             w::helptooltip("Show distance in studs below box");
             w::toggle("Rig Type", &global::esp::Rig_Type);
             w::toggle("Tool", &global::esp::tool);
-            w::gap(4.f);
+            w::gap(theme::space::sm);
 
             w::labelsection("3D");
             w::toggle_icon(ICON_FA_PERSON, "Skeleton", &global::esp::Skeleton);
@@ -280,12 +277,12 @@ namespace page {
         }
         w::card::end();
 
-        ImGui::SameLine(0.f, 6.f);
+        ImGui::SameLine(0.f, theme::space::md);
 
         if (w::card::begin("##vopt", { halfW, bInH }, "OPTIONS")) {
             w::toggle("Exclude Team", &global::setting::Team_Check);
             w::toggle("Exclude Client", &global::setting::Client_Check);
-            w::gap(4.f);
+            w::gap(theme::space::sm);
             w::labelsection("RENDERING");
             w::sliderfloat("Render Distance", &global::esp::Render_Distance, 0.f, 500.f);
             w::helptooltip("Maximum distance to render ESP elements");
@@ -306,7 +303,7 @@ namespace page {
                 if (global::world::Rotate)
                     w::sliderfloat("Rotate Speed", &global::world::Skybox_Rotate_Speed, 0.f, 5.f);
             }
-            w::gap(4.f);
+            w::gap(theme::space::sm);
 
             w::labelsection("LIGHTING");
             w::togglecolor("Atmosphere", &global::world::Ambience,
@@ -323,7 +320,7 @@ namespace page {
             w::toggle("Exposure", &global::world::Exposure);
             if (global::world::Exposure)
                 w::sliderfloat("Exposure", &global::world::ExposureI, -3.f, 3.f);
-            w::gap(4.f);
+            w::gap(theme::space::sm);
 
             w::labelsection("CAMERA");
             w::toggle("Custom FOV", &global::world::FOV);
@@ -335,7 +332,7 @@ namespace page {
 
     // ---- Misc page (Section 3) -----------------------------------------
     inline void misc(float bInW, float bInH) {
-        const float halfW = (bInW - 8.f) * .5f;
+        const float halfW = (bInW - theme::space::md) * .5f;
 
         if (w::card::begin("##msc", { halfW, bInH }, "EXPLOITS")) {
             w::toggle("Fly", &global::misc::fly);
@@ -344,7 +341,7 @@ namespace page {
             w::bind("##flyk", &global::misc::Fly_Key, &global::misc::Fly_Mode);
             if (global::misc::fly)
                 w::sliderfloat("Fly Speed", &global::misc::Fly_Speed, 0.f, 200.f);
-            w::gap(4.f);
+            w::gap(theme::space::sm);
 
             w::labelsection("ADJUSTMENTS");
             w::toggle("Walkspeed", &global::misc::walkspeed);
@@ -359,7 +356,7 @@ namespace page {
         }
         w::card::end();
 
-        ImGui::SameLine(0.f, 6.f);
+        ImGui::SameLine(0.f, theme::space::md);
 
         // Right card: config / settings
         if (w::card::begin("##cfg", { halfW, bInH }, "CONFIG")) {
@@ -371,7 +368,7 @@ namespace page {
 
             // Current config list
             if (configs.empty()) {
-                w::gap(4.f);
+                w::gap(theme::space::sm);
                 ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
                     "No configs found");
             }
@@ -383,21 +380,21 @@ namespace page {
                     configIdx = -1;
             }
 
-            w::gap(4.f);
+            w::gap(theme::space::sm);
 
             // Save / Load / Delete buttons
             if (configIdx >= 0 && configIdx < (int)configs.size()) {
                 if (w::accent_button("Load", -1.f, 24.f))
                     config::load(configs[configIdx]);
-                w::gap(2.f);
+                w::gap(theme::space::xs);
                 if (w::accent_button("Save", -1.f, 24.f))
                     config::save(configs[configIdx]);
-                w::gap(2.f);
+                w::gap(theme::space::xs);
                 if (w::danger_button("Delete", -1.f, 24.f)) {
                     config::remove(configs[configIdx]);
                     configIdx = -1;
                 }
-                w::gap(4.f);
+                w::gap(theme::space::sm);
             }
 
             w::labelsection("CREATE");
@@ -416,7 +413,7 @@ namespace page {
 
     // ---- Blade Ball page (Section 4) ------------------------------------
     inline void bladeball(float bInW, float bInH) {
-        const float halfW = (bInW - 8.f) * .5f;
+        const float halfW = (bInW - theme::space::md) * .5f;
         const bool bladeBallActive = global::GameID == global::ball::PlaceId;
 
         if (w::card::begin("##bbmain", { halfW, bInH }, "BLADE BALL")) {
@@ -425,7 +422,7 @@ namespace page {
                     "User is not playing Blade Ball.");
                 ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
                     "Start Blade Ball to enable these features.");
-                w::gap(8.f);
+                w::gap(theme::space::xl);
                 ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
                     "Features locked");
                 ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
@@ -436,7 +433,7 @@ namespace page {
                     "##bbespcol", global::ball::BallEspColor);
                 w::togglecolor("Parry Range", &global::ball::DrawParryRange,
                     "##bbrangecol", global::ball::ParryRangeColor);
-                w::gap(4.f);
+                w::gap(theme::space::sm);
                 w::toggle("Auto Parry", &global::ball::AutoParry);
                 w::toggle("Clash Mode", &global::ball::ClashMode);
                 w::toggle("Press F", &global::ball::pressf);
@@ -453,7 +450,7 @@ namespace page {
         }
         w::card::end();
 
-        ImGui::SameLine(0.f, 6.f);
+        ImGui::SameLine(0.f, theme::space::md);
 
         if (w::card::begin("##bbinfo", { halfW, bInH }, "OPTIONS")) {
             if (!bladeBallActive) {
@@ -466,13 +463,13 @@ namespace page {
             else {
                 ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
                     "Ball ESP draws each detected ball.");
-                w::gap(4.f);
+                w::gap(theme::space::sm);
                 ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
                     "Auto Parry automatically parries based on configured");
                 ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
                     "predictions, timing, and range settings.");
-                w::gap(8.f);
-                w::labelsection("SPAM PARRY");
+            w::gap(theme::space::xl);
+            w::labelsection("SPAM PARRY");
                 w::toggle("Spam Parry", &global::ball::SpamParry);
                 ImGui::SameLine(ImGui::GetContentRegionMax().x -
                     w::bindwidth(global::ball::SpamParry_Key, global::ball::SpamParry_Mode) - 4.f);
@@ -484,7 +481,7 @@ namespace page {
 
     // ---- Settings page (Section 5) --------------------------------------
     inline void settings(float bInW, float bInH) {
-        const float halfW = (bInW - 8.f) * .5f;
+        const float halfW = (bInW - theme::space::md) * .5f;
 
         if (w::card::begin("##sgen", { halfW, bInH }, "GENERAL")) {
             w::labelsection("MENU");
@@ -492,17 +489,16 @@ namespace page {
             ImGui::SameLine(ImGui::GetContentRegionMax().x - 60.f);
             w::keyselect("##menukey", &global::setting::Menu_Key);
             w::helptooltip("Key to toggle the config menu");
-            w::gap(4.f);
+            w::gap(theme::space::sm);
             w::labelsection("DISPLAY");
             w::toggle("Compact UI", &global::setting::Compact_UI);
             w::helptooltip("Reduce padding and spacing");
             w::pill_toolbar("##perf", {"VSync","Eco","Unlocked"}, &global::setting::Performance_Mode);
             w::helptooltip("VSync limits FPS, Eco saves CPU, Unlocked is max");
-            w::gap(2.f);
+            w::gap(theme::space::xs);
             w::toggle("Streamproof", &global::setting::Streamproof);
             w::helptooltip("Hide overlay from screen capture software");
-            w::gap(4.f);
-
+            w::gap(theme::space::sm);
             w::labelsection("OVERLAY");
             w::toggle_icon(ICON_FA_DROPLET, "Watermark", &global::overlay::watermark);
             w::helptooltip("Show branding panel on screen");
@@ -535,7 +531,7 @@ namespace page {
         }
         w::card::end();
 
-        ImGui::SameLine(0.f, 6.f);
+        ImGui::SameLine(0.f, theme::space::md);
 
         if (w::card::begin("##sabout", { halfW, bInH }, "ABOUT")) {
             ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(IM_COL32(220, 60, 70, 245)),
@@ -543,10 +539,10 @@ namespace page {
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 30.f);
             ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
                 "Version 1.0.0");
-            w::gap(4.f);
+            w::gap(theme::space::sm);
             ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
                 "Built with ImGui + DirectX 11");
-            w::gap(8.f);
+            w::gap(theme::space::xl);
             ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
                 "Menu Key");
             ImGui::SameLine(ImGui::GetContentRegionMax().x - 60.f);

@@ -30,6 +30,17 @@ namespace theme {
     inline ImVec4 c_success  = ImVec4(0.3373f, 0.9412f, 0.6980f, 1.f); // #56F0B2
     inline ImVec4 c_warning  = ImVec4(1.0000f, 0.7843f, 0.3412f, 1.f); // #FFC857
 
+    // ========================================================================
+    // 8pt spacing system (F2.1)
+    // ========================================================================
+    namespace space {
+        inline constexpr float xs = 4.f;   // between control and sub-option
+        inline constexpr float sm = 8.f;   // between related controls
+        inline constexpr float md = 12.f;  // between groups within a card
+        inline constexpr float lg = 16.f;  // card padding / margins
+        inline constexpr float xl = 24.f;  // between cards / page margins
+    }
+
     inline float r_window = 14.f;
     inline float r_card   = 12.f;
     inline float r_frame  = 7.f;
@@ -42,10 +53,11 @@ namespace theme {
 
     // Layout constants
     inline constexpr float kSidebarW      = 190.f;
-    inline constexpr float kTabH          = 48.f;
+    inline constexpr float kTabH          = 44.f;
+    inline constexpr float kTabGap        = 4.f;
     inline constexpr float kLogoH         = 78.f;
     inline constexpr float kPad           = 14.f;
-    inline constexpr float kCardGap       = 6.f;
+    inline constexpr float kCardGap       = 6.f; // kept for compatibility, use space::md
 
     inline float kWinW = 840.f;
     inline float kWinH = 540.f;

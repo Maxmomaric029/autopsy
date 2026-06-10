@@ -31,6 +31,9 @@ ID3D11ShaderResourceView* g_sidebar_logo = nullptr;
 int g_sidebar_logoW = 0;
 int g_sidebar_logoH = 0;
 
+// Frame content flag (set by RenderESP/RenderMenu when drawing)
+extern bool g_frameHadContent;
+
 ModernUI::ModernUI() = default;
 ModernUI::~ModernUI() { Destroy(); }
 
@@ -66,15 +69,15 @@ bool ModernUI::Create(HWND window, ID3D11Device* device, ID3D11DeviceContext* co
     S.WindowRounding = theme::r_window;
     S.ChildRounding = theme::r_card;
     S.FrameRounding = theme::r_frame;
-    S.PopupRounding = 10.f;
+    S.PopupRounding = 8.f;
     S.ScrollbarRounding = 8.f;
     S.GrabRounding = 8.f;
-    S.ItemSpacing = { 8.f, 7.f };
-    S.FramePadding = { 8.f, 5.f };
+    S.ItemSpacing = { 8.f, 8.f };
+    S.FramePadding = { 10.f, 6.f };
     S.WindowPadding = { 0.f, 0.f };
     S.PopupBorderSize = 1.f;
     S.FrameBorderSize = 0.f;
-    S.ScrollbarSize = 4.f;
+    S.ScrollbarSize = 6.f;
     S.Colors[ImGuiCol_WindowBg] = theme::c_bg;
     S.Colors[ImGuiCol_ChildBg] = theme::c_card;
     S.Colors[ImGuiCol_Border] = theme::c_border;
@@ -165,7 +168,7 @@ static int menukey(ImGuiKey key) {
 }
 
 // ========================================================================
-// BeginFrame — MSG pump, toggle detection, ImGui::NewFrame()
+// BeginFrame — MSG pump, toggle detection, ImGui::NewFrame() (F1.3)
 // ========================================================================
 void ModernUI::BeginFrame(HWND overlayWindow) {
     // ---- MSG pump ----
@@ -189,38 +192,89 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    // ---- Menu toggle (Insert key) ----
-    HWND roblox = FindWindowA(0, "Roblox");
+    // ---- Menu toggle (Insert key) with cached FindWindowA (F1.3) ----
+    // Cache Roblox HWND — refresh only every 1.0s to avoid per-frame FindWindowA cost
+    static HWND cachedRoblox = nullptr;
+    static double lastRobloxRefresh = 0.0;
+    double now = ImGui::GetTime();
+    if (now - lastRobloxRefresh >= 1.0) {
+        // Only re-validate if the cached handle exists and is valid
+        if (!cachedRoblox || !IsWindow(cachedRoblox))
+            cachedRoblox = FindWindowA(0, "Roblox");
+        lastRobloxRefresh = now;
+    }
+
     HWND fg = GetForegroundWindow();
     static double lastToggle = -1.0;
-    double now = ImGui::GetTime();
     int menuVk = menukey(global::setting::Menu_Key);
-    if (menuVk != 0 && (GetAsyncKeyState(menuVk) & 1) &&
-        (fg == roblox || fg == overlayWindow) && now - lastToggle >= .18) {
-        lastToggle = now;
-        Toggle();
-        LONG exStyle = WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_LAYERED;
-        if (!m_open) exStyle |= WS_EX_TRANSPARENT;
-        SetWindowLong(overlayWindow, GWL_EXSTYLE, exStyle);
+    // Early-out: only check the key if menuVk != 0
+    if (menuVk != 0) {
+        // Check key first (cheap), then foreground (more expensive)
+        if ((GetAsyncKeyState(menuVk) & 1) &&
+            (fg == cachedRoblox || fg == overlayWindow) &&
+            now - lastToggle >= .18) {
+            lastToggle = now;
+            Toggle();
+            LONG exStyle = WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_LAYERED;
+            if (!m_open) exStyle |= WS_EX_TRANSPARENT;
+            SetWindowLong(overlayWindow, GWL_EXSTYLE, exStyle);
+        }
     }
 }
 
 // ========================================================================
-// RenderMenu — Config menu with glassmorphism gray sidebar
+// Page transition state (F2.3)
+// ========================================================================
+namespace {
+    struct PageTransition {
+        int section = 0;
+        int prevSection = 0;
+        int exitingSection = -1;
+        float transT = 1.f;     // 0→1
+        int transDir = 0;       // +1 down, -1 up
+        bool pending = false;
+
+        void changeTo(int newSection) {
+            if (newSection == section) return;
+            transDir = (newSection > section) ? +1 : -1;
+            exitingSection = section;
+            section = newSection;
+            transT = 0.f;
+            pending = true;
+        }
+
+        void update() {
+            if (transT < 1.f)
+                transT = anim::damp(transT, 1.f, 11.f);
+            else
+                pending = false;
+        }
+
+        float easeIn() const { return anim::ease_out_cubic(transT); }
+    };
+}
+
+// ========================================================================
+// Sidebar animated indicator Y (F2.3)
+// ========================================================================
+static float getIndicatorTarget(int section) {
+    constexpr float kTabH = 44.f;
+    constexpr float kTabGap = 4.f;
+    constexpr float kLogoH = 78.f;
+    return (float)kLogoH + 14.f + section * (kTabH + kTabGap);
+}
+
+// ========================================================================
+// RenderMenu — Config menu (F1.4: no scanlines, no vignette, 2-layer shadow)
 // ========================================================================
 void ModernUI::RenderMenu() {
-    if (!m_open) {
-        static float menuT = 0.f;
-        menuT = anim::damp(menuT, 0.f, 7.2f);
-        if (menuT <= .01f) return;
-    }
-
-    static int section = 0;
-    static int prevSection = 0;
-    static float sectionAlpha = 1.f;
     static float menuT = 0.f;
-    static bool menuPosReady = false;
-    static ImVec2 menuPos = {};
+    menuT = anim::damp(menuT, m_open ? 1.f : 0.f, m_open ? 8.5f : 7.2f);
+    if (!m_open && menuT <= .01f) return;
+
+    // Updated to F2.3 page transitions
+    static PageTransition pageTrans;
+    static int section = 0;
 
     const float kWinW = theme::kWinW;
     const float kWinH = theme::kWinH;
@@ -228,13 +282,14 @@ void ModernUI::RenderMenu() {
 
     ImGuiIO& IO = ImGui::GetIO();
 
-    menuT = anim::damp(menuT, m_open ? 1.f : 0.f, m_open ? 8.5f : 7.2f);
-    if (!m_open && menuT <= .01f) return;
-
+    // ---- Menu animation ----
     const float menuEase = anim::ease_out_quint(menuT);
     const float menuAlpha = anim::ease_out_cubic(menuT);
     const ImVec2 menuOffset = { 0.f, (1.f - menuEase) * 18.f };
 
+    // ---- Menu position (draggable) ----
+    static bool menuPosReady = false;
+    static ImVec2 menuPos = {};
     if (!menuPosReady) { menuPos = IO.DisplaySize / 2.f; menuPosReady = true; }
 
     const float minX = kWinW * .5f, maxX = IO.DisplaySize.x - kWinW * .5f;
@@ -242,12 +297,13 @@ void ModernUI::RenderMenu() {
     menuPos.x = maxX > minX ? ImClamp(menuPos.x, minX, maxX) : IO.DisplaySize.x * .5f;
     menuPos.y = maxY > minY ? ImClamp(menuPos.y, minY, maxY) : IO.DisplaySize.y * .5f;
 
-    const ImVec2 menuMin = menuPos + menuOffset - ImVec2(kWinW, kWinH) * .5f;
-    const ImVec2 menuMax = menuMin + ImVec2(kWinW, kWinH);
-
-    // ---- Backdrop ----
-    ImDrawList* BDL = ImGui::GetBackgroundDrawList();
-    layout::backdrop(BDL, menuMin, menuMax, menuT, kR);
+    // ---- Backdrop (skip when menuT is tiny) ----
+    if (menuT > 0.02f) {
+        const ImVec2 menuMin = menuPos + menuOffset - ImVec2(kWinW, kWinH) * .5f;
+        const ImVec2 menuMax = menuMin + ImVec2(kWinW, kWinH);
+        ImDrawList* BDL = ImGui::GetBackgroundDrawList();
+        layout::backdrop(BDL, menuMin, menuMax, menuT, kR);
+    }
 
     // ---- Window ----
     ImGui::SetNextWindowSize({ kWinW, kWinH }, ImGuiCond_Always);
@@ -269,6 +325,9 @@ void ModernUI::RenderMenu() {
     const ImVec2 WS = ImGui::GetWindowSize();
     ImDrawList* DL = ImGui::GetWindowDrawList();
 
+    // ---- Content flag for idle FPS ----
+    g_frameHadContent = true;
+
     // ---- Drag handle (full window top bar) ----
     constexpr float kDragH = 36.f;
     ImGui::SetCursorScreenPos(WP);
@@ -281,55 +340,35 @@ void ModernUI::RenderMenu() {
         WP = ImGui::GetWindowPos();
     }
 
-    // ---- Web-style shadow (like an Electron app modal) ----
-    const int shadowAlpha = (int)(32.f * menuEase);
-    for (int i = 0; i < 3; i++) {
-        float spread = 3.f + i * 2.5f;
-        int a = (shadowAlpha - i * 8) * (i + 1) / 3;
-        DL->AddRectFilled(WP - ImVec2(spread * 0.5f, spread * 0.2f) + ImVec2(0.f, 5.f + i),
+    // ---- Web-style shadow — 2 layers (was 3) (F1.4) ----
+    if (menuT > 0.02f) {
+        const int shadowAlpha = (int)(32.f * menuEase);
+        float spread = 3.f;
+        DL->AddRectFilled(WP - ImVec2(spread * 0.5f, spread * 0.2f) + ImVec2(0.f, 5.f),
             WP + WS + ImVec2(spread * 0.5f, spread * 0.6f),
-            IM_COL32(0, 0, 0, ImMax(0, a)), kR + spread);
+            IM_COL32(0, 0, 0, shadowAlpha), kR + spread);
+        spread = 5.5f;
+        DL->AddRectFilled(WP - ImVec2(spread * 0.5f, spread * 0.2f) + ImVec2(0.f, 6.f),
+            WP + WS + ImVec2(spread * 0.5f, spread * 0.6f),
+            IM_COL32(0, 0, 0, ImMax(0, shadowAlpha - 8)), kR + spread);
     }
 
-    // ---- Sidebar ----
-    layout::sidebar(DL, WP, WS, section, menuEase);
+    // ---- Sidebar (handles section changes) ----
+    int oldSection = section;
+    bool sectionChanged = layout::sidebar(DL, WP, WS, section, menuEase);
+    if (sectionChanged)
+        pageTrans.changeTo(section);
 
-    // ---- Section transition tracking ----
-    if (prevSection != section) {
-        prevSection = section;
-        sectionAlpha = 0.f;
-    }
-    sectionAlpha = anim::damp(sectionAlpha, 1.f, 8.5f);
-    float sectionEase = anim::ease_out_cubic(sectionAlpha);
+    // ---- Page transition update ----
+    pageTrans.update();
+    section = pageTrans.section;
+    float tIn = pageTrans.easeIn();
 
     // ---- Content area ----
     layout::contentBg(DL, WP, WS);
 
-    // ---- Vignette overlay on content area ----
-    {
-        const ImVec2 cMin = WP + ImVec2(theme::kSidebarW, 0.f);
-        const ImVec2 cMax = WP + WS;
-        // Darker edges — 6 concentric rings fading out
-        for (int i = 0; i < 6; i++) {
-            float expand = 10.f + i * 15.f;
-            int a = (int)((5 - i) * 4);
-            if (a <= 0) continue;
-            DL->AddRect(
-                cMin + ImVec2(expand, expand),
-                cMax - ImVec2(expand, expand),
-                IM_COL32(0, 0, 0, a),
-                theme::r_window * (1.f - (float)i * 0.15f), 0, expand * 0.7f);
-        }
-        // Subtle scanline overlay (very faint)
-        if (menuEase > 0.5f) {
-            float scanAlpha = (menuEase - 0.5f) * 2.f * 3.f;
-            for (float sy = cMin.y; sy < cMax.y; sy += 4.f) {
-                DL->AddLine(
-                    { cMin.x, sy }, { cMax.x, sy },
-                    IM_COL32(0, 0, 0, (int)scanAlpha), 1.f);
-            }
-        }
-    }
+    // NO scanlines (removed — F1.4)
+    // NO vignette (removed — F1.4)
 
     constexpr float kSideW = 190.f;
     constexpr float kPad = 14.f;
@@ -341,8 +380,10 @@ void ModernUI::RenderMenu() {
     // Clip content to content area
     DL->PushClipRect({ contentX, contentY }, { contentX + contentW, contentY + contentH }, true);
 
-    ImGui::SetCursorScreenPos({ contentX + kPad + (1.f - sectionEase) * 12.f, contentY + kPad });
-    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, sectionEase);
+    // ---- Page transition: slide + fade (F2.3) ----
+    float pageOffsetY = (1.f - tIn) * 22.f * pageTrans.transDir;
+    ImGui::SetCursorScreenPos({ contentX + kPad, contentY + kPad + pageOffsetY });
+    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, tIn);
     ImGui::BeginGroup();
 
     float bInW = contentW - kPad * 2.f;
@@ -418,26 +459,43 @@ namespace {
             pos.y = ImClamp(pos.y, pad, ImMax(pad, display.y - size.y - pad));
         }
 
+        // ---- 2-layer shadow + gradient bg (F1.5, F2.2) ----
         static void panelbase(ImDrawList* dl, ImVec2 p, ImVec2 s, bool hovered, bool active) {
-            float r = 11.f;
+            float r = theme::r_card; // unified 12
             float t = hovered || active ? 1.f : 0.f;
-            for (int i = 0; i < 5; i++) {
-                float spread = 9.f + i * 7.f;
-                int a = (int)((30.f - i * 4.8f) + t * 8.f);
-                dl->AddRectFilled(p - ImVec2(spread * .45f, spread * .25f) + ImVec2(0.f, 9.f + i * 2.f),
-                    p + s + ImVec2(spread * .45f, spread * .62f),
-                    IM_COL32(0, 0, 0, a), r + spread);
+
+            // 2-layer shadow (was 5)
+            int shadowA = (int)((26.f + t * 8.f));
+            dl->AddRectFilled(p + ImVec2(0.f, 2.f), p + s + ImVec2(0.f, 6.f),
+                IM_COL32(0, 0, 0, 70), r + 4.f);
+            dl->AddRectFilled(p + ImVec2(0.f, 1.f), p + s + ImVec2(0.f, 2.f),
+                IM_COL32(0, 0, 0, 90), r + 1.f);
+
+            // Gradient bg #0A0D13 dark blue-black
+            dl->AddRectFilledMultiColorRounded(p, p + s,
+                IM_COL32(10, 14, 20, 255),           // top
+                IM_COL32(7, 10, 16, 255),             // bottom
+                IM_COL32(10, 14, 20, 255),
+                IM_COL32(7, 10, 16, 255), r);
+
+            // Hairline border
+            dl->AddRect(p, p + s, IM_COL32(255, 255, 255, 14), r, 0, 1.f);
+
+            // Red accent top edge on hover
+            if (t > 0.05f) {
+                float accentA = t * 8.f;
+                dl->AddRectFilledMultiColor(p + ImVec2(0.f, 0.f), p + ImVec2(s.x * 0.4f, 2.f),
+                    IM_COL32(220, 60, 70, (int)(accentA * 2.f)),
+                    IM_COL32(220, 60, 70, (int)(accentA)),
+                    IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 0), 0);
             }
-            dl->AddRectFilledMultiColorRounded(p - ImVec2(15.f, 10.f), p + s + ImVec2(15.f, 18.f),
-                IM_COL32(8, 8, 12, (int)((8.f + t * 5.f))),
-                IM_COL32(140, 50, 60, (int)((8.f + t * 5.f))),
-                IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 0), r + 15.f);
-            dl->AddRectFilled(p, p + s, IM_COL32(2, 6, 10, 185), r);
-            dl->AddRectFilledMultiColorRounded(p + ImVec2(1.f, 1.f), p + s - ImVec2(1.f, 1.f),
-                IM_COL32(255, 255, 255, 10), IM_COL32(200, 60, 70, 10),
-                IM_COL32(0, 0, 0, 70), IM_COL32(140, 50, 60, 10), r - 1.f);
-            dl->AddRect(p, p + s,
-                theme::lerp_u32(IM_COL32(180, 60, 70, 107), IM_COL32(220, 60, 70, 209), t), r, 0, 1.f);
+
+            // Inner glass highlight top
+            dl->AddRectFilledMultiColor(p + ImVec2(1.f, 1.f), p + ImVec2(s.x - 1.f, 2.f),
+                IM_COL32(255, 255, 255, 14),
+                IM_COL32(255, 255, 255, 4),
+                IM_COL32(255, 255, 255, 4),
+                IM_COL32(255, 255, 255, 14));
         }
 
         template <typename DrawFn>
@@ -466,6 +524,7 @@ namespace {
                     clamppanel(pos, size);
                 }
                 draw(dl2, p2, size, hovered, active);
+                g_frameHadContent = true;
             }
             ImGui::End();
             ImGui::PopStyleColor();

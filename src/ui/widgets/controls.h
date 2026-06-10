@@ -35,7 +35,7 @@ namespace w {
         ImGui::InvisibleButton("##t", { kTW, kTH });
         const bool clicked = ImGui::IsItemClicked();
         const bool hov = ImGui::IsItemHovered();
-        if (clicked) { *v = !*v; Beep(800, 24); }
+        if (clicked) { *v = !*v; } // Beep removed (F1.6) — was blocking 24ms
 
         const float t = anim::toggle(ImGui::GetItemID(), *v);
         const ImU32 trk = theme::lerp_u32(

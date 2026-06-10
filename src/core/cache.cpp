@@ -12,17 +12,18 @@
 #include "global.h"
 #include "../features/phantom.h"
 #include "../features/wallcheck.h"
+
 namespace cache {
 
+    // ==================================================================
+    // Part name mapping — both conventions (F1.7)
+    // ==================================================================
     struct partmap {
-
         std::string_view name;
         sdk::instance sdk::player::* Member;
     };
 
-    // Support both naming conventions: "Left Arm" (space) and "LeftArm" (no space)
     constexpr partmap Part_Mappings[] = {
-
         {"Humanoid", &sdk::player::humanoid},
         {"HumanoidRootPart", &sdk::player::HumanoidRootPart},
         {"Head", &sdk::player::Head},
@@ -52,12 +53,10 @@ namespace cache {
     };
 
     std::unordered_map<std::string, sdk::instance sdk::player::*> partlookup() {
-
         std::unordered_map<std::string, sdk::instance sdk::player::*> Map;
         Map.reserve(sizeof(Part_Mappings) / sizeof(Part_Mappings[0]));
-        for (const auto& Mapping : Part_Mappings) {
+        for (const auto& Mapping : Part_Mappings)
             Map.emplace(Mapping.name, Mapping.Member);
-        }
         return Map;
     }
 
@@ -66,8 +65,37 @@ namespace cache {
     std::atomic<std::uint64_t> Current_GameID{ 0 };
     std::mutex Mutex;
 
-    inline float distance(const sdk::vector3& P1, const sdk::vector3& P2) {
+    // ==================================================================
+    // Part address cache — keyed by character.Address (F1.7)
+    // ==================================================================
+    struct CachedParts {
+        std::unordered_map<std::string, uint64_t> addresses; // part name -> address
+        int64_t rigType = -1; // -1 = unknown, 0 = R6, 1 = R15
+        double lastScan = 0.0;
+    };
+    static std::unordered_map<uint64_t, CachedParts> s_partCache;
+    static std::mutex s_cacheMutex;
 
+    // Determine Rig_Type from available parts (F1.7)
+    static int detectRigType(const sdk::player& player) {
+        if (player.UpperTorso.Address && player.LowerTorso.Address) return 1; // R15
+        if (player.Torso.Address) return 0; // R6
+        return -1;
+    }
+
+    // Check if a fallback is R15-only (only check if player has UpperTorso)
+    static bool isR15Part(const std::string& name) {
+        return name.find("UpperArm") != std::string::npos ||
+               name.find("LowerArm") != std::string::npos ||
+               name.find("UpperLeg") != std::string::npos ||
+               name.find("LowerLeg") != std::string::npos ||
+               name.find("Foot") != std::string::npos ||
+               name.find("Hand") != std::string::npos ||
+               name == "UpperTorso" ||
+               name == "LowerTorso";
+    }
+
+    inline float distance(const sdk::vector3& P1, const sdk::vector3& P2) {
         float Dx = P1.x - P2.x;
         float Dy = P1.y - P2.y;
         float Dz = P1.z - P2.z;
@@ -75,10 +103,12 @@ namespace cache {
     }
 
     bool validpos(const sdk::vector3& Pos) {
-
         return !std::isnan(Pos.x) && !std::isnan(Pos.y) && !std::isnan(Pos.z);
     }
 
+    // ==================================================================
+    // rescan — 500ms instead of 100ms (F1.7)
+    // ==================================================================
     void rescan() {
         static std::uint64_t Stored_GameID = 0;
         static int post_change_delay = 0;
@@ -96,7 +126,6 @@ namespace cache {
                         Stored_GameID = GameID;
                         Current_GameID.store(GameID);
                         global::GameID = GameID;
-                        // Only set defaults on first init, not every cycle
                         static bool firstInit = true;
                         if (firstInit && GameID == global::rivals::PlaceId) {
                             global::aim::Aimbot_type = 0;
@@ -110,154 +139,181 @@ namespace cache {
                         global::workspace.Address = global::model.childclass("Workspace").Address;
                         global::camera.Address = global::workspace.childclass("Camera").Address;
 
+                        s_partCache.clear(); // invalidate all cached parts on game change
+
                         References_Updated.store(true);
                         post_change_delay = 50;
-
                     }
                 }
             }
             catch (...) {}
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(500)); // was 100 (F1.7)
         }
     }
 
     bool is_dead(const sdk::player& player) {
         if (!player.character.Address) return true;
-        if (!player.humanoid.Address) return false; // can't determine, assume alive
+        if (!player.humanoid.Address) return false;
         float health = drive->read<float>(player.humanoid.Address + offset::humanoid::Health);
         return health <= 0.f;
     }
 
+    // ==================================================================
+    // data() — populate player parts with caching and Rig_Type detection (F1.7)
+    // ==================================================================
     void data(sdk::player& player, const sdk::vector3& Local_Pos, bool Is_Local) {
         if (player.character.Address == 0) return;
 
-        auto children = player.character.children();
-        for (const auto& part : children) {
-            std::string pname = part.name();
-            // Fix: "Torso" parts are sometimes misidentified as arm parts
-            // Only map if the name exactly matches
-            auto it = Part_Lookup.find(pname);
-            if (it != Part_Lookup.end()) {
-                player.*(it->second) = part;
+        uint64_t charAddr = player.character.Address;
+        double now = ImGui::GetTime();
+
+        // Check cache
+        CachedParts* cached = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(s_cacheMutex);
+            auto it = s_partCache.find(charAddr);
+            if (it != s_partCache.end()) {
+                cached = &it->second;
+                // Refresh volatile data even if cached
             }
         }
 
-        // Fallback: if children() returned empty or incomplete, try direct lookups
-        // for critical parts via childclass
-        if (!player.Head.Address) {
-            player.Head = player.character.childclass("Head");
-        }
-        if (!player.HumanoidRootPart.Address) {
-            player.HumanoidRootPart = player.character.childclass("HumanoidRootPart");
-        }
-        if (!player.humanoid.Address) {
-            player.humanoid = player.character.childclass("Humanoid");
-        }
-        if (!player.Torso.Address) {
-            player.Torso = player.character.childclass("Torso");
-        }
-        if (!player.UpperTorso.Address) {
-            player.UpperTorso = player.character.childclass("UpperTorso");
-        }
-        if (!player.LowerTorso.Address) {
-            player.LowerTorso = player.character.childclass("LowerTorso");
+        // --- Part scanning ---
+        bool needsFullScan = false;
+        if (!cached) {
+            needsFullScan = true;
+        } else if (now - cached->lastScan > 2.0) {
+            // Refresh every 2s
+            needsFullScan = true;
         }
 
-        // Fallback lookups for arms and legs (try both naming conventions)
-        if (!player.LeftArm.Address) {
-            player.LeftArm = player.character.childclass("Left Arm");
-            if (!player.LeftArm.Address)
-                player.LeftArm = player.character.childclass("LeftArm");
-        }
-        if (!player.RightArm.Address) {
-            player.RightArm = player.character.childclass("Right Arm");
-            if (!player.RightArm.Address)
-                player.RightArm = player.character.childclass("RightArm");
-        }
-        if (!player.LeftLeg.Address) {
-            player.LeftLeg = player.character.childclass("Left Leg");
-            if (!player.LeftLeg.Address)
-                player.LeftLeg = player.character.childclass("LeftLeg");
-        }
-        if (!player.RightLeg.Address) {
-            player.RightLeg = player.character.childclass("Right Leg");
-            if (!player.RightLeg.Address)
-                player.RightLeg = player.character.childclass("RightLeg");
-        }
-        if (!player.LeftUpperArm.Address) {
-            player.LeftUpperArm = player.character.childclass("LeftUpperArm");
-        }
-        if (!player.RightUpperArm.Address) {
-            player.RightUpperArm = player.character.childclass("RightUpperArm");
-        }
-        if (!player.LeftLowerArm.Address) {
-            player.LeftLowerArm = player.character.childclass("LeftLowerArm");
-        }
-        if (!player.RightLowerArm.Address) {
-            player.RightLowerArm = player.character.childclass("RightLowerArm");
-        }
-        if (!player.LeftUpperLeg.Address) {
-            player.LeftUpperLeg = player.character.childclass("LeftUpperLeg");
-        }
-        if (!player.RightUpperLeg.Address) {
-            player.RightUpperLeg = player.character.childclass("RightUpperLeg");
-        }
-        if (!player.LeftLowerLeg.Address) {
-            player.LeftLowerLeg = player.character.childclass("LeftLowerLeg");
-        }
-        if (!player.RightLowerLeg.Address) {
-            player.RightLowerLeg = player.character.childclass("RightLowerLeg");
-        }
-        if (!player.LeftFoot.Address) {
-            player.LeftFoot = player.character.childclass("LeftFoot");
-        }
-        if (!player.RightFoot.Address) {
-            player.RightFoot = player.character.childclass("RightFoot");
-        }
-        if (!player.LeftHand.Address) {
-            player.LeftHand = player.character.childclass("LeftHand");
-        }
-        if (!player.RightHand.Address) {
-            player.RightHand = player.character.childclass("RightHand");
+        if (needsFullScan) {
+            CachedParts newCache;
+            auto children = player.character.children();
+
+            // Map children by name
+            for (const auto& part : children) {
+                std::string pname = part.name();
+                auto it = Part_Lookup.find(pname);
+                if (it != Part_Lookup.end()) {
+                    player.*(it->second) = part;
+                    newCache.addresses[pname] = part.Address;
+                }
+            }
+
+            // Fallback childclass lookups ONLY for critical parts when children() didn't find them
+            // R6-only parts
+            if (!newCache.addresses.count("Head") && !player.Head.Address) {
+                player.Head = player.character.childclass("Head");
+                if (player.Head.Address) newCache.addresses["Head"] = player.Head.Address;
+            }
+            if (!newCache.addresses.count("HumanoidRootPart") && !player.HumanoidRootPart.Address) {
+                player.HumanoidRootPart = player.character.childclass("HumanoidRootPart");
+                if (player.HumanoidRootPart.Address) newCache.addresses["HumanoidRootPart"] = player.HumanoidRootPart.Address;
+            }
+            if (!newCache.addresses.count("Humanoid") && !player.humanoid.Address) {
+                player.humanoid = player.character.childclass("Humanoid");
+                if (player.humanoid.Address) newCache.addresses["Humanoid"] = player.humanoid.Address;
+            }
+
+            // Determine Rig_Type from found parts
+            newCache.rigType = detectRigType(player);
+
+            // Only scan parts relevant to the detected rig type
+            if (newCache.rigType == 0) {
+                // R6: Torso, Left/Right Arm, Left/Right Leg
+                auto scanR6 = [&](const char* name, sdk::instance sdk::player::* member, const char* altName) {
+                    if (!newCache.addresses.count(name) && !(player.*member).Address) {
+                        auto inst = player.character.childclass(name);
+                        if (!inst.Address && altName) inst = player.character.childclass(altName);
+                        if (inst.Address) {
+                            player.*member = inst;
+                            newCache.addresses[name] = inst.Address;
+                        }
+                    }
+                };
+                scanR6("Torso", &sdk::player::Torso, nullptr);
+                scanR6("Left Arm", &sdk::player::LeftArm, "LeftArm");
+                scanR6("Right Arm", &sdk::player::RightArm, "RightArm");
+                scanR6("Left Leg", &sdk::player::LeftLeg, "LeftLeg");
+                scanR6("Right Leg", &sdk::player::RightLeg, "RightLeg");
+            } else if (newCache.rigType == 1) {
+                // R15: UpperTorso, LowerTorso, Upper/Lower Arm/Leg, Hand, Foot
+                auto scanR15 = [&](const char* name, sdk::instance sdk::player::* member) {
+                    if (!newCache.addresses.count(name) && !(player.*member).Address) {
+                        auto inst = player.character.childclass(name);
+                        if (inst.Address) {
+                            player.*member = inst;
+                            newCache.addresses[name] = inst.Address;
+                        }
+                    }
+                };
+                scanR15("UpperTorso", &sdk::player::UpperTorso);
+                scanR15("LowerTorso", &sdk::player::LowerTorso);
+                scanR15("LeftUpperArm", &sdk::player::LeftUpperArm);
+                scanR15("RightUpperArm", &sdk::player::RightUpperArm);
+                scanR15("LeftLowerArm", &sdk::player::LeftLowerArm);
+                scanR15("RightLowerArm", &sdk::player::RightLowerArm);
+                scanR15("LeftUpperLeg", &sdk::player::LeftUpperLeg);
+                scanR15("RightUpperLeg", &sdk::player::RightUpperLeg);
+                scanR15("LeftLowerLeg", &sdk::player::LeftLowerLeg);
+                scanR15("RightLowerLeg", &sdk::player::RightLowerLeg);
+                scanR15("LeftFoot", &sdk::player::LeftFoot);
+                scanR15("RightFoot", &sdk::player::RightFoot);
+                scanR15("LeftHand", &sdk::player::LeftHand);
+                scanR15("RightHand", &sdk::player::RightHand);
+            }
+
+            newCache.lastScan = now;
+
+            // Store in cache
+            {
+                std::lock_guard<std::mutex> lock(s_cacheMutex);
+                s_partCache[charAddr] = std::move(newCache);
+            }
+        } else {
+            // Use cached addresses to set part pointers (fast path)
+            // Only need to set parts that were cached — children() is skipped entirely
+            for (auto& [name, addr] : cached->addresses) {
+                auto it = Part_Lookup.find(name);
+                if (it != Part_Lookup.end()) {
+                    sdk::instance inst(addr);
+                    player.*(it->second) = inst;
+                }
+            }
+            player.Rig_Type = cached->rigType;
         }
 
+        // ---- Volatile data (updated every tick) ----
         if (player.humanoid.Address) {
-
             sdk::humanoid humanoid(player.humanoid.Address);
             player.Health = humanoid.health();
             player.MaxHealth = humanoid.maxhealth();
             player.Rig_Type = humanoid.rig();
         }
 
+        // Tool name
         player.Tool_Name.clear();
         sdk::instance tool = player.character.childclass("Tool");
-        if (tool.Address) {
-
+        if (tool.Address)
             player.Tool_Name = tool.name();
-        }
 
+        // Distance
         if (!Is_Local && player.Head.Address != 0 && global::camera.Address != 0) {
-
             sdk::part Head(player.Head.Address);
             sdk::vector3 Head_Pos = Head.partposition();
-
             sdk::camera camera(global::camera.Address);
             sdk::vector3 Camera_Pos = camera.position();
-
-            if (validpos(Head_Pos) && validpos(Camera_Pos)) {
+            if (validpos(Head_Pos) && validpos(Camera_Pos))
                 player.Distance = distance(Head_Pos, Camera_Pos);
-            }
-        }
-        // Fallback distance using HumanoidRootPart if Head not available
-        else if (!Is_Local && player.HumanoidRootPart.Address != 0 && global::camera.Address != 0) {
+        } else if (!Is_Local && player.HumanoidRootPart.Address != 0 && global::camera.Address != 0) {
             sdk::part Root(player.HumanoidRootPart.Address);
             sdk::vector3 Root_Pos = Root.partposition();
             sdk::camera camera(global::camera.Address);
             sdk::vector3 Camera_Pos = camera.position();
-            if (validpos(Root_Pos) && validpos(Camera_Pos)) {
+            if (validpos(Root_Pos) && validpos(Camera_Pos))
                 player.Distance = distance(Root_Pos, Camera_Pos);
-            }
         }
     }
 
@@ -271,11 +327,9 @@ namespace cache {
         auto Player_Instances = global::actor.children();
 
         std::vector<sdk::player> actor;
-
         actor.reserve(Player_Instances.size());
 
         for (const auto& instance : Player_Instances) {
-
             sdk::player player{};
             player.player = sdk::actor(instance.Address);
             player.character = player.player.character();
@@ -290,10 +344,8 @@ namespace cache {
             sdk::actor LocalPlayer(Local_Inst.Address);
 
             if (global::setting::Team_Check) {
-
-                if (Entity.teamid() == LocalPlayer.teamid()) {
+                if (Entity.teamid() == LocalPlayer.teamid())
                     continue;
-                }
             }
 
             // Skip dead players
@@ -308,7 +360,6 @@ namespace cache {
 
         {
             std::lock_guard<std::mutex> Lock(Mutex);
-            // Replace cache and trim excess capacity
             actor.shrink_to_fit();
             global::Player_Cache = std::move(actor);
         }
@@ -349,22 +400,19 @@ namespace cache {
         console::playerCount = (int)global::Player_Cache.size();
         if (global::GameID == 292439477) {
             std::vector<sdk::player> players;
-
             cacheplayer(players, Local_Position, LocalPlayer.name);
             rescancache(players, Local_Position, LocalPlayer.name);
             {
                 std::lock_guard<std::mutex> lock(Mutex);
                 global::Player_Cache = std::move(players);
             }
-        }
-        else {
+        } else {
             update(Local_Position, LocalPlayer.name);
         }
     }
 }
 
 void cache::run() {
-
     std::thread(rescan).detach();
     int wallcheck_counter = 0;
 
@@ -381,6 +429,12 @@ void cache::run() {
                 wallcheck::update_cache();
             }
 
+            // Early-out sleep if no valid actor (F1.7)
+            if (global::actor.Address == 0) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                continue;
+            }
+
             runtime();
         }
         catch (...) {}
@@ -388,7 +442,3 @@ void cache::run() {
         std::this_thread::sleep_for(std::chrono::milliseconds(150));
     }
 }
-
-
-
-

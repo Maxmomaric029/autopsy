@@ -17,13 +17,14 @@
 namespace layout {
 
     // ========================================================================
-    // Sidebar — gray glassmorphism with stacked pill tabs
+    // Sidebar — pure black with red accents, refined tabs (F2.4)
     // ========================================================================
     static bool sidebar(ImDrawList* dl, ImVec2 wp, ImVec2 ws,
         int& section, float menuEase) {
 
         constexpr float kSideW = 190.f;
-        constexpr float kTabH = 48.f;
+        constexpr float kTabH = 44.f;    // was 48
+        constexpr float kTabGap = 4.f;   // was 3
         constexpr float kLogoH = 78.f;
 
         // ---- Sidebar background (pure black with red edge) ----
@@ -31,14 +32,14 @@ namespace layout {
         ImVec2 sbMax = wp + ImVec2(kSideW, ws.y);
 
         // Shadow
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 2; i++) {  // was 4
             float spread = 6.f + i * 5.f;
             dl->AddRectFilled(sbMin - ImVec2(spread * 0.3f, spread * 0.1f),
                 sbMax + ImVec2(spread * 0.4f, spread * 0.5f),
                 IM_COL32(0, 0, 0, (int)((22.f - i * 3.5f))), theme::r_window + spread);
         }
 
-        // Main pure black bg (was gray)
+        // Main pure black bg
         dl->AddRectFilled(sbMin, sbMax,
             IM_COL32(0, 0, 0, 240), theme::r_window, ImDrawFlags_RoundCornersLeft);
 
@@ -51,10 +52,7 @@ namespace layout {
             sbMin + ImVec2(kSideW - 16.f, kLogoH + 1.f),
             IM_COL32(220, 60, 70, 80));
 
-        // Version text color update to match
-        // (already below)
-
-        // ---- Logo ----
+        // ---- Logo with version inline (F2.4) ----
         if (g_sidebar_logo) {
             float logoAreaH = kLogoH - 22.f;
             float aspect = (float)g_sidebar_logoW / (float)g_sidebar_logoH;
@@ -64,6 +62,11 @@ namespace layout {
             if (logoW > maxLogoW) { logoW = maxLogoW; logoH = logoW / aspect; }
             ImVec2 logoMin = sbMin + ImVec2(18.f, (kLogoH - logoH) * 0.5f);
             dl->AddImage(g_sidebar_logo, logoMin, logoMin + ImVec2(logoW, logoH));
+
+            // Version next to logo, baseline-aligned, muted 50%
+            dl->AddText(font::mono(), font::mono()->LegacySize * 0.85f,
+                logoMin + ImVec2(logoW + 6.f, logoH * 0.6f),
+                IM_COL32(140, 150, 170, 80), "v1.0.0");
         } else {
             // Fallback: text logo
             ImFont* logoF = font::logo();
@@ -73,16 +76,27 @@ namespace layout {
                 IM_COL32(255, 40, 50, 180), "MISERABLE");
             dl->AddText(logoF, logoS, logoPos,
                 IM_COL32(230, 60, 70, 245), "MISERABLE");
+
+            // Version next to logo
+            ImVec2 nameSize = logoF->CalcTextSizeA(logoS, FLT_MAX, 0.f, "MISERABLE");
+            dl->AddText(font::mono(), font::mono()->LegacySize * 0.85f,
+                logoPos + ImVec2(nameSize.x + 8.f, logoS * 0.3f),
+                IM_COL32(140, 150, 170, 80), "v1.0.0");
         }
 
-        // Version text
-        dl->AddText(font::mono(), font::mono()->LegacySize * 0.85f,
-            sbMin + ImVec2(20.f, 54.f),
-            IM_COL32(140, 150, 170, 120), "v1.0.0");
+        // ---- Animated tab indicator (F2.3) ----
+        static float indicatorY = kLogoH + 14.f;
+        float targetY = (kLogoH + 14.f) + section * (kTabH + kTabGap);
+        indicatorY = anim::damp(indicatorY, targetY, 14.f);
+
+        // Draw only ONE animated indicator bar (not per-tab)
+        dl->AddRectFilled(
+            sbMin + ImVec2(0.f, indicatorY),
+            sbMin + ImVec2(3.f, indicatorY + kTabH),
+            IM_COL32(230, 60, 70, 220), 2.f);
 
         // ---- Tab buttons ----
         float tabY = sbMin.y + kLogoH + 14.f;
-        constexpr float kTabGap = 3.f;
         bool sectionChanged = false;
 
         for (int i = 0; i < icon::kTabCount; i++) {
@@ -111,19 +125,18 @@ namespace layout {
             const float at = anim::g_anim.get_toggle(id, active);
             const float ht = anim::g_anim.get_hover(id, 10.f);
 
-            // Tab background - glass-like
-            ImU32 tabBg;
             if (active) {
-                tabBg = IM_COL32(220, 60, 70, (int)(30.f + at * 30.f));
-                // Active indicator (left bar)
-                dl->AddRectFilled(tMin, tMin + ImVec2(3.f, kTabH),
-                    IM_COL32(230, 60, 70, (int)(160 + at * 95)), 2.f);
-                // Subtle background fill
+                // Active state: horizontal gradient red alpha 36->0 (F2.4)
+                dl->AddRectFilledMultiColor(tMin, tMax,
+                    IM_COL32(230, 60, 70, (int)(24 + at * 12)),
+                    IM_COL32(230, 60, 70, (int)(8 + at * 8)),
+                    IM_COL32(230, 60, 70, 0),
+                    IM_COL32(230, 60, 70, 0));
+            } else if (hov) {
+                // Hover: white translucent bg (F2.4)
+                int ha = (int)(10 + ht * 8);
                 dl->AddRectFilled(tMin, tMax,
-                    IM_COL32(230, 60, 70, (int)(16 + at * 18)), 8.f);
-            } else {
-                tabBg = IM_COL32(26, 28, 34, (int)(90 + ht * 60));
-                dl->AddRectFilled(tMin, tMax, tabBg, 8.f);
+                    IM_COL32(255, 255, 255, ha), 8.f);
             }
 
             // Border on hover/active
@@ -133,7 +146,7 @@ namespace layout {
                     IM_COL32(220, 60, 70, brdAlpha), 8.f, 0, 1.f);
             }
 
-            // Icon
+            // Icon — centered in 20x20 box at x=14 (F2.4)
             ImFont* tabF = font::bold();
             float iconS = 16.f;
             ImU32 iconCol = active
@@ -143,7 +156,7 @@ namespace layout {
                 tMin + ImVec2(14.f, (kTabH - iconS) * 0.5f + 1.f),
                 iconCol, iconChar);
 
-            // Label
+            // Label at x=46 (F2.4)
             float labelS = 13.f;
             ImU32 textCol = active
                 ? IM_COL32(220, 230, 245, 240)
@@ -154,6 +167,29 @@ namespace layout {
 
             tabY += kTabH + kTabGap;
         }
+
+        // ---- User footer (F2.4) ----
+        float footerY = sbMax.y - 50.f;
+        // Hairline separator
+        dl->AddRectFilled(sbMin + ImVec2(16.f, footerY),
+            sbMax + ImVec2(-16.f, footerY + 1.f),
+            IM_COL32(255, 255, 255, 10));
+
+        // Green status dot
+        dl->AddCircleFilled(sbMin + ImVec2(24.f, footerY + 24.f),
+            4.f, IM_COL32(80, 255, 120, 220), 12);
+        dl->AddCircle(sbMin + ImVec2(24.f, footerY + 24.f),
+            5.5f, IM_COL32(80, 255, 120, 60), 12, 1.f);
+
+        // Username
+        static const char* username = []() {
+            static char buf[128];
+            DWORD len = GetEnvironmentVariableA("USERNAME", buf, sizeof(buf));
+            return (len && len < sizeof(buf)) ? buf : "user";
+        }();
+        dl->AddText(font::regular(), font::regular()->LegacySize,
+            sbMin + ImVec2(38.f, footerY + 14.f),
+            IM_COL32(140, 150, 170, 160), username);
 
         // ---- Glassmorphism overlay effect (subtle sheen) ----
         dl->AddRectFilledMultiColor(sbMin, sbMin + ImVec2(kSideW, 1.f),
@@ -183,7 +219,7 @@ namespace layout {
     }
 
     // ========================================================================
-    // Menu backdrop — dark overlay
+    // Menu backdrop — dark overlay (2-ring shadow, was 5) (F1.4)
     // ========================================================================
     static void backdrop(ImDrawList* dl, ImVec2 menuMin, ImVec2 menuMax,
         float menuT, float r) {
@@ -195,8 +231,8 @@ namespace layout {
         dl->AddRectFilled({ 0.f, 0.f }, display,
             IM_COL32(2, 3, 6, (int)(bt * 42.f)));
 
-        // Shadow rings
-        for (int i = 0; i < 5; i++) {
+        // Shadow rings — 2 instead of 5
+        for (int i = 0; i < 2; i++) {
             const float spread = 16.f + i * 10.f;
             const int alpha = (int)((14.f - i * 2.f) * bt);
             dl->AddRectFilled(menuMin - ImVec2(spread, spread * 0.5f),
@@ -204,7 +240,7 @@ namespace layout {
                 IM_COL32(4, 6, 10, alpha), r + spread);
         }
 
-        // Outer glow (blood red tint)
+        // Outer glow (blood red tint) — only 1 layer
         dl->AddRectFilledMultiColorRounded(menuMin - ImVec2(20.f, 12.f),
             menuMax + ImVec2(20.f, 20.f),
             IM_COL32(230, 60, 70, (int)(bt * 5.f)),

@@ -18,6 +18,19 @@ namespace font {
     inline ImFont* g_mono    = nullptr;
     inline ImFont* g_logo    = nullptr;
 
+    // ==================================================================
+    // Typography scale (F2.6) — single source of truth for all font sizes
+    // ==================================================================
+    namespace size {
+        inline constexpr float title  = 11.f;  // card titles, uppercase
+        inline constexpr float label  = 13.f;  // control labels
+        inline constexpr float body   = 13.f;  // regular text / values
+        inline constexpr float badge  = 12.f;  // badges / pills
+        inline constexpr float mono   = 12.f;  // monospace (version, stats)
+        inline constexpr float logo   = 22.f;  // logo / branding
+        inline constexpr float icon   = 11.f;  // FA6 icon in toggles
+    }
+
     inline bool load(float dpiScale = 1.0f) {
         ImGuiIO& io = ImGui::GetIO();
         io.Fonts->Clear();
@@ -51,11 +64,11 @@ namespace font {
             return f;
         };
 
-        loadFont(font_inter_regular,  font_inter_regular_size,  16.f, &g_regular, true);
-        loadFont(font_inter_semibold, font_inter_semibold_size, 16.f, &g_medium,  true);
-        loadFont(font_inter_bold,     font_inter_bold_size,     17.f, &g_bold,    true);
-        loadFont(font_inter_black,    font_inter_black_size,    22.f, &g_logo,    false);
-        loadFont(font_inter_regular,  font_inter_regular_size,  12.f, &g_mono,    false);
+        loadFont(font_inter_regular,  font_inter_regular_size,  size::body,  &g_regular, true);
+        loadFont(font_inter_semibold, font_inter_semibold_size, size::body,  &g_medium,  true);
+        loadFont(font_inter_bold,     font_inter_bold_size,     size::label, &g_bold,    true);
+        loadFont(font_inter_black,    font_inter_black_size,    size::logo,  &g_logo,    false);
+        loadFont(font_inter_regular,  font_inter_regular_size,  size::mono,  &g_mono,    false);
 
         // Fallbacks
         if (!g_regular) g_regular = io.Fonts->AddFontDefault();

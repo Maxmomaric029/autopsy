@@ -3,6 +3,7 @@
 #include <chrono>
 #include <thread>
 #include <d3d11.h>
+#include <d3d11_2.h>
 #include <vector>
 #include <string>
 
@@ -39,12 +40,58 @@ LRESULT CALLBACK wndproc(HWND Hwnd, UINT Msg, WPARAM WParam, LPARAM LParam) {
 }
 
 // ========================================================================
+// FPS limiter — high-resolution timer with Sleep+spin (F1.1)
+// ========================================================================
+static struct FpsLimiter {
+    LARGE_INTEGER freq = {};
+    bool ready = false;
+
+    void init() {
+        timeBeginPeriod(1);
+        ready = QueryPerformanceFrequency(&freq) && freq.QuadPart > 0;
+    }
+    void shutdown() {
+        timeEndPeriod(1);
+        ready = false;
+    }
+
+    // Sleep until the next frame boundary at 'targetFps', then return.
+    void wait(int targetFps) {
+        if (!ready || targetFps <= 0) return;
+        static LARGE_INTEGER last = {};
+        if (!last.QuadPart) {
+            QueryPerformanceCounter(&last);
+            return;
+        }
+        LARGE_INTEGER now;
+        QueryPerformanceCounter(&now);
+        double elapsedSec = double(now.QuadPart - last.QuadPart) / double(freq.QuadPart);
+        double targetSec = 1.0 / double(targetFps);
+        double remainingSec = targetSec - elapsedSec;
+        if (remainingSec > 0.001) {
+            // Sleep most of the wait, spin the last ~1ms for accuracy
+            DWORD sleepMs = (DWORD)((remainingSec - 0.001) * 1000.0);
+            if (sleepMs > 0) Sleep(sleepMs);
+            // Spin-wait the remaining time
+            while (true) {
+                QueryPerformanceCounter(&now);
+                double elapsed = double(now.QuadPart - last.QuadPart) / double(freq.QuadPart);
+                if (elapsed >= targetSec) break;
+            }
+        }
+        QueryPerformanceCounter(&last);
+    }
+} g_fps;
+
+// Frame content flag — set by RenderESP/RenderMenu when they emit draw calls
+bool g_frameHadContent = false;
+
+// ========================================================================
 // graphic — DirectX11 + Win32 overlay manager
-// Now delegates ALL rendering to ModernUI
 // ========================================================================
 
 graphic::graphic() : m_ui(std::make_unique<ModernUI>()) { Detail = std::make_unique<detail>(); }
-graphic::~graphic() { dropimgui(); dropwindow(); dropdevice(); }
+graphic::~graphic() { g_fps.shutdown(); dropimgui(); dropwindow(); dropdevice(); }
 
 bool graphic::window() {
     Detail->WindowClass.cbSize = sizeof(Detail->WindowClass);
@@ -80,7 +127,11 @@ bool graphic::window() {
     return true;
 }
 
+// ========================================================================
+// Device / Swapchain — try FLIP_DISCARD with waitable object, fallback DISCARD (F1.2)
+// ========================================================================
 bool graphic::device() {
+    // Try FLIP_DISCARD first (modern, lower latency)
     DXGI_SWAP_CHAIN_DESC sd{};
     sd.BufferCount = 2;
     sd.BufferDesc.RefreshRate.Numerator = 0;
@@ -89,9 +140,9 @@ bool graphic::device() {
     sd.BufferDesc.Height = 0;
     sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     sd.OutputWindow = Detail->Window;
-    sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+    sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     sd.Windowed = 1;
-    sd.Flags = 0;
+    sd.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
     sd.SampleDesc.Count = 1;
     sd.SampleDesc.Quality = 0;
     sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -102,6 +153,15 @@ bool graphic::device() {
         fll, 2, D3D11_SDK_VERSION, &sd, &Detail->SwapChain,
         &Detail->Device, &fl, &Detail->DeviceContext);
 
+    // Fallback: DISCARD without waitable (layered windows may not support FLIP)
+    if (FAILED(hr)) {
+        sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+        sd.Flags = 0;
+        hr = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0,
+            fll, 2, D3D11_SDK_VERSION, &sd, &Detail->SwapChain,
+            &Detail->Device, &fl, &Detail->DeviceContext);
+    }
+
     if (hr == DXGI_ERROR_UNSUPPORTED)
         hr = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, 0,
             fll, 2, D3D11_SDK_VERSION, &sd, &Detail->SwapChain,
@@ -111,6 +171,17 @@ bool graphic::device() {
         MessageBoxA(nullptr, "This software can not run on your computer.",
             "Critical Problem", MB_ICONERROR | MB_OK);
         return false;
+    }
+
+    // ---- Waitable object for FLIP swapchains (F1.2) ----
+    if (sd.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD) {
+        // Get IDXGISwapChain2 interface for frame latency waitable object
+        IDXGISwapChain2* swapChain2 = nullptr;
+        if (SUCCEEDED(Detail->SwapChain->QueryInterface(IID_PPV_ARGS(&swapChain2))) && swapChain2) {
+            swapChain2->SetMaximumFrameLatency(1);
+            m_waitable = swapChain2->GetFrameLatencyWaitableObject();
+            swapChain2->Release();
+        }
     }
 
     ID3D11Texture2D* bb = nullptr;
@@ -127,6 +198,7 @@ bool graphic::device() {
 }
 
 bool graphic::imgui() {
+    g_fps.init();
     return m_ui->Create(Detail->Window, Detail->Device, Detail->DeviceContext);
 }
 
@@ -168,19 +240,51 @@ void graphic::menu() {
     m_ui->RenderMenu();
 }
 
+// ========================================================================
+// end() — FPS-limited Present with adaptive idle (F1.1)
+// ========================================================================
 void graphic::end() {
     if (!Detail->DeviceContext || !Detail->GraphicsTargetView || !Detail->SwapChain)
         return;
+
     ImGui::Render();
     const float cc[4]{ 0.f, 0.f, 0.f, 0.f };
     Detail->DeviceContext->OMSetRenderTargets(1, &Detail->GraphicsTargetView, nullptr);
     Detail->DeviceContext->ClearRenderTargetView(Detail->GraphicsTargetView, cc);
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
-    const int mode = ImClamp(global::setting::Performance_Mode, 0, 2);
-    if (mode == 0) std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    // ---- Waitable object (FLIP swapchain) — wait before Present ----
+    HANDLE waitable = m_waitable;
+    if (waitable && waitable != INVALID_HANDLE_VALUE)
+        WaitForSingleObjectEx(waitable, 1000, true);
 
-    const UINT syncInterval = mode == 2 ? 0u : 1u;
+    // ---- FPS cap by mode ----
+    const int mode = ImClamp(global::setting::Performance_Mode, 0, 2);
+    bool menuOpen = m_ui->IsOpen();
+
+    if (mode == 0) {
+        // Eco: 60fps cap + VSync
+        if (!menuOpen && !g_frameHadContent)
+            g_fps.wait(30);  // idle 30fps
+        else
+            g_fps.wait(60);
+    } else if (mode == 1) {
+        // Balanced: 144fps cap + VSync
+        if (!menuOpen && !g_frameHadContent)
+            g_fps.wait(30);
+        else
+            g_fps.wait(144);
+    } else {
+        // Uncapped: safety cap at 240fps, no VSync
+        if (!menuOpen && !g_frameHadContent)
+            g_fps.wait(30);
+        else
+            g_fps.wait(240);
+    }
+
+    g_frameHadContent = false; // reset for next frame
+
+    const UINT syncInterval = (mode == 2) ? 0u : 1u;
     const HRESULT hr = Detail->SwapChain->Present(syncInterval, 0);
     if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
         ExitProcess(0);

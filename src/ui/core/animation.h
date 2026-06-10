@@ -42,16 +42,13 @@ namespace anim {
             // Read/update current entry FIRST so it's never pruned
             float& v = values[id];
             v = damp(v, on ? 1.f : 0.f, speed);
-            // Then prune settled entries if the cache is bloated
-            if (values.size() > 256) {
-                static int pruneCounter = 0;
-                if (++pruneCounter % 30 == 0) {
-                    for (auto it = values.begin(); it != values.end(); ) {
-                        if (it->second == 0.f || it->second == 1.f)
-                            it = values.erase(it);
-                        else
-                            ++it;
-                    }
+            // Prune settled entries if cache exceeds 512 (F1.8)
+            if (values.size() > 512) {
+                for (auto it = values.begin(); it != values.end(); ) {
+                    if (it->second == 0.f || it->second == 1.f)
+                        it = values.erase(it);
+                    else
+                        ++it;
                 }
             }
             return v;
