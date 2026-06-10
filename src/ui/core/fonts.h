@@ -40,7 +40,7 @@ namespace font {
         cfg.PixelSnapH       = true;
         cfg.OversampleH      = 2;
         cfg.OversampleV      = 2;
-        cfg.FontBuilderFlags = ImGuiFreeTypeBuilderFlags_LightHinting;
+        cfg.FontLoaderFlags = ImGuiFreeTypeLoaderFlags_LightHinting;
         cfg.RasterizerMultiply = 1.0f;
 
         // FontAwesome glyph ranges (16-bit Private Use Area)
