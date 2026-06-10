@@ -489,7 +489,7 @@ namespace {
             // Red accent top edge on hover
             if (t > 0.05f) {
                 float accentA = t * 8.f;
-                dl->AddRectFilledMultiColor(p + ImVec2(0.f, 0.f), p + ImVec2(s.x * 0.4f, 2.f),
+                dl->AddRectFilledMultiColorRounded(p + ImVec2(0.f, 0.f), p + ImVec2(s.x * 0.4f, 2.f),
                     IM_COL32(220, 60, 70, (int)(accentA * 2.f)),
                     IM_COL32(220, 60, 70, (int)(accentA)),
                     IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 0), 0);

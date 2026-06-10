@@ -170,15 +170,6 @@ namespace console {
     }
 
     // ========================================================================
-    // Refresh — auto-re-render when offsets change
-    // ========================================================================
-    inline void refresh() {
-        // Re-render the console view to show updated offset values
-        // Called periodically from the main loop
-        render();
-    }
-
-    // ========================================================================
     // Full render
     // ========================================================================
     inline void render() {
@@ -251,6 +242,13 @@ namespace console {
         gray();
         printf("  [INS] Toggle overlay  [END] Exit\n");
         reset();
+    }
+
+    // ========================================================================
+    // Refresh — auto-re-render when offsets change (must be after render())
+    // ========================================================================
+    inline void refresh() {
+        render();
     }
 
     // ========================================================================

@@ -282,7 +282,7 @@ namespace cache {
                     player.*(it->second) = inst;
                 }
             }
-            player.Rig_Type = cached->rigType;
+            player.Rig_Type = static_cast<uint8_t>(cached->rigType);
         }
 
         // ---- Volatile data (updated every tick) ----
