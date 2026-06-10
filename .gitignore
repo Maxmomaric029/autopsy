@@ -41,3 +41,6 @@ Desktop.ini
 
 # Compiled MASM
 *.asm.obj
+
+# Misc artifacts
+nul

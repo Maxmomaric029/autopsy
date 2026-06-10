@@ -244,7 +244,7 @@ namespace {
         }
 
         void update() {
-            if (transT < 1.f)
+            if (transT < 1.f - 0.001f)
                 transT = anim::damp(transT, 1.f, 11.f);
             else
                 pending = false;
@@ -252,16 +252,6 @@ namespace {
 
         float easeIn() const { return anim::ease_out_cubic(transT); }
     };
-}
-
-// ========================================================================
-// Sidebar animated indicator Y (F2.3)
-// ========================================================================
-static float getIndicatorTarget(int section) {
-    constexpr float kTabH = 44.f;
-    constexpr float kTabGap = 4.f;
-    constexpr float kLogoH = 78.f;
-    return (float)kLogoH + 14.f + section * (kTabH + kTabGap);
 }
 
 // ========================================================================
@@ -612,7 +602,7 @@ namespace {
             dl->AddText(ImVec2(pillMin.x + 9.f, pillMin.y + 2.f), accent2(), fps);
         }
 
-        static void hotkeyrow(ImDrawList* dl, ImVec2 pp, float w, const char* label, bool live) {
+        static void hotkeyrow(ImDrawList* dl, ImVec2 pp, float w, const char* label, bool live, ImGuiKey key = ImGuiKey_None) {
             float t = anim::ease_out_cubic(anim::g_anim.get(ImGui::GetID(label, label + strlen(label)), live, 10.f));
             ImVec2 mn = pp;
             ImVec2 mx = pp + ImVec2(w, 24.f);
@@ -623,7 +613,7 @@ namespace {
             dl->AddRectFilled(mn + ImVec2(7.f, 7.f), mn + ImVec2(10.f, 17.f),
                 theme::lerp_u32(IM_COL32(160, 170, 190, 200), accent(), t), 2.f);
             dl->AddText(mn + ImVec2(17.f, 5.f), theme::lerp_u32(IM_COL32(160, 170, 190, 200), IM_COL32(220, 230, 245, 255), t), label);
-            const char* kn = ImGui::GetKeyName(ImGuiKey_None);
+            const char* kn = ImGui::GetKeyName(key);
             if (!kn || !*kn) kn = "NONE";
             float keyW = ImMax(42.f, ImGui::CalcTextSize(kn).x + 18.f);
             ImVec2 keyMin = ImVec2(mx.x - keyW - 8.f, mn.y + 4.f);
@@ -642,11 +632,11 @@ namespace {
             dl->AddLine(p + ImVec2(14.f, 36.f), p + ImVec2(s.x - 14.f, 36.f), IM_COL32(25, 40, 55, 200), 1.f);
             float rowW = s.x - 28.f;
             float y = p.y + 47.f;
-            auto row = [&](const char* lbl, bool live) { hotkeyrow(dl, ImVec2(p.x + 14.f, y), rowW, lbl, live); y += 30.f; };
-            if (global::overlay::Hotkey_Aimbot) row("Aimbot", global::aim::Enabled);
-            if (global::overlay::Hotkey_Silent) row("Silent", global::silent::Enabled);
-            if (global::overlay::Hotkey_Fly) row("Fly", global::misc::fly);
-            if (global::overlay::Hotkey_BladeBallSpam) row("Blade Spam", global::ball::SpamParry);
+            auto row = [&](const char* lbl, bool live, ImGuiKey key = ImGuiKey_None) { hotkeyrow(dl, ImVec2(p.x + 14.f, y), rowW, lbl, live, key); y += 30.f; };
+            if (global::overlay::Hotkey_Aimbot) row("Aimbot", global::aim::Enabled, global::aim::Aimbot_Key);
+            if (global::overlay::Hotkey_Silent) row("Silent", global::silent::Enabled, global::silent::Silent_Key);
+            if (global::overlay::Hotkey_Fly) row("Fly", global::misc::fly, global::misc::Fly_Key);
+            if (global::overlay::Hotkey_BladeBallSpam) row("Blade Spam", global::ball::SpamParry, global::ball::SpamParry_Key);
             if (global::overlay::Hotkey_Walkspeed) row("Walkspeed", global::misc::walkspeed);
             if (global::overlay::Hotkey_HitboxExpander) row("Hitbox", global::misc::hitbox);
             if (y == p.y + 47.f) dl->AddText(p + ImVec2(14.f, 50.f), IM_COL32(140, 150, 170, 200), "No hotkeys selected");

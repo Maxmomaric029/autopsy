@@ -218,34 +218,4 @@ namespace layout {
             IM_COL32(180, 190, 210, 0), IM_COL32(180, 190, 210, 18));
     }
 
-    // ========================================================================
-    // Menu backdrop — dark overlay (2-ring shadow, was 5) (F1.4)
-    // ========================================================================
-    static void backdrop(ImDrawList* dl, ImVec2 menuMin, ImVec2 menuMax,
-        float menuT, float r) {
-
-        const ImVec2 display = ImGui::GetIO().DisplaySize;
-        const float bt = anim::ease_in_out_cubic(menuT);
-
-        // Dark overlay
-        dl->AddRectFilled({ 0.f, 0.f }, display,
-            IM_COL32(2, 3, 6, (int)(bt * 42.f)));
-
-        // Shadow rings — 2 instead of 5
-        for (int i = 0; i < 2; i++) {
-            const float spread = 16.f + i * 10.f;
-            const int alpha = (int)((14.f - i * 2.f) * bt);
-            dl->AddRectFilled(menuMin - ImVec2(spread, spread * 0.5f),
-                menuMax + ImVec2(spread, spread),
-                IM_COL32(4, 6, 10, alpha), r + spread);
-        }
-
-        // Outer glow (blood red tint) — only 1 layer
-        dl->AddRectFilledMultiColorRounded(menuMin - ImVec2(20.f, 12.f),
-            menuMax + ImVec2(20.f, 20.f),
-            IM_COL32(230, 60, 70, (int)(bt * 5.f)),
-            IM_COL32(120, 30, 40, (int)(bt * 4.f)),
-            IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 0), r + 20.f);
-    }
-
 } // namespace layout

@@ -57,7 +57,8 @@ bool w::card::begin(const char* id, ImVec2 size, const char* title) {
     ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize,  0.f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    ImVec2(16.f, 16.f)); // space::lg
 
-    const bool open = ImGui::BeginChild(id, size, false, ImGuiWindowFlags_None);
+    const bool open = ImGui::BeginChild(id, size, false,
+        ImGuiWindowFlags_AlwaysVerticalScrollbar);
     if (open && title) {
         w::labelsection(title);
         w::gap(theme::space::sm);

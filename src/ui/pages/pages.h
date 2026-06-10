@@ -390,9 +390,31 @@ namespace page {
                 if (w::accent_button("Save", -1.f, 24.f))
                     config::save(configs[configIdx]);
                 w::gap(theme::space::xs);
-                if (w::danger_button("Delete", -1.f, 24.f)) {
-                    config::remove(configs[configIdx]);
-                    configIdx = -1;
+                if (w::danger_button("Delete", -1.f, 24.f))
+                    ImGui::OpenPopup("##delcfg");
+                {
+                    ImVec2 c = ImGui::GetIO().DisplaySize;
+                    ImGui::SetNextWindowPos({ c.x * 0.5f, c.y * 0.5f }, ImGuiCond_Always, { 0.5f, 0.5f });
+                    ImGui::SetNextWindowSize({ 260.f, 0.f });
+                    ImGui::PushStyleColor(ImGuiCol_PopupBg, theme::to_u32(theme::c_card));
+                    ImGui::PushStyleColor(ImGuiCol_Border, theme::to_u32(theme::c_border));
+                    if (ImGui::BeginPopupModal("##delcfg", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoDecoration)) {
+                        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
+                            "Delete \"%s\"?", configs[configIdx].c_str());
+                        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::alpha(theme::col_danger(), 0.7f)),
+                            "This cannot be undone.");
+                        w::gap(theme::space::sm);
+                        if (w::danger_button("Delete", -1.f, 26.f)) {
+                            config::remove(configs[configIdx]);
+                            configIdx = -1;
+                            ImGui::CloseCurrentPopup();
+                        }
+                        w::gap(theme::space::xs);
+                        if (w::button("Cancel", theme::col_surface(), theme::col_border(), theme::col_text(), -1.f, 26.f))
+                            ImGui::CloseCurrentPopup();
+                        ImGui::EndPopup();
+                    }
+                    ImGui::PopStyleColor(2);
                 }
                 w::gap(theme::space::sm);
             }
@@ -493,8 +515,8 @@ namespace page {
             w::labelsection("DISPLAY");
             w::toggle("Compact UI", &global::setting::Compact_UI);
             w::helptooltip("Reduce padding and spacing");
-            w::pill_toolbar("##perf", {"VSync","Eco","Unlocked"}, &global::setting::Performance_Mode);
-            w::helptooltip("VSync limits FPS, Eco saves CPU, Unlocked is max");
+            w::pill_toolbar("##perf", {"60fps","144fps","Unlocked"}, &global::setting::Performance_Mode);
+            w::helptooltip("60fps caps at 60, 144fps caps at 144, Unlocked is uncapped");
             w::gap(theme::space::xs);
             w::toggle("Streamproof", &global::setting::Streamproof);
             w::helptooltip("Hide overlay from screen capture software");

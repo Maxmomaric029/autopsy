@@ -39,9 +39,12 @@ namespace anim {
 
         float get(ImGuiID id, bool on, float speed = 10.f) {
             if (values.empty()) values.reserve(128);
-            // Read/update current entry FIRST so it's never pruned
+            // Read/update current entry FIRST
             float& v = values[id];
             v = damp(v, on ? 1.f : 0.f, speed);
+            // Save a copy BEFORE pruning — the pruning loop may erase this entry
+            // causing a dangling reference on `return v` (UB).
+            float result = v;
             // Prune settled entries if cache exceeds 512 (F1.8)
             if (values.size() > 512) {
                 for (auto it = values.begin(); it != values.end(); ) {
@@ -51,7 +54,7 @@ namespace anim {
                         ++it;
                 }
             }
-            return v;
+            return result;
         }
 
         float get_hover(ImGuiID id, float speed = 9.f) {

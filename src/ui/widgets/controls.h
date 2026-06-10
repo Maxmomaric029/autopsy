@@ -79,7 +79,14 @@ namespace w {
             dl->AddRect(p, p + ImVec2(kColW, kColH), *v ? theme::col_accent() : theme::col_border(), 2.f);
             ImGui::InvisibleButton("##s", { kColW, kColH });
             if (ImGui::IsItemClicked()) ImGui::OpenPopup("##cp");
-            ImGui::SetNextWindowPos({ p.x + kColW + 4.f, p.y - 4.f });
+            {
+                // Clamp popup position to keep color picker on-screen
+                ImVec2 cp(p.x + kColW + 4.f, p.y - 4.f);
+                const ImVec2 ds = ImGui::GetIO().DisplaySize;
+                cp.x = ImClamp(cp.x, 0.f, ds.x - 280.f);
+                cp.y = ImClamp(cp.y, 0.f, ds.y - 320.f);
+                ImGui::SetNextWindowPos(cp);
+            }
             ImGui::PushStyleColor(ImGuiCol_PopupBg, theme::to_u32(theme::c_card));
             ImGui::PushStyleColor(ImGuiCol_Border, theme::to_u32(theme::c_border));
             if (ImGui::BeginPopup("##cp")) {
@@ -107,7 +114,14 @@ namespace w {
         dl->AddRect(p, p + ImVec2(kColW, kColH), theme::col_border(), 2.f);
         ImGui::InvisibleButton("##sw", { kColW, kColH });
         if (ImGui::IsItemClicked()) ImGui::OpenPopup("##cpe");
-        ImGui::SetNextWindowPos({ p.x + kColW + 4.f, p.y - 4.f });
+        {
+            // Clamp popup position to keep color picker on-screen
+            ImVec2 cp(p.x + kColW + 4.f, p.y - 4.f);
+            const ImVec2 ds = ImGui::GetIO().DisplaySize;
+            cp.x = ImClamp(cp.x, 0.f, ds.x - 280.f);
+            cp.y = ImClamp(cp.y, 0.f, ds.y - 320.f);
+            ImGui::SetNextWindowPos(cp);
+        }
         ImGui::PushStyleColor(ImGuiCol_PopupBg, theme::to_u32(theme::c_card));
         ImGui::PushStyleColor(ImGuiCol_Border, theme::to_u32(theme::c_border));
         if (ImGui::BeginPopup("##cpe")) {
@@ -321,9 +335,12 @@ namespace w {
         return kw + 3.f + mw;
     }
 
+    // Shared listening state for bind() and keyselect() — inline to avoid TU isolation
+    struct ListenState { bool listening = false; ImGuiID ownerId = 0; };
+    inline ListenState& g_listen() { static ListenState s; return s; }
+
     inline void bind(const char* id, ImGuiKey* key, ImKeyBindMode* mode) {
-        static bool s_listen = false;
-        static ImGuiID s_ownerId = 0;
+        auto& gs = g_listen();
         ImGui::PushID(id);
         const ImGuiID self = ImGui::GetID("##kb");
         ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -333,17 +350,17 @@ namespace w {
         const char* mn = (*mode == ImKeyBindMode_Hold) ? "HOLD" : "TOGG";
         const float kw = ImMax(ImGui::CalcTextSize(kn).x + 14.f, 38.f);
         const float mw = ImGui::CalcTextSize(mn).x + 10.f;
-        const bool listening = s_listen && (s_ownerId == self);
+        const bool listening = gs.listening && (gs.ownerId == self);
 
         const ImVec2 kp = ImGui::GetCursorScreenPos();
         ImGui::InvisibleButton("##k", { kw, h });
-        if (ImGui::IsItemClicked()) { s_listen = true; s_ownerId = self; }
+        if (ImGui::IsItemClicked()) { gs.listening = true; gs.ownerId = self; }
         if (listening) {
             for (int k = ImGuiKey_Tab; k < ImGuiKey_COUNT; k++)
                 if (ImGui::IsKeyPressed((ImGuiKey)k, false)) {
                     *key = (ImGuiKey)k;
                     if (*key == ImGuiKey_Escape) *key = ImGuiKey_None;
-                    s_listen = false;
+                    gs.listening = false;
                     break;
                 }
         }
@@ -372,8 +389,7 @@ namespace w {
 
     // ---- Simple key selector --------------------------------------------
     inline void keyselect(const char* id, ImGuiKey* key) {
-        static bool s_listen = false;
-        static ImGuiID s_ownerId = 0;
+        auto& gs = g_listen();
         ImGui::PushID(id);
         const ImGuiID self = ImGui::GetID("##ks");
         ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -381,17 +397,17 @@ namespace w {
         const char* kn = ImGui::GetKeyName(*key);
         if (!kn || !*kn) kn = "NONE";
         const float kw = ImMax(ImGui::CalcTextSize(kn).x + 18.f, 48.f);
-        const bool listening = s_listen && (s_ownerId == self);
+        const bool listening = gs.listening && (gs.ownerId == self);
 
         const ImVec2 p = ImGui::GetCursorScreenPos();
         ImGui::InvisibleButton("##key", { kw, h });
-        if (ImGui::IsItemClicked()) { s_listen = true; s_ownerId = self; }
+        if (ImGui::IsItemClicked()) { gs.listening = true; gs.ownerId = self; }
         if (listening) {
             for (int k = ImGuiKey_Tab; k < ImGuiKey_COUNT; k++)
                 if (ImGui::IsKeyPressed((ImGuiKey)k, false)) {
                     *key = (ImGuiKey)k;
                     if (*key == ImGuiKey_Escape) *key = ImGuiKey_None;
-                    s_listen = false;
+                    gs.listening = false;
                     break;
                 }
         }
@@ -438,12 +454,53 @@ namespace w {
     }
 
     // ---- Icon toggle (FA6 icon + label) ---------------------------------
+    // Draws icon AND toggle in ONE clickable area — icon no longer dead space (F2.5)
     inline bool toggle_icon(const char* icon, const char* label, bool* v) {
+        ImGui::PushID(label);
         ImDrawList* dl = ImGui::GetWindowDrawList();
+
+        constexpr float kTW = 36.f, kTH = 20.f;
+        constexpr float kIconW = 16.f;
+
+        // Single InvisibleButton covering icon + toggle + label gap
+        const float totalW = kIconW + kTW + 10.f + ImGui::CalcTextSize(label).x;
         const ImVec2 p = ImGui::GetCursorScreenPos();
+        ImGui::InvisibleButton("##ti", { totalW, kTH });
+        const bool clicked = ImGui::IsItemClicked();
+        const bool hov = ImGui::IsItemHovered();
+        if (clicked) { *v = !*v; }
+
+        // Draw icon
         dl->AddText(font::bold(), 11.f, p + ImVec2(0.f, 3.f), theme::col_muted(), icon);
-        // No extra offset — toggle() handles 16px left padding
-        return toggle(label, v);
+
+        // Draw toggle knob (same visuals as toggle())
+        const float t = anim::toggle(ImGui::GetItemID(), *v);
+        const ImU32 trk = theme::lerp_u32(
+            theme::to_u32(theme::c_surface2),
+            theme::alpha(theme::col_accent(), 0.34f), t);
+
+        const ImVec2 tp = ImVec2(p.x + kIconW, p.y);
+        dl->AddRectFilled(tp, tp + ImVec2(kTW, kTH), trk, kTH * .5f);
+        if (t > 0.05f)
+            dl->AddRect(tp, tp + ImVec2(kTW, kTH),
+                theme::alpha(theme::col_accent(), t * 0.55f), kTH * .5f, 0, 1.f);
+
+        const float tx = tp.x + 2.f + t * (kTW - kTH);
+        const float tr = (kTH - 4.f) * .5f;
+        const float cy = tp.y + kTH * .5f;
+        dl->AddCircleFilled({ tx + tr, cy }, tr + (hov ? 0.5f : 0.f),
+            hov ? theme::col_text() : IM_COL32(224, 224, 232, 255), 18);
+
+        // Draw label
+        ImGui::SameLine(0.f, 10.f);
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (kTH - ImGui::GetFontSize()) * .5f);
+        ImGui::TextColored(
+            ImGui::ColorConvertU32ToFloat4(*v ? theme::col_text() : theme::col_muted()),
+            "%s", label);
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() - (kTH - ImGui::GetFontSize()) * .5f);
+
+        ImGui::PopID();
+        return clicked;
     }
 
     // ---- Pill toolbar (iOS-style pill selector) -------------------------
@@ -473,7 +530,7 @@ namespace w {
                     theme::alpha(theme::col_accent(), t * 0.9f), kR - 1.f);
             }
             const float fontSize = 11.f;
-            ImVec2 ts = ImGui::CalcTextSize(labels[i]);
+            ImVec2 ts = font::medium()->CalcTextSizeA(fontSize, FLT_MAX, 0.f, labels[i]);
             dl->AddText(font::medium(), fontSize,
                 mn + ImVec2((itemW - ts.x) * 0.5f, (kH - fontSize) * 0.5f),
                 active ? theme::col_text() : theme::col_muted(0.8f),

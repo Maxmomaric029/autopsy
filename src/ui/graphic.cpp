@@ -108,19 +108,12 @@ bool graphic::window() {
         0, 0, Detail->WindowClass.hInstance, 0);
 
     if (!Detail->Window) return false;
-    SetLayeredWindowAttributes(Detail->Window, RGB(0, 0, 0), BYTE(255), LWA_ALPHA);
 
-    RECT ClientArea{}, WindowArea{};
-    GetClientRect(Detail->Window, &ClientArea);
-    GetWindowRect(Detail->Window, &WindowArea);
-    POINT Diff{};
-    ClientToScreen(Detail->Window, &Diff);
+    // Use LWA_COLORKEY so RGB(0,0,0) pixels are transparent (chroma key)
+    SetLayeredWindowAttributes(Detail->Window, RGB(0, 0, 0), BYTE(0), LWA_COLORKEY);
 
-    MARGINS Margins{
-        WindowArea.left + (Diff.x - WindowArea.left),
-        WindowArea.top + (Diff.y - WindowArea.top),
-        WindowArea.right, WindowArea.bottom
-    };
+    // Extend glass frame into entire client area for DWM composition transparency
+    MARGINS Margins{ -1, -1, -1, -1 };
     DwmExtendFrameIntoClientArea(Detail->Window, &Margins);
     ShowWindow(Detail->Window, SW_SHOW);
     UpdateWindow(Detail->Window);

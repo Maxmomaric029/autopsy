@@ -73,8 +73,8 @@ namespace notify {
             auto& t = g_queue[i];
             const double elapsed = now - t.startTime;
 
-            // Remove y offset for this item
-            const float offsetY = (float)(g_queue.size() - 1 - i) * (kItemH + kGap);
+            // Stack: oldest at bottom, newest on top (F2.5 fix)
+            const float offsetY = (float)i * (kItemH + kGap);
 
             float alpha = 1.f;
             float slideX = 0.f;
