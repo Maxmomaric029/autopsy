@@ -462,8 +462,9 @@ namespace w {
         constexpr float kTW = 36.f, kTH = 20.f;
         constexpr float kIconW = 16.f;
 
-        // Single InvisibleButton covering icon + toggle + label gap
-        const float totalW = kIconW + kTW + 10.f + ImGui::CalcTextSize(label).x;
+        // Single InvisibleButton covering icon + toggle knob only
+        // (label is placed AFTER via SameLine, outside the button — same as toggle())
+        const float totalW = kIconW + kTW;
         const ImVec2 p = ImGui::GetCursorScreenPos();
         ImGui::InvisibleButton("##ti", { totalW, kTH });
         const bool clicked = ImGui::IsItemClicked();
