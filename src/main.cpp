@@ -125,6 +125,14 @@ std::int32_t main(std::int32_t argc, char** argv[])
 {
     // Load offsets with try-catch: remote fetch -> fallback to local file
     {
+        // Write debug to file so it's never lost
+        FILE* dbg = fopen("offsets_debug.txt", "w");
+        if (dbg) {
+            char cwdBuf[MAX_PATH];
+            GetCurrentDirectoryA(sizeof(cwdBuf), cwdBuf);
+            fprintf(dbg, "[offsets] CWD: %s\n", cwdBuf);
+        }
+
         bool ok = false;
         try {
             ok = OffsetsManager::instance().load();
@@ -132,26 +140,30 @@ std::int32_t main(std::int32_t argc, char** argv[])
         catch (...) {
         }
 
-        // Debug: show offset loading status (before console init, use stderr)
-        fprintf(stderr, "[offsets] load(): %s\n", ok ? "SUCCESS" : "FAILED");
-        if (ok) {
-            fprintf(stderr, "[offsets] version: %s\n", OffsetsManager::instance().roblox_version().c_str());
-            fprintf(stderr, "[offsets] total: %d\n", OffsetsManager::instance().total_offsets());
-            fprintf(stderr, "[offsets] FakeDataModel.Ptr: %s\n", OffsetsManager::instance().get_hex_offset("FakeDataModel", "Pointer").c_str());
-            fprintf(stderr, "[offsets] VisualEngine.Ptr: %s\n", OffsetsManager::instance().get_hex_offset("VisualEngine", "Pointer").c_str());
-            fprintf(stderr, "[offsets] TaskScheduler.Ptr: %s\n", OffsetsManager::instance().get_hex_offset("TaskScheduler", "Pointer").c_str());
+        if (dbg) {
+            fprintf(dbg, "[offsets] load(): %s\n", ok ? "SUCCESS" : "FAILED");
+            fprintf(dbg, "[offsets] is_loaded: %s\n",
+                OffsetsManager::instance().is_loaded() ? "YES" : "NO");
+            if (ok) {
+                fprintf(dbg, "[offsets] version: %s\n", OffsetsManager::instance().roblox_version().c_str());
+                fprintf(dbg, "[offsets] total: %d\n", OffsetsManager::instance().total_offsets());
+            }
+            fprintf(dbg, "[offsets] _before_ init() - defaults:\n");
+            fprintf(dbg, "[offsets]   fakemodel::Pointer = 0x%llX\n", (unsigned long long)offset::fakemodel::Pointer);
+            fprintf(dbg, "[offsets]   render::Pointer = 0x%llX\n", (unsigned long long)offset::render::Pointer);
+            fprintf(dbg, "[offsets]   task::Pointer = 0x%llX\n", (unsigned long long)offset::task::Pointer);
         }
 
         // Apply loaded offsets to the runtime offset:: namespace
-        fprintf(stderr, "[offsets] is_loaded before init(): %s\n",
-            OffsetsManager::instance().is_loaded() ? "YES" : "NO");
         offset::init();
-        fprintf(stderr, "[offsets] after init() - fakemodel::Pointer = 0x%llX\n",
-            (unsigned long long)offset::fakemodel::Pointer);
-        fprintf(stderr, "[offsets] after init() - render::Pointer = 0x%llX\n",
-            (unsigned long long)offset::render::Pointer);
-        fprintf(stderr, "[offsets] after init() - task::Pointer = 0x%llX\n",
-            (unsigned long long)offset::task::Pointer);
+
+        if (dbg) {
+            fprintf(dbg, "[offsets] _after_ init() - values:\n");
+            fprintf(dbg, "[offsets]   fakemodel::Pointer = 0x%llX\n", (unsigned long long)offset::fakemodel::Pointer);
+            fprintf(dbg, "[offsets]   render::Pointer = 0x%llX\n", (unsigned long long)offset::render::Pointer);
+            fprintf(dbg, "[offsets]   task::Pointer = 0x%llX\n", (unsigned long long)offset::task::Pointer);
+            fclose(dbg);
+        }
     }
 
     // Start console UI thread
