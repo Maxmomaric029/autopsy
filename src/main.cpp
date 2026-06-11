@@ -124,14 +124,35 @@ namespace
 std::int32_t main(std::int32_t argc, char** argv[])
 {
     // Load offsets with try-catch: remote fetch -> fallback to local file
-    try {
-        OffsetsManager::instance().load();
-    }
-    catch (...) {
-    }
+    {
+        bool ok = false;
+        try {
+            ok = OffsetsManager::instance().load();
+        }
+        catch (...) {
+        }
 
-    // Apply loaded offsets to the runtime offset:: namespace
-    offset::init();
+        // Debug: show offset loading status (before console init, use stderr)
+        fprintf(stderr, "[offsets] load(): %s\n", ok ? "SUCCESS" : "FAILED");
+        if (ok) {
+            fprintf(stderr, "[offsets] version: %s\n", OffsetsManager::instance().roblox_version().c_str());
+            fprintf(stderr, "[offsets] total: %d\n", OffsetsManager::instance().total_offsets());
+            fprintf(stderr, "[offsets] FakeDataModel.Ptr: %s\n", OffsetsManager::instance().get_hex_offset("FakeDataModel", "Pointer").c_str());
+            fprintf(stderr, "[offsets] VisualEngine.Ptr: %s\n", OffsetsManager::instance().get_hex_offset("VisualEngine", "Pointer").c_str());
+            fprintf(stderr, "[offsets] TaskScheduler.Ptr: %s\n", OffsetsManager::instance().get_hex_offset("TaskScheduler", "Pointer").c_str());
+        }
+
+        // Apply loaded offsets to the runtime offset:: namespace
+        fprintf(stderr, "[offsets] is_loaded before init(): %s\n",
+            OffsetsManager::instance().is_loaded() ? "YES" : "NO");
+        offset::init();
+        fprintf(stderr, "[offsets] after init() - fakemodel::Pointer = 0x%llX\n",
+            (unsigned long long)offset::fakemodel::Pointer);
+        fprintf(stderr, "[offsets] after init() - render::Pointer = 0x%llX\n",
+            (unsigned long long)offset::render::Pointer);
+        fprintf(stderr, "[offsets] after init() - task::Pointer = 0x%llX\n",
+            (unsigned long long)offset::task::Pointer);
+    }
 
     // Start console UI thread
     console::start();
