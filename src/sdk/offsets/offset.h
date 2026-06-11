@@ -619,27 +619,274 @@ inline void init();
     }
 
 // init() - populate runtime offsets from OffsetsManager (fallback to defaults)
+// NOTE: Endpoint uses Roblox internal class names (PascalCase) which may differ
+// from C++ namespace names. Use MAP() when names differ, TRY() when they match.
 inline void init() {
     auto& mgr = OffsetsManager::instance();
     if (!mgr.is_loaded()) return;
 
+    // TRY: endpoint class/field name matches C++ (case-insensitive)
 #define TRY(ns, field) do { auto v = mgr.get_offset(#ns, #field); if (v) offset::ns::field = v; } while(0)
+    // MAP: endpoint class/field name differs from C++
+#define MAP(ec, ef, ns, fld) do { auto v = mgr.get_offset(#ec, #ef); if (v) offset::ns::fld = v; } while(0)
 
-    TRY(air, AirDensity);
-    TRY(air, GlobalWind);
-    TRY(animation, Animation);
-    TRY(animation, animator);
-    TRY(animation, IsPlaying);
-    TRY(animation, Looped);
-    TRY(animation, Speed);
-    TRY(animation, TimePosition);
-    TRY(animator, ActiveAnimations);
+    // ===== FakeDataModel (C++: fakemodel) =====
+    MAP(FakeDataModel, Pointer, fakemodel, Pointer);
+    MAP(FakeDataModel, RealDataModel, fakemodel, RealDataModel);
+
+    // ===== VisualEngine (C++: render) =====
+    MAP(VisualEngine, Pointer, render, Pointer);
+    MAP(VisualEngine, Dimensions, render, Dimensions);
+    MAP(VisualEngine, ViewMatrix, render, ViewMatrix);
+    MAP(VisualEngine, FakeDataModel, render, fakemodel);
+    MAP(VisualEngine, RenderView, render, view);
+
+    // ===== RenderView (C++: view) =====
+    MAP(RenderView, DeviceD3D11, view, DeviceD3D11);
+    MAP(RenderView, LightingValid, view, LightingValid);
+    MAP(RenderView, SkyValid, view, SkyValid);
+    MAP(RenderView, VisualEngine, view, render);
+
+    // ===== RenderJob (C++: job) =====
+    MAP(RenderJob, FakeDataModel, job, fakemodel);
+    MAP(RenderJob, RealDataModel, job, RealDataModel);
+    MAP(RenderJob, RenderView, job, view);
+
+    // ===== TaskScheduler (C++: task) =====
+    MAP(TaskScheduler, Pointer, task, Pointer);
+    MAP(TaskScheduler, JobStart, task, JobStart);
+    MAP(TaskScheduler, JobEnd, task, JobEnd);
+    MAP(TaskScheduler, JobName, task, JobName);
+    MAP(TaskScheduler, MaxFPS, task, MaxFPS);
+
+    // ===== Lighting (C++: light) =====
+    MAP(Lighting, Ambient, light, Ambient);
+    MAP(Lighting, Brightness, light, Brightness);
+    MAP(Lighting, ClockTime, light, ClockTime);
+    MAP(Lighting, ColorShift_Bottom, light, ColorShift_Bottom);
+    MAP(Lighting, ColorShift_Top, light, ColorShift_Top);
+    MAP(Lighting, EnvironmentDiffuseScale, light, EnvironmentDiffuseScale);
+    MAP(Lighting, EnvironmentSpecularScale, light, EnvironmentSpecularScale);
+    MAP(Lighting, ExposureCompensation, light, ExposureCompensation);
+    MAP(Lighting, FogColor, light, FogColor);
+    MAP(Lighting, FogEnd, light, FogEnd);
+    MAP(Lighting, FogStart, light, FogStart);
+    MAP(Lighting, GeographicLatitude, light, GeographicLatitude);
+    MAP(Lighting, GlobalShadows, light, GlobalShadows);
+    MAP(Lighting, GradientBottom, light, GradientBottom);
+    MAP(Lighting, GradientTop, light, GradientTop);
+    MAP(Lighting, LightColor, light, LightColor);
+    MAP(Lighting, LightDirection, light, LightDirection);
+    MAP(Lighting, MoonPosition, light, MoonPosition);
+    MAP(Lighting, OutdoorAmbient, light, OutdoorAmbient);
+    MAP(Lighting, Sky, light, sky);
+    MAP(Lighting, Source, light, Source);
+    MAP(Lighting, SunPosition, light, SunPosition);
+
+    // ===== GuiObject (C++: gui) =====
+    MAP(GuiObject, ScreenGui_Enabled, gui, ScreenGui_Enabled);
+    MAP(GuiObject, Position, gui, Position);
+    MAP(GuiObject, Size, gui, Size);
+    MAP(GuiObject, Visible, gui, Visible);
+    MAP(GuiObject, Image, gui, Image);
+    MAP(GuiObject, Text, gui, text);
+    MAP(GuiObject, RichText, gui, RichText);
+    MAP(GuiObject, BackgroundColor3, gui, BackgroundColor3);
+    MAP(GuiObject, BorderColor3, gui, BorderColor3);
+    MAP(GuiObject, TextColor3, gui, TextColor3);
+    MAP(GuiObject, LayoutOrder, gui, LayoutOrder);
+    MAP(GuiObject, ZIndex, gui, ZIndex);
+    MAP(GuiObject, BackgroundTransparency, gui, BackgroundTransparency);
+    MAP(GuiObject, Rotation, gui, Rotation);
+
+    // ===== GuiBase2D (C++: gui2d) =====
+    MAP(GuiBase2D, AbsolutePosition, gui2d, AbsolutePosition);
+    MAP(GuiBase2D, AbsoluteRotation, gui2d, AbsoluteRotation);
+    MAP(GuiBase2D, AbsoluteSize, gui2d, AbsoluteSize);
+
+    // ===== AirProperties (C++: air) =====
+    MAP(AirProperties, AirDensity, air, AirDensity);
+    MAP(AirProperties, GlobalWind, air, GlobalWind);
+
+    // ===== AnimationTrack (C++: animation) =====
+    MAP(AnimationTrack, Animation, animation, Animation);
+    MAP(AnimationTrack, Animator, animation, animator);
+    MAP(AnimationTrack, IsPlaying, animation, IsPlaying);
+    MAP(AnimationTrack, Looped, animation, Looped);
+    MAP(AnimationTrack, Speed, animation, Speed);
+    MAP(AnimationTrack, TimePosition, animation, TimePosition);
+
+    // ===== UserInputService / WindowInputState (C++: input / inputstate) =====
+    MAP(UserInputService, WindowInputState, input, inputstate);
+    MAP(WindowInputState, CurrentTextBox, inputstate, CurrentTextBox);
+    MAP(WindowInputState, CapsLock, inputstate, CapsLock);
+
+    // ===== PlayerConfigurer (C++: playerconfig) =====
+    MAP(PlayerConfigurer, Pointer, playerconfig, Pointer);
+
+    // ===== PrimitiveFlags (C++: primitiveflag) =====
+    MAP(PrimitiveFlags, Anchored, primitiveflag, Anchored);
+    MAP(PrimitiveFlags, CanCollide, primitiveflag, CanCollide);
+    MAP(PrimitiveFlags, CanTouch, primitiveflag, CanTouch);
+    MAP(PrimitiveFlags, CanQuery, primitiveflag, CanQuery);
+
+    // ===== BloomEffect (C++: bloom) =====
+    MAP(BloomEffect, Intensity, bloom, Intensity);
+    MAP(BloomEffect, Size, bloom, Size);
+    MAP(BloomEffect, Threshold, bloom, Threshold);
+    MAP(BloomEffect, Enabled, bloom, Enabled);
+
+    // ===== BlurEffect (C++: blur) =====
+    MAP(BlurEffect, Size, blur, Size);
+    MAP(BlurEffect, Enabled, blur, Enabled);
+
+    // ===== ColorCorrectionEffect (C++: correction) =====
+    MAP(ColorCorrectionEffect, Brightness, correction, Brightness);
+    MAP(ColorCorrectionEffect, Contrast, correction, Contrast);
+    MAP(ColorCorrectionEffect, TintColor, correction, TintColor);
+    MAP(ColorCorrectionEffect, Enabled, correction, Enabled);
+
+    // ===== ColorGradingEffect (C++: grading) =====
+    MAP(ColorGradingEffect, TonemapperPreset, grading, TonemapperPreset);
+    MAP(ColorGradingEffect, Enabled, grading, Enabled);
+
+    // ===== DepthOfFieldEffect (C++: depth) =====
+    MAP(DepthOfFieldEffect, FarIntensity, depth, FarIntensity);
+    MAP(DepthOfFieldEffect, FocusDistance, depth, FocusDistance);
+    MAP(DepthOfFieldEffect, InFocusRadius, depth, InFocusRadius);
+    MAP(DepthOfFieldEffect, NearIntensity, depth, NearIntensity);
+    MAP(DepthOfFieldEffect, Enabled, depth, Enabled);
+
+    // ===== SunRaysEffect (C++: sunray) =====
+    MAP(SunRaysEffect, Intensity, sunray, Intensity);
+    MAP(SunRaysEffect, Spread, sunray, Spread);
+    MAP(SunRaysEffect, Enabled, sunray, Enabled);
+
+    // ===== ProximityPrompt (C++: prompt) =====
+    MAP(ProximityPrompt, ActionText, prompt, ActionText);
+    MAP(ProximityPrompt, ObjectText, prompt, ObjectText);
+    MAP(ProximityPrompt, HoldDuration, prompt, HoldDuration);
+    MAP(ProximityPrompt, MaxActivationDistance, prompt, MaxActivationDistance);
+    MAP(ProximityPrompt, KeyCode, prompt, KeyCode);
+    MAP(ProximityPrompt, GamepadKeyCode, prompt, GamepadKeyCode);
+    MAP(ProximityPrompt, Enabled, prompt, Enabled);
+    MAP(ProximityPrompt, RequiresLineOfSight, prompt, RequiresLineOfSight);
+
+    // ===== ClickDetector (C++: click) =====
+    MAP(ClickDetector, MaxActivationDistance, click, MaxActivationDistance);
+    MAP(ClickDetector, MouseIcon, click, MouseIcon);
+
+    // ===== DragDetector (C++: drag) =====
+    MAP(DragDetector, ReferenceInstance, drag, ReferenceInstance);
+    MAP(DragDetector, MaxActivationDistance, drag, MaxActivationDistance);
+    MAP(DragDetector, MaxDragAngle, drag, MaxDragAngle);
+    MAP(DragDetector, MaxDragTranslation, drag, MaxDragTranslation);
+    MAP(DragDetector, MinDragAngle, drag, MinDragAngle);
+    MAP(DragDetector, MinDragTranslation, drag, MinDragTranslation);
+    MAP(DragDetector, ActivatedCursorIcon, drag, ActivatedCursorIcon);
+    MAP(DragDetector, CursorIcon, drag, CursorIcon);
+    MAP(DragDetector, MaxForce, drag, MaxForce);
+    MAP(DragDetector, MaxTorque, drag, MaxTorque);
+    MAP(DragDetector, Responsiveness, drag, Responsiveness);
+
+    // ===== MaterialColors (C++: material) =====
+    MAP(MaterialColors, Asphalt, material, Asphalt);
+    MAP(MaterialColors, Basalt, material, Basalt);
+    MAP(MaterialColors, Brick, material, Brick);
+    MAP(MaterialColors, Cobblestone, material, Cobblestone);
+    MAP(MaterialColors, Concrete, material, Concrete);
+    MAP(MaterialColors, CrackedLava, material, CrackedLava);
+    MAP(MaterialColors, Glacier, material, Glacier);
+    MAP(MaterialColors, Grass, material, Grass);
+    MAP(MaterialColors, Ground, material, Ground);
+    MAP(MaterialColors, Ice, material, Ice);
+    MAP(MaterialColors, LeafyGrass, material, LeafyGrass);
+    MAP(MaterialColors, Limestone, material, Limestone);
+    MAP(MaterialColors, Mud, material, Mud);
+    MAP(MaterialColors, Pavement, material, Pavement);
+    MAP(MaterialColors, Rock, material, Rock);
+    MAP(MaterialColors, Salt, material, Salt);
+    MAP(MaterialColors, Sand, material, Sand);
+    MAP(MaterialColors, Sandstone, material, Sandstone);
+    MAP(MaterialColors, Slate, material, Slate);
+    MAP(MaterialColors, Snow, material, Snow);
+    MAP(MaterialColors, WoodPlanks, material, WoodPlanks);
+
+    // ===== MeshContentProvider (C++: meshprovider) =====
+    MAP(MeshContentProvider, AssetID, meshprovider, AssetID);
+    MAP(MeshContentProvider, Cache, meshprovider, cache);
+    MAP(MeshContentProvider, LRUCache, meshprovider, LRUCache);
+    MAP(MeshContentProvider, MeshData, meshprovider, meshdata);
+    MAP(MeshContentProvider, ToMeshData, meshprovider, ToMeshData);
+
+    // ===== ParticleEmitter (C++: particle) =====
+    MAP(ParticleEmitter, Acceleration, particle, Acceleration);
+    MAP(ParticleEmitter, Brightness, particle, Brightness);
+    MAP(ParticleEmitter, Drag, particle, Drag);
+    MAP(ParticleEmitter, Lifetime, particle, Lifetime);
+    MAP(ParticleEmitter, LightEmission, particle, LightEmission);
+    MAP(ParticleEmitter, LightInfluence, particle, LightInfluence);
+    MAP(ParticleEmitter, Rate, particle, Rate);
+    MAP(ParticleEmitter, RotSpeed, particle, RotSpeed);
+    MAP(ParticleEmitter, Rotation, particle, Rotation);
+    MAP(ParticleEmitter, Speed, particle, Speed);
+    MAP(ParticleEmitter, SpreadAngle, particle, SpreadAngle);
+    MAP(ParticleEmitter, Texture, particle, Texture);
+    MAP(ParticleEmitter, TimeScale, particle, TimeScale);
+    MAP(ParticleEmitter, VelocityInheritance, particle, VelocityInheritance);
+    MAP(ParticleEmitter, ZOffset, particle, ZOffset);
+
+    // ===== SpawnLocation (C++: spawn) =====
+    MAP(SpawnLocation, AllowTeamChangeOnTouch, spawn, AllowTeamChangeOnTouch);
+    MAP(SpawnLocation, Enabled, spawn, Enabled);
+    MAP(SpawnLocation, ForcefieldDuration, spawn, ForcefieldDuration);
+    MAP(SpawnLocation, Neutral, spawn, Neutral);
+    MAP(SpawnLocation, TeamColor, spawn, TeamColor);
+
+    // ===== SurfaceAppearance (C++: surface) =====
+    MAP(SurfaceAppearance, AlphaMode, surface, AlphaMode);
+    MAP(SurfaceAppearance, Color, surface, tocolor);
+    MAP(SurfaceAppearance, ColorMap, surface, ColorMap);
+    MAP(SurfaceAppearance, EmissiveMaskContent, surface, EmissiveMaskContent);
+    MAP(SurfaceAppearance, EmissiveStrength, surface, EmissiveStrength);
+    MAP(SurfaceAppearance, EmissiveTint, surface, EmissiveTint);
+    MAP(SurfaceAppearance, MetalnessMap, surface, MetalnessMap);
+    MAP(SurfaceAppearance, NormalMap, surface, NormalMap);
+    MAP(SurfaceAppearance, RoughnessMap, surface, RoughnessMap);
+
+    // ===== StatsItem (C++: stat) =====
+    MAP(StatsItem, Value, stat, Value);
+
+    // ===== VehicleSeat (C++: vehicle) =====
+    MAP(VehicleSeat, MaxSpeed, vehicle, MaxSpeed);
+    MAP(VehicleSeat, SteerFloat, vehicle, SteerFloat);
+    MAP(VehicleSeat, ThrottleFloat, vehicle, ThrottleFloat);
+    MAP(VehicleSeat, Torque, vehicle, Torque);
+    MAP(VehicleSeat, TurnSpeed, vehicle, TurnSpeed);
+
+    // ===== Textures (C++: texture) — NOT TRY, endpoint class is "Textures" not "Texture" =====
+    MAP(Textures, Decal_Texture, texture, Decal_Texture);
+    MAP(Textures, Texture_Texture, texture, Texture_Texture);
+
+    // ===== UnionOperation (C++: unionop) =====
+    MAP(UnionOperation, AssetId, unionop, AssetId);
+
+    // ===== CharacterMesh (C++: charmesh) =====
+    MAP(CharacterMesh, BaseTextureId, charmesh, BaseTextureId);
+    MAP(CharacterMesh, BodyPart, charmesh, BodyPart);
+    MAP(CharacterMesh, MeshId, charmesh, MeshId);
+    MAP(CharacterMesh, OverlayTextureId, charmesh, OverlayTextureId);
+
+    // ===== Atmosphere field mismatch: endpoint uses "Color" not "tocolor" =====
+    MAP(Atmosphere, Color, atmosphere, tocolor);
     TRY(atmosphere, Decay);
     TRY(atmosphere, Density);
     TRY(atmosphere, Glare);
     TRY(atmosphere, Haze);
     TRY(atmosphere, Offset);
-    TRY(atmosphere, tocolor);
+
+    // ===== Namespaces that match endpoint (case-insensitive) =====
+    TRY(animator, ActiveAnimations);
     TRY(attachment, Position);
     TRY(basepart, CastShadow);
     TRY(basepart, Color3);
@@ -662,12 +909,6 @@ inline void init() {
     TRY(beam, Width0);
     TRY(beam, Width1);
     TRY(beam, ZOffset);
-    TRY(bloom, Enabled);
-    TRY(bloom, Intensity);
-    TRY(bloom, Size);
-    TRY(bloom, Threshold);
-    TRY(blur, Enabled);
-    TRY(blur, Size);
     TRY(bytecode, Pointer);
     TRY(bytecode, Size);
     TRY(camera, CameraSubject);
@@ -678,18 +919,8 @@ inline void init() {
     TRY(camera, Rotation);
     TRY(camera, Viewport);
     TRY(camera, ViewportSize);
-    TRY(charmesh, BaseTextureId);
-    TRY(charmesh, BodyPart);
-    TRY(charmesh, MeshId);
-    TRY(charmesh, OverlayTextureId);
-    TRY(click, MaxActivationDistance);
-    TRY(click, MouseIcon);
     TRY(clothing, Color3);
     TRY(clothing, Template);
-    TRY(correction, Brightness);
-    TRY(correction, Contrast);
-    TRY(correction, Enabled);
-    TRY(correction, TintColor);
     TRY(datamodel, CreatorId);
     TRY(datamodel, GameId);
     TRY(datamodel, GameLoaded);
@@ -703,45 +934,6 @@ inline void init() {
     TRY(datamodel, ToRenderView2);
     TRY(datamodel, ToRenderView3);
     TRY(datamodel, workspace);
-    TRY(depth, Enabled);
-    TRY(depth, FarIntensity);
-    TRY(depth, FocusDistance);
-    TRY(depth, InFocusRadius);
-    TRY(depth, NearIntensity);
-    TRY(drag, ActivatedCursorIcon);
-    TRY(drag, CursorIcon);
-    TRY(drag, MaxActivationDistance);
-    TRY(drag, MaxDragAngle);
-    TRY(drag, MaxDragTranslation);
-    TRY(drag, MaxForce);
-    TRY(drag, MaxTorque);
-    TRY(drag, MinDragAngle);
-    TRY(drag, MinDragTranslation);
-    TRY(drag, ReferenceInstance);
-    TRY(drag, Responsiveness);
-    TRY(fakemodel, Pointer);
-    TRY(fakemodel, RealDataModel);
-    TRY(flag, List);
-    TRY(flag, ToValueGetSet);
-    TRY(grading, Enabled);
-    TRY(grading, TonemapperPreset);
-    TRY(gui, BackgroundColor3);
-    TRY(gui, BackgroundTransparency);
-    TRY(gui, BorderColor3);
-    TRY(gui, Image);
-    TRY(gui, LayoutOrder);
-    TRY(gui, Position);
-    TRY(gui, RichText);
-    TRY(gui, Rotation);
-    TRY(gui, ScreenGui_Enabled);
-    TRY(gui, Size);
-    TRY(gui, text);
-    TRY(gui, TextColor3);
-    TRY(gui, Visible);
-    TRY(gui, ZIndex);
-    TRY(gui2d, AbsolutePosition);
-    TRY(gui2d, AbsoluteRotation);
-    TRY(gui2d, AbsoluteSize);
     TRY(humanoid, AutoJumpEnabled);
     TRY(humanoid, AutoRotate);
     TRY(humanoid, AutomaticScalingEnabled);
@@ -780,9 +972,6 @@ inline void init() {
     TRY(humanoid, WalkTimer);
     TRY(humanoid, walkspeed);
     TRY(humanoid, WalkspeedCheck);
-    TRY(input, inputstate);
-    TRY(inputstate, CapsLock);
-    TRY(inputstate, CurrentTextBox);
     TRY(instance, AttributeContainer);
     TRY(instance, AttributeList);
     TRY(instance, AttributeToNext);
@@ -795,66 +984,15 @@ inline void init() {
     TRY(instance, name);
     TRY(instance, parent);
     TRY(instance, This);
-    TRY(job, fakemodel);
-    TRY(job, RealDataModel);
-    TRY(job, view);
-    TRY(light, Ambient);
-    TRY(light, Brightness);
-    TRY(light, ClockTime);
-    TRY(light, ColorShift_Bottom);
-    TRY(light, ColorShift_Top);
-    TRY(light, EnvironmentDiffuseScale);
-    TRY(light, EnvironmentSpecularScale);
-    TRY(light, ExposureCompensation);
-    TRY(light, FogColor);
-    TRY(light, FogEnd);
-    TRY(light, FogStart);
-    TRY(light, GeographicLatitude);
-    TRY(light, GlobalShadows);
-    TRY(light, GradientBottom);
-    TRY(light, GradientTop);
-    TRY(light, LightColor);
-    TRY(light, LightDirection);
-    TRY(light, MoonPosition);
-    TRY(light, OutdoorAmbient);
-    TRY(light, sky);
-    TRY(light, Source);
-    TRY(light, SunPosition);
     TRY(localscript, GUID);
     TRY(localscript, Hash);
     TRY(localscript, bytecode);
-    TRY(material, Asphalt);
-    TRY(material, Basalt);
-    TRY(material, Brick);
-    TRY(material, Cobblestone);
-    TRY(material, Concrete);
-    TRY(material, CrackedLava);
-    TRY(material, Glacier);
-    TRY(material, Grass);
-    TRY(material, Ground);
-    TRY(material, Ice);
-    TRY(material, LeafyGrass);
-    TRY(material, Limestone);
-    TRY(material, Mud);
-    TRY(material, Pavement);
-    TRY(material, Rock);
-    TRY(material, Salt);
-    TRY(material, Sand);
-    TRY(material, Sandstone);
-    TRY(material, Slate);
-    TRY(material, Snow);
-    TRY(material, WoodPlanks);
     TRY(meshdata, FaceEnd);
     TRY(meshdata, FaceStart);
     TRY(meshdata, VertexEnd);
     TRY(meshdata, VertexStart);
     TRY(meshpart, MeshId);
     TRY(meshpart, Texture);
-    TRY(meshprovider, AssetID);
-    TRY(meshprovider, cache);
-    TRY(meshprovider, LRUCache);
-    TRY(meshprovider, meshdata);
-    TRY(meshprovider, ToMeshData);
     TRY(misc, Adornee);
     TRY(misc, AnimationId);
     TRY(misc, StringLength);
@@ -869,21 +1007,6 @@ inline void init() {
     TRY(mouseservice, InputObject2);
     TRY(mouseservice, MousePosition);
     TRY(mouseservice, SensitivityPointer);
-    TRY(particle, Acceleration);
-    TRY(particle, Brightness);
-    TRY(particle, Drag);
-    TRY(particle, Lifetime);
-    TRY(particle, LightEmission);
-    TRY(particle, LightInfluence);
-    TRY(particle, Rate);
-    TRY(particle, RotSpeed);
-    TRY(particle, Rotation);
-    TRY(particle, Speed);
-    TRY(particle, SpreadAngle);
-    TRY(particle, Texture);
-    TRY(particle, TimeScale);
-    TRY(particle, VelocityInheritance);
-    TRY(particle, ZOffset);
     TRY(player, AccountAge);
     TRY(player, CameraMode);
     TRY(player, DisplayName);
@@ -898,7 +1021,6 @@ inline void init() {
     TRY(player, team);
     TRY(player, TeamColor);
     TRY(player, UserId);
-    TRY(playerconfig, Pointer);
     TRY(playermouse, icon);
     TRY(playermouse, workspace);
     TRY(primitive, AssemblyAngularVelocity);
@@ -910,39 +1032,14 @@ inline void init() {
     TRY(primitive, Rotation);
     TRY(primitive, Size);
     TRY(primitive, Validate);
-    TRY(primitiveflag, Anchored);
-    TRY(primitiveflag, CanCollide);
-    TRY(primitiveflag, CanQuery);
-    TRY(primitiveflag, CanTouch);
-    TRY(prompt, ActionText);
-    TRY(prompt, Enabled);
-    TRY(prompt, GamepadKeyCode);
-    TRY(prompt, HoldDuration);
-    TRY(prompt, KeyCode);
-    TRY(prompt, MaxActivationDistance);
-    TRY(prompt, ObjectText);
-    TRY(prompt, RequiresLineOfSight);
-    TRY(render, Dimensions);
-    TRY(render, fakemodel);
-    TRY(render, Pointer);
-    TRY(render, view);
-    TRY(render, ViewMatrix);
-    TRY(run, HeartbeatFPS);
-    TRY(run, HeartbeatTask);
+    // ===== RunService (C++: run) — NOT TRY, endpoint class is "RunService" not "run" =====
+    MAP(RunService, HeartbeatFPS, run, HeartbeatFPS);
+    MAP(RunService, HeartbeatTask, run, HeartbeatTask);
     TRY(script, GUID);
     TRY(script, Hash);
     TRY(script, bytecode);
     TRY(scriptcontext, RequireBypass);
     TRY(seat, Occupant);
-    TRY(silent, FramePositionOffsetX);
-    TRY(silent, FramePositionOffsetY);
-    TRY(silent, FramePositionX);
-    TRY(silent, FramePositionY);
-    TRY(silent, FrameRotation);
-    TRY(silent, FrameSizeOffsetX);
-    TRY(silent, FrameSizeOffsetY);
-    TRY(silent, FrameSizeX);
-    TRY(silent, FrameSizeY);
     TRY(sky, MoonAngularSize);
     TRY(sky, MoonTextureId);
     TRY(sky, SkyboxBk);
@@ -963,31 +1060,8 @@ inline void init() {
     TRY(sound, SoundGroup);
     TRY(sound, SoundId);
     TRY(sound, Volume);
-    TRY(spawn, AllowTeamChangeOnTouch);
-    TRY(spawn, Enabled);
-    TRY(spawn, ForcefieldDuration);
-    TRY(spawn, Neutral);
-    TRY(spawn, TeamColor);
     TRY(specialmesh, MeshId);
     TRY(specialmesh, Scale);
-    TRY(stat, Value);
-    TRY(sunray, Enabled);
-    TRY(sunray, Intensity);
-    TRY(sunray, Spread);
-    TRY(surface, AlphaMode);
-    TRY(surface, ColorMap);
-    TRY(surface, EmissiveMaskContent);
-    TRY(surface, EmissiveStrength);
-    TRY(surface, EmissiveTint);
-    TRY(surface, MetalnessMap);
-    TRY(surface, NormalMap);
-    TRY(surface, RoughnessMap);
-    TRY(surface, tocolor);
-    TRY(task, JobEnd);
-    TRY(task, JobName);
-    TRY(task, JobStart);
-    TRY(task, MaxFPS);
-    TRY(task, Pointer);
     TRY(team, BrickColor);
     TRY(terrain, GrassLength);
     TRY(terrain, material);
@@ -996,8 +1070,6 @@ inline void init() {
     TRY(terrain, WaterTransparency);
     TRY(terrain, WaterWaveSize);
     TRY(terrain, WaterWaveSpeed);
-    TRY(texture, Decal_Texture);
-    TRY(texture, Texture_Texture);
     TRY(tool, CanBeDropped);
     TRY(tool, Enabled);
     TRY(tool, Grip);
@@ -1005,28 +1077,23 @@ inline void init() {
     TRY(tool, RequiresHandle);
     TRY(tool, TextureId);
     TRY(tool, Tooltip);
-    TRY(unionop, AssetId);
     TRY(value, ToValue);
-    TRY(vehicle, MaxSpeed);
-    TRY(vehicle, SteerFloat);
-    TRY(vehicle, ThrottleFloat);
-    TRY(vehicle, Torque);
-    TRY(vehicle, TurnSpeed);
-    TRY(view, DeviceD3D11);
-    TRY(view, LightingValid);
-    TRY(view, render);
-    TRY(view, SkyValid);
     TRY(workspace, CurrentCamera);
     TRY(workspace, DistributedGameTime);
     TRY(workspace, ReadOnlyGravity);
     TRY(workspace, world);
-    TRY(world, air);
     TRY(world, FallenPartsDestroyHeight);
     TRY(world, Gravity);
     TRY(world, GravityOverride);
     TRY(world, Primitives);
     TRY(world, worldStepsPerSec);
+    MAP(World, AirProperties, world, air);
 
+    // ===== Not in endpoint: silent, flag — use hardcoded defaults =====
+    // silent: custom offsets, not part of standard Roblox dumper
+    // flag: custom pointer chain, not part of standard Roblox dumper
+
+#undef MAP
 #undef TRY
 }
 
