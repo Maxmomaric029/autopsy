@@ -102,21 +102,26 @@ bool graphic::window() {
     Detail->WindowClass.lpfnWndProc = wndproc;
     RegisterClassExA(&Detail->WindowClass);
 
-    // NOTE: We intentionally do NOT use WS_EX_LAYERED here because it conflicts
-    // with DwmExtendFrameIntoClientArea. DWM composition provides per-pixel alpha
-    // via the swapchain clear color {0,0,0,0} — no layered window attributes needed.
+    // NOTE: We include WS_EX_LAYERED for stable per-pixel alpha across all Windows
+    // configurations. SetLayeredWindowAttributes(LWA_ALPHA) tells the DWM to use the
+    // swapchain's alpha channel for transparency. This avoids black screen issues on
+    // OBS/Discord captures that occur without the layered style.
     Detail->Window = CreateWindowExA(
-        WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW,
+        WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_LAYERED,
         Detail->WindowClass.lpszClassName, "miserable.lol", WS_POPUP,
         0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN),
         0, 0, Detail->WindowClass.hInstance, 0);
 
     if (!Detail->Window) return false;
 
+    // Set layered window attributes for per-pixel alpha via the swapchain.
+    // LWA_ALPHA tells DWM to use the DirectX swapchain's alpha channel
+    // for transparency. This is compatible with DwmExtendFrameIntoClientArea.
+    SetLayeredWindowAttributes(Detail->Window, RGB(0, 0, 0), 255, LWA_ALPHA);
+
     // Use DWM composition for per-pixel alpha transparency.
     // DwmExtendFrameIntoClientArea with MARGINS{-1} enables proper alpha blending
-    // on Win10/11. This replaces the old SetLayeredWindowAttributes(LWA_COLORKEY)
-    // which is incompatible with DXGI_SWAP_EFFECT_FLIP_DISCARD.
+    // on Win10/11. This works alongside WS_EX_LAYERED + LWA_ALPHA.
     MARGINS margins = { -1, -1, -1, -1 };
     HRESULT dwmResult = DwmExtendFrameIntoClientArea(Detail->Window, &margins);
     if (FAILED(dwmResult)) {

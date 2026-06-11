@@ -42,10 +42,17 @@ namespace anim {
             // Read/update current entry FIRST
             float& v = values[id];
             v = damp(v, on ? 1.f : 0.f, speed);
-            // Save a copy BEFORE pruning — the pruning loop may erase this entry
-            // causing a dangling reference on `return v` (UB).
-            float result = v;
-            // Prune settled entries if cache exceeds 512 (F1.8)
+            return v;
+        }
+
+        // Prune settled entries — call once per frame instead of inside get()
+        // to avoid O(N) overhead on every individual animation access.
+        void prune() {
+            static double lastPrune = 0.0;
+            double now = ImGui::GetTime();
+            if (now - lastPrune < 5.0) return; // limit to once per 5 seconds
+            lastPrune = now;
+
             if (values.size() > 512) {
                 for (auto it = values.begin(); it != values.end(); ) {
                     if (it->second == 0.f || it->second == 1.f)
@@ -54,7 +61,6 @@ namespace anim {
                         ++it;
                 }
             }
-            return result;
         }
 
         float get_hover(ImGuiID id, float speed = 9.f) {

@@ -184,11 +184,42 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
         DispatchMessage(&Msg);
     }
 
-    // ---- Streamproof ----
+    // ---- Streamproof with Windows version check ----
+    // WDA_EXCLUDEFROMCAPTURE requires Windows 10 2004 (build 19041+).
+    // On older builds it degrades to WDA_MONITOR which causes black screen in OBS/Discord.
+    // We use a local struct definition to avoid depending on <winternl.h>.
+    static bool streamproofChecked = false;
+    static bool streamproofSupported = true;
+    if (!streamproofChecked) {
+        HMODULE ntDll = GetModuleHandleA("ntdll");
+        if (ntDll) {
+            struct OSVersionInfo {
+                ULONG dwOSVersionInfoSize;
+                ULONG dwMajorVersion;
+                ULONG dwMinorVersion;
+                ULONG dwBuildNumber;
+                ULONG dwPlatformId;
+                WCHAR szCSDVersion[128];
+            };
+            using RtlGetVersionFn = LONG(WINAPI*)(OSVersionInfo*);
+            auto rtlGetVersion = (RtlGetVersionFn)GetProcAddress(ntDll, "RtlGetVersion");
+            if (rtlGetVersion) {
+                OSVersionInfo osvi = {};
+                osvi.dwOSVersionInfoSize = sizeof(osvi);
+                if (rtlGetVersion(&osvi) == 0) {
+                    // Build 19041 = Windows 10 2004
+                    if (osvi.dwBuildNumber < 19041)
+                        streamproofSupported = false;
+                }
+            }
+        }
+        streamproofChecked = true;
+    }
+
     static bool lastStreamproof = !global::setting::Streamproof;
     if (lastStreamproof != global::setting::Streamproof) {
         SetWindowDisplayAffinity(overlayWindow,
-            global::setting::Streamproof ? WDA_EXCLUDEFROMCAPTURE : WDA_NONE);
+            (global::setting::Streamproof && streamproofSupported) ? WDA_EXCLUDEFROMCAPTURE : WDA_NONE);
         lastStreamproof = global::setting::Streamproof;
     }
 
@@ -197,35 +228,32 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    // ---- Menu toggle (Insert key) with cached FindWindowA (F1.3) ----
-    // Cache Roblox HWND — refresh only every 1.0s to avoid per-frame FindWindowA cost
-    static HWND cachedRoblox = nullptr;
-    static double lastRobloxRefresh = 0.0;
-    double now = ImGui::GetTime();
-    if (now - lastRobloxRefresh >= 1.0) {
-        // Only re-validate if the cached handle exists and is valid
-        if (!cachedRoblox || !IsWindow(cachedRoblox))
-            cachedRoblox = FindWindowA(0, "Roblox");
-        lastRobloxRefresh = now;
-    }
-
+    // ---- Menu toggle with PID-based window detection ----
+    // Uses the process ID from the memory driver instead of FindWindowA.
+    // This is faster, avoids string-based window lookups, and prevents
+    // false positives from windows titled "Roblox" (e.g. browser tabs).
+    uint32_t targetPid = drive->processid();
     HWND fg = GetForegroundWindow();
+    DWORD fgPid = 0;
+    GetWindowThreadProcessId(fg, &fgPid);
+
     static double lastToggle = -1.0;
+    double now = ImGui::GetTime();
     int menuVk = menukey(global::setting::Menu_Key);
     // Early-out: only check the key if menuVk != 0
     if (menuVk != 0) {
-        // Check key first (cheap), then foreground (more expensive)
+        // Check key first (cheap), then foreground PID (fast, no string)
         if ((GetAsyncKeyState(menuVk) & 1) &&
-            (fg == cachedRoblox || fg == overlayWindow) &&
+            (fgPid == targetPid || fg == overlayWindow) &&
             now - lastToggle >= .18) {
             lastToggle = now;
             Toggle();
-            // NOTE: No WS_EX_LAYERED here! DWM composition handles transparency.
-            LONG exStyle = WS_EX_TOOLWINDOW | WS_EX_TOPMOST;
+            // Preserve WS_EX_LAYERED to maintain per-pixel alpha at all times!
+            LONG exStyle = WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_LAYERED;
             if (!m_open) exStyle |= WS_EX_TRANSPARENT;
             SetWindowLong(overlayWindow, GWL_EXSTYLE, exStyle);
             // Must call SetWindowPos with SWP_FRAMECHANGED after SetWindowLong
-            // for the style change to take effect and preserve DWM composition.
+            // for the style change to take effect.
             SetWindowPos(overlayWindow, NULL, 0, 0, 0, 0,
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
         }
@@ -268,6 +296,9 @@ namespace {
 // RenderMenu — Config menu (F1.4: no scanlines, no vignette, 2-layer shadow)
 // ========================================================================
 void ModernUI::RenderMenu() {
+    // Prune settled animation entries once per frame (not inside get() calls)
+    anim::g_anim.prune();
+
     static float menuT = 0.f;
     menuT = anim::damp(menuT, m_open ? 1.f : 0.f, m_open ? 8.5f : 7.2f);
     if (!m_open && menuT <= .01f) return;

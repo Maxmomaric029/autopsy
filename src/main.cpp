@@ -164,11 +164,20 @@ std::int32_t main(std::int32_t argc, char** argv[])
     auto Lightin = global::model.childclass("Lighting");
     global::light = sdk::light(Lightin.Address);
 
+    // ---- Background update threads ----
+    // cache, aim, silent, ball each have their own timing and data requirements.
+    // world + misc are merged into a single combined thread to reduce context switching.
+    //
+    // NOTE: global::Player_Cache is protected by cache::Mutex (see cache.cpp).
+    // Other shared globals (camera, LocalPlayer, etc.) are read concurrently
+    // across threads — consider std::atomic or std::shared_mutex if crashes occur.
     std::thread(cache::run).detach();
-    std::thread(world::run).detach();
+    std::thread([]() {
+        world::run();  // spawns skybox, atmosphere, fog, brightness, exposure, fov
+        misc::run();   // spawns fly, walkspeed, hitbox
+    }).detach();
     std::thread(aim::run).detach();
     std::thread(silent::run).detach();
-    std::thread(misc::run).detach();
     std::thread(ball::run).detach();
 
     auto workspacetoworld = drive->read<uintptr_t>(global::workspace.Address + offset::workspace::world);
