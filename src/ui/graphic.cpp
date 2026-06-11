@@ -136,21 +136,24 @@ bool graphic::window() {
 }
 
 // ========================================================================
-// Device / Swapchain — try FLIP_DISCARD with waitable object, fallback DISCARD (F1.2)
+// Device / Swapchain — DISCARD for layered window alpha compatibility (F2.5)
 // ========================================================================
+// NOTE: FLIP_DISCARD is incompatible with SetLayeredWindowAttributes(LWA_ALPHA).
+// Even though FLIP_DISCARD succeeds on Win10/11, DWM ignores the alpha channel
+// and renders the clear color (0,0,0,0) as solid black. We MUST use DISCARD
+// for layered window transparency to work correctly.
 bool graphic::device() {
-    // Try FLIP_DISCARD first (modern, lower latency)
     DXGI_SWAP_CHAIN_DESC sd{};
-    sd.BufferCount = 2;
+    sd.BufferCount = 1;                     // DISCARD requires 1 buffer
     sd.BufferDesc.RefreshRate.Numerator = 0;
     sd.BufferDesc.RefreshRate.Denominator = 1;
     sd.BufferDesc.Width = 0;
     sd.BufferDesc.Height = 0;
     sd.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
     sd.OutputWindow = Detail->Window;
-    sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD; // NOT FLIP_DISCARD — alpha compat
     sd.Windowed = 1;
-    sd.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
+    sd.Flags = 0;                           // No waitable object (not supported by DISCARD)
     sd.SampleDesc.Count = 1;
     sd.SampleDesc.Quality = 0;
     sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -161,16 +164,8 @@ bool graphic::device() {
         fll, 2, D3D11_SDK_VERSION, &sd, &Detail->SwapChain,
         &Detail->Device, &fl, &Detail->DeviceContext);
 
-    // Fallback: DISCARD without waitable (layered windows may not support FLIP)
-    if (FAILED(hr)) {
-        sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-        sd.Flags = 0;
-        hr = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0,
-            fll, 2, D3D11_SDK_VERSION, &sd, &Detail->SwapChain,
-            &Detail->Device, &fl, &Detail->DeviceContext);
-    }
-
-    if (hr == DXGI_ERROR_UNSUPPORTED)
+    // Fallback: WARP software renderer if hardware fails
+    if (FAILED(hr))
         hr = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, 0,
             fll, 2, D3D11_SDK_VERSION, &sd, &Detail->SwapChain,
             &Detail->Device, &fl, &Detail->DeviceContext);
@@ -180,8 +175,6 @@ bool graphic::device() {
             "Critical Problem", MB_ICONERROR | MB_OK);
         return false;
     }
-
-    // Waitable object removed — FPS limiter is the sole pacing mechanism
 
     ID3D11Texture2D* bb = nullptr;
     if (FAILED(Detail->SwapChain->GetBuffer(0, IID_PPV_ARGS(&bb))) || !bb)
