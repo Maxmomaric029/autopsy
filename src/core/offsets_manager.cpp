@@ -131,62 +131,75 @@ void OffsetsManager::write_file(const std::string& path, const std::string& cont
 bool OffsetsManager::load() {
     // Debug file (append)
     FILE* dbg = fopen("offsets_debug.txt", "a");
-    auto d = [dbg](const char* fmt, auto... args) {
-        if (dbg) fprintf(dbg, fmt, args...);
-        fprintf(stderr, fmt, args...);
-    };
 
     try {
-        d("[offsets] step1: fetch_live_version...\n");
+        if (dbg) fprintf(dbg, "[offsets] step1: fetch_live_version...\n");
+        fprintf(stderr, "[offsets] step1: fetch_live_version...\n");
         // 1. Get live version
         std::string liveVersion = fetch_live_version();
-        d("[offsets] live version: '%s'\n", liveVersion.c_str());
+        if (dbg) fprintf(dbg, "[offsets] live version: '%s'\n", liveVersion.c_str());
+        fprintf(stderr, "[offsets] live version: '%s'\n", liveVersion.c_str());
 
         // 2. Read cached version from disk
         std::string cachedVersion = read_file(VERSION_FILE);
         // Trim whitespace
         while (!cachedVersion.empty() && (cachedVersion.back() == '\n' || cachedVersion.back() == '\r' || cachedVersion.back() == ' '))
             cachedVersion.pop_back();
-        d("[offsets] cached version: '%s'\n", cachedVersion.empty() ? "(none)" : cachedVersion.c_str());
+        if (dbg) fprintf(dbg, "[offsets] cached version: '%s'\n", cachedVersion.empty() ? "(none)" : cachedVersion.c_str());
+        fprintf(stderr, "[offsets] cached version: '%s'\n", cachedVersion.empty() ? "(none)" : cachedVersion.c_str());
 
         // 3. Check if offsets.json exists on disk
         char fullPath[MAX_PATH] = {};
         GetFullPathNameA(OFFSETS_FILE, sizeof(fullPath), fullPath, nullptr);
         bool offsetsExist = std::filesystem::exists(OFFSETS_FILE);
-        d("[offsets] offsets.json path: %s\n", fullPath);
-        d("[offsets] exists: %s | version match: %s\n",
+        if (dbg) fprintf(dbg, "[offsets] offsets.json path: %s\n", fullPath);
+        fprintf(stderr, "[offsets] offsets.json path: %s\n", fullPath);
+        if (dbg) fprintf(dbg, "[offsets] exists: %s | version match: %s\n",
+            offsetsExist ? "YES" : "NO",
+            (liveVersion == cachedVersion) ? "YES" : "NO");
+        fprintf(stderr, "[offsets] exists: %s | version match: %s\n",
             offsetsExist ? "YES" : "NO",
             (liveVersion == cachedVersion) ? "YES" : "NO");
 
         // 4. Download only if version changed or no cache
         if (liveVersion != cachedVersion || !offsetsExist) {
-            d("[offsets] step2: fetch_offsets_json...\n");
+            if (dbg) fprintf(dbg, "[offsets] step2: fetch_offsets_json...\n");
+            fprintf(stderr, "[offsets] step2: fetch_offsets_json...\n");
             std::string jsonBody = fetch_offsets_json();
-            d("[offsets] downloaded %zu bytes\n", jsonBody.size());
+            if (dbg) fprintf(dbg, "[offsets] downloaded %zu bytes\n", jsonBody.size());
+            fprintf(stderr, "[offsets] downloaded %zu bytes\n", jsonBody.size());
             write_file(OFFSETS_FILE, jsonBody);
             write_file(VERSION_FILE, liveVersion);
-            d("[offsets] saved to disk\n");
+            if (dbg) fprintf(dbg, "[offsets] saved to disk\n");
+            fprintf(stderr, "[offsets] saved to disk\n");
         }
 
         // 5. Load and parse the JSON
-        d("[offsets] step3: read offsets.json...\n");
+        if (dbg) fprintf(dbg, "[offsets] step3: read offsets.json...\n");
+        fprintf(stderr, "[offsets] step3: read offsets.json...\n");
         std::string jsonStr = read_file(OFFSETS_FILE);
-        d("[offsets] read %zu bytes\n", jsonStr.size());
+        if (dbg) fprintf(dbg, "[offsets] read %zu bytes\n", jsonStr.size());
+        fprintf(stderr, "[offsets] read %zu bytes\n", jsonStr.size());
         if (jsonStr.empty()) {
-            d("[offsets] FATAL: offsets.json is empty\n");
+            if (dbg) fprintf(dbg, "[offsets] FATAL: offsets.json is empty\n");
+            fprintf(stderr, "[offsets] FATAL: offsets.json is empty\n");
             if (dbg) fclose(dbg);
             return false;
         }
 
-        d("[offsets] step4: json::parse...\n");
+        if (dbg) fprintf(dbg, "[offsets] step4: json::parse...\n");
+        fprintf(stderr, "[offsets] step4: json::parse...\n");
         auto data = json::parse(jsonStr);
-        d("[offsets] step5: parse_json...\n");
+        if (dbg) fprintf(dbg, "[offsets] step5: parse_json...\n");
+        fprintf(stderr, "[offsets] step5: parse_json...\n");
         bool parsed = parse_json(data);
-        d("[offsets] parse_json: %s\n", parsed ? "SUCCESS" : "FAILED");
+        if (dbg) fprintf(dbg, "[offsets] parse_json: %s\n", parsed ? "SUCCESS" : "FAILED");
+        fprintf(stderr, "[offsets] parse_json: %s\n", parsed ? "SUCCESS" : "FAILED");
 
         if (parsed) {
             loaded_ = true;
-            d("[offsets] loaded %d offsets, version=%s\n", total_offsets_, roblox_version_.c_str());
+            if (dbg) fprintf(dbg, "[offsets] loaded %d offsets, version=%s\n", total_offsets_, roblox_version_.c_str());
+            fprintf(stderr, "[offsets] loaded %d offsets, version=%s\n", total_offsets_, roblox_version_.c_str());
         }
 
         if (dbg) fclose(dbg);
@@ -195,28 +208,34 @@ bool OffsetsManager::load() {
     }
     catch (const std::exception& e) {
         if (!dbg) dbg = fopen("offsets_debug.txt", "a");
-        fprintf(dbg, "[offsets] EXCEPTION: %s\n", e.what());
+        if (dbg) fprintf(dbg, "[offsets] EXCEPTION: %s\n", e.what());
         fprintf(stderr, "[offsets] EXCEPTION: %s\n", e.what());
         // Fallback: try loading whatever is on disk
-        fprintf(dbg, "[offsets] fallback: trying disk cache...\n");
+        if (dbg) fprintf(dbg, "[offsets] fallback: trying disk cache...\n");
+        fprintf(stderr, "[offsets] fallback: trying disk cache...\n");
         std::string jsonStr = read_file(OFFSETS_FILE);
         if (!jsonStr.empty()) {
-            fprintf(dbg, "[offsets] fallback: found %zu bytes\n", jsonStr.size());
+            if (dbg) fprintf(dbg, "[offsets] fallback: found %zu bytes\n", jsonStr.size());
+            fprintf(stderr, "[offsets] fallback: found %zu bytes\n", jsonStr.size());
             try {
                 auto data = json::parse(jsonStr);
                 if (parse_json(data)) {
                     loaded_ = true;
-                    fprintf(dbg, "[offsets] fallback: SUCCESS (%d offsets)\n", total_offsets_);
+                    if (dbg) fprintf(dbg, "[offsets] fallback: SUCCESS (%d offsets)\n", total_offsets_);
+                    fprintf(stderr, "[offsets] fallback: SUCCESS (%d offsets)\n", total_offsets_);
                     if (dbg) fclose(dbg);
                     return true;
                 }
-                fprintf(dbg, "[offsets] fallback: parse_json failed\n");
+                if (dbg) fprintf(dbg, "[offsets] fallback: parse_json failed\n");
+                fprintf(stderr, "[offsets] fallback: parse_json failed\n");
             }
             catch (const std::exception& e2) {
-                fprintf(dbg, "[offsets] fallback exception: %s\n", e2.what());
+                if (dbg) fprintf(dbg, "[offsets] fallback exception: %s\n", e2.what());
+                fprintf(stderr, "[offsets] fallback exception: %s\n", e2.what());
             }
         } else {
-            fprintf(dbg, "[offsets] fallback: no offsets.json on disk\n");
+            if (dbg) fprintf(dbg, "[offsets] fallback: no offsets.json on disk\n");
+            fprintf(stderr, "[offsets] fallback: no offsets.json on disk\n");
         }
 
         if (dbg) fclose(dbg);
