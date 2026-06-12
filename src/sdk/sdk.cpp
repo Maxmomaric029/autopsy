@@ -212,11 +212,9 @@ namespace sdk {
 
     // ---- part ----
 
-    struct RawPrimitive {
+    struct RawRotPos {
         matrix3 rot;
         vector3 pos;
-        float pad;
-        vector3 sz;
     };
 
     bool part::get_primitive_data(primitive_data& out) const {
@@ -225,10 +223,10 @@ namespace sdk {
         if (!prim) {
             prim = Address;
         }
-        RawPrimitive raw = drive->read<RawPrimitive>(prim + offset::primitive::Rotation);
-        out.rotation = raw.rot;
-        out.position = raw.pos;
-        out.size = raw.sz;
+        RawRotPos rotpos = drive->read<RawRotPos>(prim + offset::primitive::Rotation);
+        out.rotation = rotpos.rot;
+        out.position = rotpos.pos;
+        out.size = drive->read<vector3>(prim + offset::primitive::Size);
         return true;
     }
 
