@@ -19,130 +19,98 @@ namespace world {
 
     void skybox() {
 
+        static int lastType = -1;
+        static bool lastEnabled = false;
+
         while (true)
         {
             try {
-            if (global::world::Skybox)
+            // Safety: verify light address is valid
+            if (!global::light.Address) { std::this_thread::sleep_for(std::chrono::milliseconds(200)); continue; }
+
+            // Only write skybox strings when type CHANGES, not every frame
+            bool needsUpdate = (global::world::Skybox != lastEnabled) ||
+                               (global::world::Skybox && global::world::Skybox_Type != lastType);
+
+            if (global::world::Skybox && global::light.Address)
             {
-                // Safety: verify light address is valid
-                if (!global::light.Address) { std::this_thread::sleep_for(std::chrono::milliseconds(100)); continue; }
-                auto sky = global::light.child("Sky");
+                // Wrap ALL Sky operations in a nested try/catch for safety
+                sdk::instance sky;
+                try {
+                    sky = global::light.child("Sky");
+                    if (!sky.Address || sky.Address == 0xFFFFFFFFFFFFFFFF)
+                        sky = global::light.childclass("Sky");
+                } catch (...) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                    continue;
+                }
 
-                if (sky.Address)
+                // Verify Sky address is valid before any read/write
+                if (!sky.Address || sky.Address == 0xFFFFFFFFFFFFFFFF)
                 {
-                    if (global::world::Skybox_Type == 0)
-                    {
-                        drive->writestring(sky.Address + offset::sky::SkyboxBk, "rbxassetid://12635309703");
-                        drive->writestring(sky.Address + offset::sky::SkyboxDn, "rbxassetid://12635311686");
-                        drive->writestring(sky.Address + offset::sky::SkyboxFt, "rbxassetid://12635312870");
-                        drive->writestring(sky.Address + offset::sky::SkyboxLf, "rbxassetid://12635313718");
-                        drive->writestring(sky.Address + offset::sky::SkyboxRt, "rbxassetid://12635315817");
-                        drive->writestring(sky.Address + offset::sky::SkyboxUp, "rbxassetid://12635316856");
-                    }
-                    else if (global::world::Skybox_Type == 1)
-                    {
-                        drive->writestring(sky.Address + offset::sky::SkyboxBk, "rbxassetid://12064107");
-                        drive->writestring(sky.Address + offset::sky::SkyboxDn, "rbxassetid://12064152");
-                        drive->writestring(sky.Address + offset::sky::SkyboxFt, "rbxassetid://12064121");
-                        drive->writestring(sky.Address + offset::sky::SkyboxLf, "rbxassetid://12063984");
-                        drive->writestring(sky.Address + offset::sky::SkyboxRt, "rbxassetid://12064115");
-                        drive->writestring(sky.Address + offset::sky::SkyboxUp, "rbxassetid://12064131");
-                    }
-                    else if (global::world::Skybox_Type == 2)
-                    {
-                        drive->writestring(sky.Address + offset::sky::SkyboxBk, "rbxassetid://271042516");
-                        drive->writestring(sky.Address + offset::sky::SkyboxDn, "rbxassetid://271077243");
-                        drive->writestring(sky.Address + offset::sky::SkyboxFt, "rbxassetid://271042556");
-                        drive->writestring(sky.Address + offset::sky::SkyboxLf, "rbxassetid://271042310");
-                        drive->writestring(sky.Address + offset::sky::SkyboxRt, "rbxassetid://271042467");
-                        drive->writestring(sky.Address + offset::sky::SkyboxUp, "rbxassetid://271077958");
-                    }
-                    else if (global::world::Skybox_Type == 3)
-                    {
-                        drive->writestring(sky.Address + offset::sky::SkyboxBk, "rbxassetid://1876545003");
-                        drive->writestring(sky.Address + offset::sky::SkyboxDn, "rbxassetid://1876544331");
-                        drive->writestring(sky.Address + offset::sky::SkyboxFt, "rbxassetid://1876542941");
-                        drive->writestring(sky.Address + offset::sky::SkyboxLf, "rbxassetid://1876543392");
-                        drive->writestring(sky.Address + offset::sky::SkyboxRt, "rbxassetid://1876543764");
-                        drive->writestring(sky.Address + offset::sky::SkyboxUp, "rbxassetid://1876544642");
-                    }
-                    else if (global::world::Skybox_Type == 4)
-                    {
-                        drive->writestring(sky.Address + offset::sky::SkyboxBk, "rbxassetid://116758234");
-                        drive->writestring(sky.Address + offset::sky::SkyboxDn, "rbxassetid://116758314");
-                        drive->writestring(sky.Address + offset::sky::SkyboxFt, "rbxassetid://116758367");
-                        drive->writestring(sky.Address + offset::sky::SkyboxLf, "rbxassetid://116758446");
-                        drive->writestring(sky.Address + offset::sky::SkyboxRt, "rbxassetid://116758478");
-                        drive->writestring(sky.Address + offset::sky::SkyboxUp, "rbxassetid://116758496");
-                    }
-                    else if (global::world::Skybox_Type == 5)
-                    {
-                        drive->writestring(sky.Address + offset::sky::SkyboxBk, "rbxassetid://1233158420");
-                        drive->writestring(sky.Address + offset::sky::SkyboxDn, "rbxassetid://1233158838");
-                        drive->writestring(sky.Address + offset::sky::SkyboxFt, "rbxassetid://1233157105");
-                        drive->writestring(sky.Address + offset::sky::SkyboxLf, "rbxassetid://1233157640");
-                        drive->writestring(sky.Address + offset::sky::SkyboxRt, "rbxassetid://1233157995");
-                        drive->writestring(sky.Address + offset::sky::SkyboxUp, "rbxassetid://1233159158");
-                    }
-                    else if (global::world::Skybox_Type == 6)
-                    {
-                        drive->writestring(sky.Address + offset::sky::SkyboxBk, "rbxassetid://1327358");
-                        drive->writestring(sky.Address + offset::sky::SkyboxDn, "rbxassetid://1327359");
-                        drive->writestring(sky.Address + offset::sky::SkyboxFt, "rbxassetid://1327355");
-                        drive->writestring(sky.Address + offset::sky::SkyboxLf, "rbxassetid://1327357");
-                        drive->writestring(sky.Address + offset::sky::SkyboxRt, "rbxassetid://1327356");
-                        drive->writestring(sky.Address + offset::sky::SkyboxUp, "rbxassetid://1327360");
-                    }
-                    else if (global::world::Skybox_Type == 7)
-                    {
-                        drive->writestring(sky.Address + offset::sky::SkyboxBk, "rbxassetid://570555736");
-                        drive->writestring(sky.Address + offset::sky::SkyboxDn, "rbxassetid://570555964");
-                        drive->writestring(sky.Address + offset::sky::SkyboxFt, "rbxassetid://570555800");
-                        drive->writestring(sky.Address + offset::sky::SkyboxLf, "rbxassetid://570555840");
-                        drive->writestring(sky.Address + offset::sky::SkyboxRt, "rbxassetid://570555882");
-                        drive->writestring(sky.Address + offset::sky::SkyboxUp, "rbxassetid://570555929");
-                    }
-                    else if (global::world::Skybox_Type == 8)
-                    {
-                        drive->writestring(sky.Address + offset::sky::SkyboxBk, "rbxassetid://95020137072033");
-                        drive->writestring(sky.Address + offset::sky::SkyboxDn, "rbxassetid://92862258103959");
-                        drive->writestring(sky.Address + offset::sky::SkyboxFt, "rbxassetid://107665368823185");
-                        drive->writestring(sky.Address + offset::sky::SkyboxLf, "rbxassetid://126542804346203");
-                        drive->writestring(sky.Address + offset::sky::SkyboxRt, "rbxassetid://103716549795832");
-                        drive->writestring(sky.Address + offset::sky::SkyboxUp, "rbxassetid://131036626982613");
-                    }
-                    else if (global::world::Skybox_Type == 9)
-                    {
-                        drive->writestring(sky.Address + offset::sky::SkyboxBk, "rbxassetid://169210090");
-                        drive->writestring(sky.Address + offset::sky::SkyboxDn, "rbxassetid://169210108");
-                        drive->writestring(sky.Address + offset::sky::SkyboxFt, "rbxassetid://169210121");
-                        drive->writestring(sky.Address + offset::sky::SkyboxLf, "rbxassetid://169210133");
-                        drive->writestring(sky.Address + offset::sky::SkyboxRt, "rbxassetid://169210143");
-                        drive->writestring(sky.Address + offset::sky::SkyboxUp, "rbxassetid://169210149");
-                    }
-                    else if (global::world::Skybox_Type == 10)
-                    {
-                        drive->writestring(sky.Address + offset::sky::SkyboxBk, "rbxassetid://47974894");
-                        drive->writestring(sky.Address + offset::sky::SkyboxDn, "rbxassetid://47974690");
-                        drive->writestring(sky.Address + offset::sky::SkyboxFt, "rbxassetid://47974821");
-                        drive->writestring(sky.Address + offset::sky::SkyboxLf, "rbxassetid://47974776");
-                        drive->writestring(sky.Address + offset::sky::SkyboxRt, "rbxassetid://47974859");
-                        drive->writestring(sky.Address + offset::sky::SkyboxUp, "rbxassetid://47974909");
-                    }
+                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                    continue;
+                }
 
-                    if (global::world::Rotate) {
+                // Verify Sky object kind is actually "Sky" (avoid writing to wrong instance)
+                std::string skyKind;
+                try {
+                    skyKind = sky.kind();
+                } catch (...) { skyKind = ""; }
+                if (skyKind != "Sky") {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                    continue;
+                }
 
-                        auto sky = global::light.childclass("Sky");
+                // Only write textures when selection changes
+                if (needsUpdate && sky.Address)
+                {
+                    lastType = global::world::Skybox_Type;
+                    lastEnabled = global::world::Skybox;
 
+                    // Array of skybox presets: {Bk, Dn, Ft, Lf, Rt, Up}
+                    struct Preset { const char* bk, *dn, *ft, *lf, *rt, *up; };
+                    static const Preset presets[] = {
+                        {"rbxassetid://12635309703","rbxassetid://12635311686","rbxassetid://12635312870","rbxassetid://12635313718","rbxassetid://12635315817","rbxassetid://12635316856"},
+                        {"rbxassetid://12064107","rbxassetid://12064152","rbxassetid://12064121","rbxassetid://12063984","rbxassetid://12064115","rbxassetid://12064131"},
+                        {"rbxassetid://271042516","rbxassetid://271077243","rbxassetid://271042556","rbxassetid://271042310","rbxassetid://271042467","rbxassetid://271077958"},
+                        {"rbxassetid://1876545003","rbxassetid://1876544331","rbxassetid://1876542941","rbxassetid://1876543392","rbxassetid://1876543764","rbxassetid://1876544642"},
+                        {"rbxassetid://116758234","rbxassetid://116758314","rbxassetid://116758367","rbxassetid://116758446","rbxassetid://116758478","rbxassetid://116758496"},
+                        {"rbxassetid://1233158420","rbxassetid://1233158838","rbxassetid://1233157105","rbxassetid://1233157640","rbxassetid://1233157995","rbxassetid://1233159158"},
+                        {"rbxassetid://1327358","rbxassetid://1327359","rbxassetid://1327355","rbxassetid://1327357","rbxassetid://1327356","rbxassetid://1327360"},
+                        {"rbxassetid://570555736","rbxassetid://570555964","rbxassetid://570555800","rbxassetid://570555840","rbxassetid://570555882","rbxassetid://570555929"},
+                        {"rbxassetid://95020137072033","rbxassetid://92862258103959","rbxassetid://107665368823185","rbxassetid://126542804346203","rbxassetid://103716549795832","rbxassetid://131036626982613"},
+                        {"rbxassetid://169210090","rbxassetid://169210108","rbxassetid://169210121","rbxassetid://169210133","rbxassetid://169210143","rbxassetid://169210149"},
+                        {"rbxassetid://47974894","rbxassetid://47974690","rbxassetid://47974821","rbxassetid://47974776","rbxassetid://47974859","rbxassetid://47974909"}
+                    };
+
+                    int idx = global::world::Skybox_Type;
+                    if (idx >= 0 && idx < 11) {
+                        drive->writestring(sky.Address + offset::sky::SkyboxBk, presets[idx].bk);
+                        drive->writestring(sky.Address + offset::sky::SkyboxDn, presets[idx].dn);
+                        drive->writestring(sky.Address + offset::sky::SkyboxFt, presets[idx].ft);
+                        drive->writestring(sky.Address + offset::sky::SkyboxLf, presets[idx].lf);
+                        drive->writestring(sky.Address + offset::sky::SkyboxRt, presets[idx].rt);
+                        drive->writestring(sky.Address + offset::sky::SkyboxUp, presets[idx].up);
+                    }
+                }
+
+                // Rotation: write every 200ms (only if sky address is valid)
+                if (global::world::Rotate && sky.Address && sky.Address != 0xFFFFFFFFFFFFFFFF) {
+                    try {
                         static float rotY = 0.0f;
                         rotY = (rotY > 360.0f) ? 0.0f : rotY + global::world::Skybox_Rotate_Speed;
-
                         drive->write<sdk::vector3>(sky.Address + offset::sky::SkyboxOrientation, { 0.0f, rotY, 0.0f });
-                    }
+                    } catch (...) {}
+                }
+            }
 
+            // Always invalidate view cache after sky changes
+            if (needsUpdate && global::view.Address) {
+                try {
                     sdk::view::invalidate();
                     sdk::view::skybox();
-                }
+                } catch (...) {}
             }
 
             } catch (...) {}
@@ -254,15 +222,24 @@ namespace world {
 
     void fov() {
 
+        float lastFovVal = -1.f;
+
         while (true)
         {
             try {
             if (global::world::FOV && global::camera.Address)
             {
-				sdk::light::fov(global::camera.Address, global::world::FOV_Distance);
+                if (std::abs(global::world::FOV_Distance - lastFovVal) > 0.1f)
+                {
+                    sdk::light::fov(global::camera.Address, global::world::FOV_Distance);
+                    lastFovVal = global::world::FOV_Distance;
+                }
+                // Write every frame to prevent camera from overriding it
+                // But use 16ms interval to avoid saturating memory bus
+                sdk::light::fov(global::camera.Address, global::world::FOV_Distance);
             }
             } catch (...) {}
-            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            std::this_thread::sleep_for(std::chrono::milliseconds(16)); // every frame at 60fps
         }
 
     }

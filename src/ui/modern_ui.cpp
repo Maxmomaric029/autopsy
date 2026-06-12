@@ -263,6 +263,17 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
 
     // Update sound system
     sound::update();
+
+    // Refresh avatar if player name becomes available later
+    static double lastAvatarRefresh = 0.0;
+    if (now - lastAvatarRefresh > 5.0) {
+        lastAvatarRefresh = now;
+        if (m_initialized) {
+            // Get D3D11 device from the backend
+            ID3D11Device* dev = ImGui_ImplDX11_GetDevice();
+            if (dev) avatar::refresh_later(dev);
+        }
+    }
 }
 
 // ========================================================================

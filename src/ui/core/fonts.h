@@ -16,24 +16,24 @@ namespace font {
     // ========================================================================
     // Font pointers — Syne for display, JetBrains Mono for values
     // ========================================================================
-    inline ImFont* g_display  = nullptr; // Syne ExtraBold 20px — logo
-    inline ImFont* g_label    = nullptr; // Syne Medium 13px — card headers
-    inline ImFont* g_body     = nullptr; // Syne Regular 13px — toggles/options
-    inline ImFont* g_mono     = nullptr; // JetBrains Mono Regular 12px — values
-    inline ImFont* g_mono_sm  = nullptr; // JetBrains Mono Regular 10px — chips/pills
+    inline ImFont* g_display  = nullptr; // Syne ExtraBold 17px — logo
+    inline ImFont* g_label    = nullptr; // Syne Medium 12px — card headers
+    inline ImFont* g_body     = nullptr; // Syne Regular 12px — toggles/options
+    inline ImFont* g_mono     = nullptr; // JetBrains Mono Regular 11px — values
+    inline ImFont* g_mono_sm  = nullptr; // JetBrains Mono Regular 9px — chips/pills
 
     // ========================================================================
-    // Typography scale
+    // Typography scale (compact)
     // ========================================================================
     namespace size {
-        inline constexpr float display = 20.f;   // logo / product name
-        inline constexpr float label   = 13.f;   // card headers, section titles
-        inline constexpr float body    = 13.f;   // toggles, options
-        inline constexpr float mono    = 12.f;   // slider values, stats
-        inline constexpr float mono_sm = 10.f;   // chips, pills, version
-        inline constexpr float icon    = 14.f;   // FA6 icon size
-        inline constexpr float tab_icon = 18.f;  // sidebar tab icons
-        inline constexpr float uppercase = 9.f;  // section headers (uppercase)
+        inline constexpr float display = 17.f;   // logo / product name
+        inline constexpr float label   = 12.f;   // card headers, section titles
+        inline constexpr float body    = 12.f;   // toggles, options
+        inline constexpr float mono    = 11.f;   // slider values, stats
+        inline constexpr float mono_sm = 9.f;    // chips, pills, version
+        inline constexpr float icon    = 13.f;   // FA6 icon size
+        inline constexpr float tab_icon = 16.f;  // sidebar tab icons
+        inline constexpr float uppercase = 8.f;  // section headers (uppercase)
     }
 
     // ========================================================================

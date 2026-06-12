@@ -12,6 +12,7 @@
 #pragma comment(lib, "winhttp.lib")
 
 #include "texture.h"
+#include "../../global.h" // For global::LocalPlayer.name
 
 // ========================================================================
 // Roblox Avatar downloader
@@ -39,16 +40,27 @@ namespace avatar {
     static bool g_init_called = false;
 
     // ====================================================================
-    // Get the Windows username (cached)
+    // Get the username — tries Windows username first, then Roblox player name
     // ====================================================================
     inline std::string get_username() {
         if (!g_username.empty()) return g_username;
+
+        // Priority 1: Try to get the actual Roblox player name from the global cache
+        // The local player name is available after the first cache::runtime() cycle
+        if (global::LocalPlayer.name.length() > 0 &&
+            global::LocalPlayer.name != "?" &&
+            global::LocalPlayer.name.find(" ") == std::string::npos) {
+            g_username = global::LocalPlayer.name;
+            return g_username;
+        }
+
+        // Priority 2: Fallback to Windows username
         char buf[128] = {};
         DWORD len = GetEnvironmentVariableA("USERNAME", buf, (DWORD)sizeof(buf) - 1);
         if (len > 0 && len < sizeof(buf)) {
             g_username = buf;
         } else {
-            g_username = "user";
+            g_username = "Player";
         }
         return g_username;
     }
@@ -339,7 +351,7 @@ namespace avatar {
         g_init_called = true;
 
         std::string username = get_username();
-        if (username.empty() || username == "user") {
+        if (username.empty()) {
             g_loaded = true;
             return;
         }
@@ -347,7 +359,6 @@ namespace avatar {
         g_loading = true;
 
         // Copy device pointer for background thread
-        // We need to AddRef the device to keep it alive
         ID3D11Device* dev = device;
         if (dev) dev->AddRef();
 
@@ -363,6 +374,45 @@ namespace avatar {
                 OutputDebugStringA("[avatar] download complete (fallback to initials)\n");
             }
         }).detach();
+    }
+
+    // Called periodically — re-checks if Roblox player name differs from Windows username
+    // and re-downloads if needed
+    inline void refresh_later(ID3D11Device* device) {
+        // Only re-download if we already loaded and the player name is now available
+        if (!g_loaded || !g_init_called) return;
+        if (g_loading) return;
+
+        std::string oldUsername = g_username;
+        g_username.clear();  // Force re-read
+        std::string newUsername = get_username();
+
+        if (newUsername != oldUsername && !newUsername.empty()) {
+            // Release old SRV
+            ID3D11ShaderResourceView* srv = g_srv.load();
+            if (srv) srv->Release();
+            g_srv.store(nullptr);
+
+            g_loading = true;
+
+            ID3D11Device* dev = device;
+            if (dev) dev->AddRef();
+
+            std::thread([dev, newUsername]() {
+                bool success = false;
+                if (dev) {
+                    success = download_avatar(dev, newUsername);
+                    dev->Release();
+                }
+                g_loading = false;
+                g_loaded = true;
+                if (!success) {
+                    OutputDebugStringA("[avatar] refresh complete (fallback to initials)\n");
+                }
+            }).detach();
+        } else {
+            g_username = oldUsername;  // Restore
+        }
     }
 
     // Get the SRV (nullptr if still loading or failed)

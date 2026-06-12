@@ -704,12 +704,24 @@ namespace esp {
         else
             style::prunetrail();
 
-        // Thread-safe snapshot (bug fix: data race)
-        std::vector<sdk::player> Snapshot;
-        {
-            std::lock_guard<std::mutex> lock(cache::Mutex);
-            Snapshot = global::Player_Cache;
+        // Thread-safe snapshot with rate-limiting to reduce stuttering
+        // Only copy the player cache at 30fps max (every ~33ms)
+        static double lastSnapshotTime = 0.0;
+        static std::vector<sdk::player> Snapshot;
+        static std::vector<sdk::player> SnapshotSwap;
+        double now = ImGui::GetTime();
+        if (now - lastSnapshotTime > 0.033) { // ~30fps cache refresh
+            {
+                std::lock_guard<std::mutex> lock(cache::Mutex);
+                SnapshotSwap = global::Player_Cache;
+            }
+            Snapshot.swap(SnapshotSwap);
+            lastSnapshotTime = now;
         }
+
+        // Early exit if no players
+        if (Snapshot.empty())
+            return;
 
         const auto& Local = global::LocalPlayer;
         sdk::vector3 LocalPos{};
@@ -720,9 +732,17 @@ namespace esp {
         ImVec2 clipMin = Draw->GetClipRectMin();
         ImVec2 clipMax = Draw->GetClipRectMax();
 
+        // Cache render address for fast access
+        uintptr_t renderAddr = global::render.Address;
+
+        // Skip heavy operations (Chams/Clipper2) every 4th frame to prevent stuttering
+        static int frameCounter = 0;
+        frameCounter++;
+        const bool heavyFrame = (frameCounter % 4 == 0);
+
         for (auto& player : Snapshot)
         {
-            if (!global::esp::Enabled || !player.character.Address)
+            if (!player.character.Address)
                 continue;
 
             if (Local.character.Address && player.character.Address == Local.character.Address)
@@ -743,9 +763,8 @@ namespace esp {
                 sdk::part Root(player.HumanoidRootPart.Address);
                 if (Root.Address && Root.primitive().Address) {
                     HeadPosition = Root.primitive().position();
-                    HeadPosition.y += 1.5f; // approximate offset from root to head
+                    HeadPosition.y += 1.5f;
                 } else {
-                    // Try Torso or any bone
                     auto Bones = esp::bone(player);
                     for (auto* Inst : Bones) {
                         if (!Inst || !Inst->Address) continue;
@@ -951,8 +970,8 @@ namespace esp {
                 outline(Text_Position, Cl_Name.c_str(), global::esp::color::tool);
             }
 
-            if (global::esp::Chams) {
-                // Remove redeclaration of Draw — use the outer one
+                // Heavy operations (Chams, Clipper2) only every 4th frame
+            if (global::esp::Chams && heavyFrame) {
                 Draw->Flags |= ImDrawListFlags_AntiAliasedLines | ImDrawListFlags_AntiAliasedFill;
 
                 auto ProjectPart = [&](const sdk::part& part) -> std::vector<ImVec2> {
@@ -1169,8 +1188,8 @@ namespace esp {
         if ((global::aim::DrawFov && global::aim::Enabled) || (global::silent::DrawFov && global::silent::Enabled))
         {
             HasCursor = GetCursorPos(&Cursor);
-            if (HasCursor && visual_frame::Window && IsWindow(visual_frame::Window))
-                ScreenToClient(visual_frame::Window, &Cursor);
+            // Don't convert to client coords — overlay draws in screen coords
+            // If Roblox window is not at (0,0), ScreenToClient would offset the FOV
         }
 
         auto DrawFovCircle = [&](bool ShouldDraw, float FovRadius, const float tocolor[4], bool Fill, bool Spin, int SpinSpeed)

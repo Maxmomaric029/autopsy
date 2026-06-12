@@ -1,0 +1,15 @@
+[offsets] CWD: C:\Users\Mxzzy\Downloads\autopsy roblox hack\6
+[offsets] load(): SUCCESS
+[offsets] is_loaded: YES
+[offsets] version: version-76173e47a79145c7
+[offsets] total: 390
+[offsets] _before_ init() - defaults:
+[offsets]   fakemodel::Pointer = 0x78FF228
+[offsets]   render::Pointer = 0x801DFB0
+[offsets]   task::Pointer = 0x7E90548
+[offsets] _after_ init() - values:
+[offsets]   fakemodel::Pointer = 0x7A39AD8
+[offsets]   render::Pointer = 0x8158B80
+[offsets]   task::Pointer = 0x7FCB088
+son: SUCCESS
+[offsets] loaded 390 offsets, version=version-76173e47a79145c7

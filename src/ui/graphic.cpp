@@ -24,7 +24,12 @@
 #include "stb/stb_image.h"
 
 // ========================================================================
-// Miniaudio implementation — play UI sounds from procedural WAV data
+// Kenney UI sound effects (CC0 license, UI_SFX_Set from opengameart.org)
+// ========================================================================
+#include "ui/embedded/sfx_all.h"
+
+// ========================================================================
+// Miniaudio implementation — play UI sounds from embedded Kenney WAV data
 // ========================================================================
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"
@@ -42,16 +47,14 @@ namespace sound {
     static std::mutex g_queue_mutex;
     static std::deque<std::string> g_sound_queue;
 
-    // ---- Raw WAV data storage (procedurally generated) ----
-    struct SoundWav {
-        std::vector<unsigned char> data;
+    // ---- Raw WAV data reference — points to embedded Kenney sound arrays ----
+    struct SoundRef {
+        const unsigned char* data;
+        unsigned int size;
     };
-    static std::unordered_map<std::string, SoundWav> g_wavs;
+    static std::unordered_map<std::string, SoundRef> g_sounds;
 
     // ---- Active (playing) sounds, cleaned up when done ----
-    // We must keep the decoder alive while the sound references it.
-    // Each play creates a {decoder, sound} pair that lives until the
-    // sound finishes, then gets cleaned up in update().
     struct ActiveSound {
         ma_decoder decoder;
         ma_sound sound;
@@ -63,100 +66,16 @@ namespace sound {
     static constexpr double kHoverCooldown = 0.05;
 
     // ====================================================================
-    // Procedural WAV generation helpers
+    // Sound mapping — Kenney WAV filename → sound::id
     // ====================================================================
-    static std::vector<unsigned char> generate_wav(float freq_hz, float duration_ms, float volume) {
-        const int sr = 44100;
-        const int nSamples = (int)(sr * duration_ms / 1000.0f);
-        const int dataSize = nSamples * 2;  // 16-bit mono
-        const int fileSize = 44 + dataSize;
-
-        std::vector<unsigned char> wav(fileSize);
-        auto w = [&](int off, const void* src, int len) { memcpy(&wav[off], src, len); };
-
-        w(0,  "RIFF", 4);
-        *(int*)&wav[4]  = fileSize - 8;
-        w(8,  "WAVE", 4);
-        w(12, "fmt ", 4);
-        *(int*)&wav[16]   = 16;             // chunk size
-        *(short*)&wav[20] = 1;               // PCM
-        *(short*)&wav[22] = 1;               // mono
-        *(int*)&wav[24]   = sr;
-        *(int*)&wav[28]   = sr * 2;          // byte rate
-        *(short*)&wav[32] = 2;               // block align
-        *(short*)&wav[34] = 16;              // bits per sample
-        w(36, "data", 4);
-        *(int*)&wav[40] = dataSize;
-
-        for (int i = 0; i < nSamples; i++) {
-            float t = (float)i / sr;
-            float env = 1.f;
-            float att = 5.f; // ms attack
-            float rel = 10.f; // ms release
-            if (t < att / 1000.f) env = t / (att / 1000.f);
-            else if (t > (duration_ms - rel) / 1000.f)
-                env = 1.f - (t - (duration_ms - rel) / 1000.f) / (rel / 1000.f);
-            env = ImClamp(env, 0.f, 1.f);
-            float s = sinf(2.f * 3.14159f * freq_hz * t) * volume * env;
-            s = ImClamp(s, -1.f, 1.f);
-            *(short*)&wav[44 + i * 2] = (short)(s * 32767.f);
-        }
-        return wav;
-    }
-
-    static std::vector<unsigned char> gen_toggle_on()  { return generate_wav(1200.f, 40.f, 0.6f); }
-    static std::vector<unsigned char> gen_toggle_off() { return generate_wav(600.f,  40.f, 0.5f); }
-    static std::vector<unsigned char> gen_hover()      { return generate_wav(2000.f, 10.f, 0.15f); }
-    static std::vector<unsigned char> gen_tab_switch() { return generate_wav(1000.f, 60.f, 0.3f); }
-    static std::vector<unsigned char> gen_bind_start() { return generate_wav(1500.f, 30.f, 0.4f); }
-    static std::vector<unsigned char> gen_bind_set()   { return generate_wav(1200.f, 50.f, 0.5f); }
-
-    static std::vector<unsigned char> gen_menu_open() {
-        // Rising frequency "swoosh"
-        const int sr = 44100, nSamples = (int)(sr * 0.10f), dataSize = nSamples * 2, fileSize = 44 + dataSize;
-        std::vector<unsigned char> wav(fileSize);
-        *(int*)&wav[0] = 0x46464952; // RIFF
-        *(int*)&wav[4] = fileSize - 8;
-        *(int*)&wav[8] = 0x45564157; // WAVE
-        *(int*)&wav[12] = 0x20746D66; // fmt 
-        *(int*)&wav[16] = 16;
-        *(short*)&wav[20] = 1; *(short*)&wav[22] = 1;
-        *(int*)&wav[24] = sr; *(int*)&wav[28] = sr * 2;
-        *(short*)&wav[32] = 2; *(short*)&wav[34] = 16;
-        *(int*)&wav[36] = 0x61746164; // data
-        *(int*)&wav[40] = dataSize;
-        for (int i = 0; i < nSamples; i++) {
-            float t = (float)i / sr;
-            float f = 400.f + t * 3000.f;
-            float env = 1.f - (float)i / nSamples;
-            float s = sinf(6.28318f * f * t) * 0.3f * env;
-            *(short*)&wav[44 + i * 2] = (short)(s * 32767.f);
-        }
-        return wav;
-    }
-
-    static std::vector<unsigned char> gen_menu_close() {
-        const int sr = 44100, nSamples = (int)(sr * 0.08f), dataSize = nSamples * 2, fileSize = 44 + dataSize;
-        std::vector<unsigned char> wav(fileSize);
-        *(int*)&wav[0] = 0x46464952;
-        *(int*)&wav[4] = fileSize - 8;
-        *(int*)&wav[8] = 0x45564157;
-        *(int*)&wav[12] = 0x20746D66;
-        *(int*)&wav[16] = 16;
-        *(short*)&wav[20] = 1; *(short*)&wav[22] = 1;
-        *(int*)&wav[24] = sr; *(int*)&wav[28] = sr * 2;
-        *(short*)&wav[32] = 2; *(short*)&wav[34] = 16;
-        *(int*)&wav[36] = 0x61746164;
-        *(int*)&wav[40] = dataSize;
-        for (int i = 0; i < nSamples; i++) {
-            float t = (float)i / sr;
-            float f = ImMax(100.f, 1200.f - t * 2500.f);
-            float env = 1.f - (float)i / nSamples;
-            float s = sinf(6.28318f * f * t) * 0.3f * env;
-            *(short*)&wav[44 + i * 2] = (short)(s * 32767.f);
-        }
-        return wav;
-    }
+    // toggle_on  → switch1.wav   (crisp mechanical switch)
+    // toggle_off → switch12.wav  (softer, shorter switch)
+    // hover      → rollover5.wav (subtle hover feedback)
+    // tab_switch → switch26.wav  (short clean transition)
+    // bind_start → click2.wav    (quick tick)
+    // bind_set   → click4.wav    (confirmation beep)
+    // menu_open  → switch33.wav  (longer rising sweep)
+    // menu_close → switch38.wav  (descending close)
 
     // ====================================================================
     // Public API
@@ -173,15 +92,15 @@ namespace sound {
         g_engine_initialized = true;
         g_active.reserve(32);
 
-        // Generate all sounds procedurally
-        g_wavs[id::toggle_on]  = { gen_toggle_on() };
-        g_wavs[id::toggle_off] = { gen_toggle_off() };
-        g_wavs[id::hover]      = { gen_hover() };
-        g_wavs[id::tab_switch] = { gen_tab_switch() };
-        g_wavs[id::bind_start] = { gen_bind_start() };
-        g_wavs[id::bind_set]   = { gen_bind_set() };
-        g_wavs[id::menu_open]  = { gen_menu_open() };
-        g_wavs[id::menu_close] = { gen_menu_close() };
+        // Register embedded Kenney WAV data
+        g_sounds[id::toggle_on]  = { sfx_toggle_on,  sfx_toggle_on_size };
+        g_sounds[id::toggle_off] = { sfx_toggle_off, sfx_toggle_off_size };
+        g_sounds[id::hover]      = { sfx_hover,      sfx_hover_size };
+        g_sounds[id::tab_switch] = { sfx_tab_switch, sfx_tab_switch_size };
+        g_sounds[id::bind_start] = { sfx_bind_start, sfx_bind_start_size };
+        g_sounds[id::bind_set]   = { sfx_bind_set,   sfx_bind_set_size };
+        g_sounds[id::menu_open]  = { sfx_menu_open,  sfx_menu_open_size };
+        g_sounds[id::menu_close] = { sfx_menu_close, sfx_menu_close_size };
 
         OutputDebugStringA("[sound] initialized\n");
         return true;
@@ -196,7 +115,7 @@ namespace sound {
             delete a;
         }
         g_active.clear();
-        g_wavs.clear();
+        g_sounds.clear();
         ma_engine_uninit(&g_engine);
         g_engine_initialized = false;
         OutputDebugStringA("[sound] shutdown\n");
@@ -228,15 +147,15 @@ namespace sound {
             std::string id = g_sound_queue.front();
             g_sound_queue.pop_front();
 
-            auto it = g_wavs.find(id);
-            if (it == g_wavs.end()) continue;
+            auto it = g_sounds.find(id);
+            if (it == g_sounds.end()) continue;
 
-            auto& wav = it->second;
+            auto& snd = it->second;
 
-            // Create decoder from memory
+            // Create decoder from embedded Kenney WAV data
             ma_decoder_config dec_cfg = ma_decoder_config_init(ma_format_s16, 1, 44100);
             auto* as = new ActiveSound();
-            ma_result r = ma_decoder_init_memory(wav.data.data(), wav.data.size(), &dec_cfg, &as->decoder);
+            ma_result r = ma_decoder_init_memory(snd.data, snd.size, &dec_cfg, &as->decoder);
             if (r != MA_SUCCESS) { delete as; continue; }
 
             // Create sound from decoder (decoder must outlive sound — it does, stored in ActiveSound)
