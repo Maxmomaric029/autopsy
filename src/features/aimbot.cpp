@@ -219,6 +219,14 @@ namespace aim {
         if (!GetCursorPos(&CursorPos)) return;
         ScreenToClient(robloxHwnd(), &CursorPos);
 
+        std::vector<sdk::player> snapshot;
+        {
+            std::lock_guard<std::mutex> lock(cache::Mutex);
+            snapshot = global::Player_Cache;
+        }
+
+        if (snapshot.empty()) return;
+
         float ClosestDistance = 999999.f;
         std::string BestName = "";
         uintptr_t BestCharacterAddr = 0;
@@ -232,7 +240,7 @@ namespace aim {
         auto CameraOrigin = Cam.position();
 
         if (global::aim::AimbotSticky && IsPersisting && !PersistenceName.empty()) {
-            for (auto& Plr : global::Player_Cache) {
+            for (auto& Plr : snapshot) {
                 if (Plr.name != PersistenceName) continue;
 
                 if (Plr.Local_Player ||
@@ -310,7 +318,7 @@ namespace aim {
             global::aim::AimTarget = sdk::instance(0);
         }
 
-        for (auto& Plr : global::Player_Cache) {
+        for (auto& Plr : snapshot) {
             if (Plr.Local_Player ||
                 (global::LocalPlayer.character.Address != 0 && Plr.character.Address == global::LocalPlayer.character.Address) ||
                 !Plr.character.Address || !Plr.Head.Address)
@@ -390,6 +398,14 @@ namespace aim {
         if (!global::aim::TriggerBot || !global::render.Address)
             return;
 
+        std::vector<sdk::player> snapshot;
+        {
+            std::lock_guard<std::mutex> lock(cache::Mutex);
+            snapshot = global::Player_Cache;
+        }
+        if (snapshot.empty())
+            return;
+
         static ULONGLONG LastShot = 0;
         POINT CursorPos;
         HWND Window = robloxHwnd();
@@ -405,7 +421,7 @@ namespace aim {
         const sdk::vector2 Cursor{ (float)CursorPos.x, (float)CursorPos.y };
         const float Padding = std::max(0.f, global::aim::TriggerRadius);
 
-        for (auto& Plr : global::Player_Cache) {
+        for (auto& Plr : snapshot) {
             if (Plr.Local_Player ||
                 (global::LocalPlayer.character.Address != 0 && Plr.character.Address == global::LocalPlayer.character.Address) ||
                 !Plr.character.Address || !Plr.Head.Address)
@@ -508,40 +524,34 @@ namespace aim {
             }
         }
         else {
-            // Case 0: Free Aim — existing mouse logic WITH smoothing
+            // Case 0: Free Aim — Absolute mouse placement so cursor snaps directly to target (perfect for sports/free-aim cursor games)
             POINT CursorPos;
             if (!GetCursorPos(&CursorPos)) return;
-            ScreenToClient(robloxHwnd(), &CursorPos);
-
-            float Sensitivity = global::aim::mouse::Mouse_Sensitivty;
-            if (global::aim::mouse::Smoothing_X > 0) {
-                float SmoothVal = global::aim::mouse::Smoothing_X;
-                if (SmoothVal < 1.f) SmoothVal = 1.f;
-                if (SmoothVal > 100.f) SmoothVal = 100.f;
-                Sensitivity /= SmoothVal;
-            }
-
-            float MoveX = (AimPositionS.x - CursorPos.x) * Sensitivity;
-            float MoveY = (AimPositionS.y - CursorPos.y) * Sensitivity;
+            
+            POINT ClientCursor = CursorPos;
+            ScreenToClient(robloxHwnd(), &ClientCursor);
+            
+            float TargetX = AimPositionS.x;
+            float TargetY = AimPositionS.y;
 
             if (global::aim::Shake) {
-                MoveX += ((float)rand() / RAND_MAX * 2 - 1) * global::aim::ShakeX;
-                MoveY += ((float)rand() / RAND_MAX * 2 - 1) * global::aim::ShakeY;
+                TargetX += ((float)rand() / RAND_MAX * 2 - 1) * global::aim::ShakeX;
+                TargetY += ((float)rand() / RAND_MAX * 2 - 1) * global::aim::ShakeY;
             }
 
-            if (MoveX < -100.f) MoveX = -100.f;
-            if (MoveX > 100.f) MoveX = 100.f;
-            if (MoveY < -100.f) MoveY = -100.f;
-            if (MoveY > 100.f) MoveY = 100.f;
-
-            if (abs(MoveX) >= 1.f || abs(MoveY) >= 1.f) {
-                INPUT Input = {};
-                Input.type = INPUT_MOUSE;
-                Input.mi.dx = (LONG)MoveX;
-                Input.mi.dy = (LONG)MoveY;
-                Input.mi.dwFlags = MOUSEEVENTF_MOVE;
-                SendInput(1, &Input, sizeof(INPUT));
+            float FinalX = TargetX;
+            float FinalY = TargetY;
+            
+            if (global::aim::mouse::Smoothing_X > 0.05f) {
+                float t = 1.0f / (global::aim::mouse::Smoothing_X * 2.5f);
+                t = std::max(0.01f, std::min(t, 1.0f));
+                FinalX = (float)ClientCursor.x + (TargetX - (float)ClientCursor.x) * t;
+                FinalY = (float)ClientCursor.y + (TargetY - (float)ClientCursor.y) * t;
             }
+
+            POINT targetScreen = { (LONG)FinalX, (LONG)FinalY };
+            ClientToScreen(robloxHwnd(), &targetScreen);
+            SetCursorPos(targetScreen.x, targetScreen.y);
         }
     }
 

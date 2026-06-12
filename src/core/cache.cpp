@@ -199,41 +199,58 @@ namespace cache {
             CachedParts newCache;
             auto children = player.character.children();
 
-            // Map children by name
-            for (const auto& part : children) {
-                std::string pname = part.name();
-                auto it = Part_Lookup.find(pname);
+            std::unordered_map<std::string, sdk::instance> nameToChild;
+            nameToChild.reserve(children.size());
+            for (const auto& child : children) {
+                nameToChild[child.name()] = child;
+            }
+
+            auto getChildByName = [&](const std::string& name) -> sdk::instance {
+                auto it = nameToChild.find(name);
+                if (it != nameToChild.end()) return it->second;
+                return sdk::instance{};
+            };
+
+            auto getChildByClass = [&](const std::string& className) -> sdk::instance {
+                for (const auto& child : children) {
+                    if (child.kind() == className) return child;
+                }
+                return sdk::instance{};
+            };
+
+            // Map all standard parts via Part_Lookup
+            for (const auto& [name, child] : nameToChild) {
+                auto it = Part_Lookup.find(name);
                 if (it != Part_Lookup.end()) {
-                    player.*(it->second) = part;
-                    newCache.addresses[pname] = part.Address;
+                    player.*(it->second) = child;
+                    newCache.addresses[name] = child.Address;
                 }
             }
 
-            // Fallback childclass lookups ONLY for critical parts when children() didn't find them
-            // R6-only parts
+            // Fallback local lookups (no extra readvm calls for children lists!)
             if (!newCache.addresses.count("Head") && !player.Head.Address) {
-                player.Head = player.character.childclass("Head");
+                player.Head = getChildByName("Head");
                 if (player.Head.Address) newCache.addresses["Head"] = player.Head.Address;
             }
             if (!newCache.addresses.count("HumanoidRootPart") && !player.HumanoidRootPart.Address) {
-                player.HumanoidRootPart = player.character.childclass("HumanoidRootPart");
+                player.HumanoidRootPart = getChildByName("HumanoidRootPart");
                 if (player.HumanoidRootPart.Address) newCache.addresses["HumanoidRootPart"] = player.HumanoidRootPart.Address;
             }
             if (!newCache.addresses.count("Humanoid") && !player.humanoid.Address) {
-                player.humanoid = player.character.childclass("Humanoid");
+                player.humanoid = getChildByClass("Humanoid");
                 if (player.humanoid.Address) newCache.addresses["Humanoid"] = player.humanoid.Address;
             }
 
             // Determine Rig_Type from found parts
             newCache.rigType = detectRigType(player);
 
-            // Only scan parts relevant to the detected rig type
+            // Only scan parts relevant to the detected rig type using local lookup
             if (newCache.rigType == 0) {
                 // R6: Torso, Left/Right Arm, Left/Right Leg
                 auto scanR6 = [&](const char* name, sdk::instance sdk::player::* member, const char* altName) {
                     if (!newCache.addresses.count(name) && !(player.*member).Address) {
-                        auto inst = player.character.childclass(name);
-                        if (!inst.Address && altName) inst = player.character.childclass(altName);
+                        auto inst = getChildByName(name);
+                        if (!inst.Address && altName) inst = getChildByName(altName);
                         if (inst.Address) {
                             player.*member = inst;
                             newCache.addresses[name] = inst.Address;
@@ -249,7 +266,7 @@ namespace cache {
                 // R15: UpperTorso, LowerTorso, Upper/Lower Arm/Leg, Hand, Foot
                 auto scanR15 = [&](const char* name, sdk::instance sdk::player::* member) {
                     if (!newCache.addresses.count(name) && !(player.*member).Address) {
-                        auto inst = player.character.childclass(name);
+                        auto inst = getChildByName(name);
                         if (inst.Address) {
                             player.*member = inst;
                             newCache.addresses[name] = inst.Address;
@@ -300,11 +317,34 @@ namespace cache {
             player.Rig_Type = humanoid.rig();
         }
 
-        // Tool name
-        player.Tool_Name.clear();
-        sdk::instance tool = player.character.childclass("Tool");
-        if (tool.Address)
-            player.Tool_Name = tool.name();
+        // Tool name (update fast path during needsFullScan or every 1.0s otherwise)
+        bool checkTool = false;
+        static std::unordered_map<uint64_t, double> lastToolUpdate;
+        if (needsFullScan) {
+            checkTool = true;
+        } else {
+            auto it = lastToolUpdate.find(charAddr);
+            if (it == lastToolUpdate.end() || now - it->second > 1.0) {
+                checkTool = true;
+                lastToolUpdate[charAddr] = now;
+            }
+        }
+
+        if (checkTool) {
+            player.Tool_Name.clear();
+            if (needsFullScan) {
+                for (const auto& child : children) {
+                    if (child.kind() == "Tool") {
+                        player.Tool_Name = child.name();
+                        break;
+                    }
+                }
+            } else {
+                sdk::instance tool = player.character.childclass("Tool");
+                if (tool.Address)
+                    player.Tool_Name = tool.name();
+            }
+        }
 
         // Distance
         if (!Is_Local && player.Head.Address != 0 && global::camera.Address != 0) {

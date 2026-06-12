@@ -184,24 +184,22 @@ namespace style
         draw->AddRectFilled(min, max, fromfloat(global::esp::color::BoxFill_Top, .72f));
     }
 
-    static void fullbox(ImDrawList* draw, ImVec2 min, ImVec2 max)
+    static void fullbox(ImDrawList* draw, ImVec2 min, ImVec2 max, ImU32 accent)
     {
-        const ImU32 accent = fromfloat(global::esp::color::Box);
         if (global::esp::Box_Fill)
             fillbox(draw, min + ImVec2(2.f, 2.f), max - ImVec2(2.f, 2.f));
         frame(draw, min, max, accent, global::esp::Box_Fill);
     }
 
-    static void cornerline(ImDrawList* draw, ImVec2 a, ImVec2 b)
+    static void cornerline(ImDrawList* draw, ImVec2 a, ImVec2 b, ImU32 accent)
     {
         draw->AddLine(a, b, IM_COL32(0, 0, 0, 160), 3.8f);
-        draw->AddLine(a, b, IM_COL32(220, 230, 245, 28), 2.8f);
-        draw->AddLine(a, b, IM_COL32(220, 230, 245, 200), 1.2f);
+        draw->AddLine(a, b, alpha(accent, 0.15f), 2.8f);
+        draw->AddLine(a, b, accent, 1.2f);
     }
 
-    static void cornerbox(ImDrawList* draw, ImVec2 min, ImVec2 max)
+    static void cornerbox(ImDrawList* draw, ImVec2 min, ImVec2 max, ImU32 accent)
     {
-        const ImU32 accent = fromfloat(global::esp::color::Box);
         const float w = max.x - min.x;
         const float h = max.y - min.y;
         const float len = ImClamp(ImMin(w, h) * 0.22f, 8.f, 40.f);
@@ -213,14 +211,14 @@ namespace style
             draw->AddRectFilled(min + ImVec2(1.f, 1.f), max - ImVec2(1.f, 1.f), IM_COL32(3, 8, 14, 24));
 
         draw->AddRect(min, max, IM_COL32(255, 255, 255, 18), 0.f, 0, 1.f);
-        cornerline(draw, min, ImVec2(min.x + len, min.y));
-        cornerline(draw, min, ImVec2(min.x, min.y + len));
-        cornerline(draw, ImVec2(max.x - len, min.y), ImVec2(max.x, min.y));
-        cornerline(draw, ImVec2(max.x, min.y), ImVec2(max.x, min.y + len));
-        cornerline(draw, ImVec2(min.x, max.y), ImVec2(min.x + len, max.y));
-        cornerline(draw, ImVec2(min.x, max.y - len), ImVec2(min.x, max.y));
-        cornerline(draw, ImVec2(max.x - len, max.y), max);
-        cornerline(draw, ImVec2(max.x, max.y - len), max);
+        cornerline(draw, min, ImVec2(min.x + len, min.y), accent);
+        cornerline(draw, min, ImVec2(min.x, min.y + len), accent);
+        cornerline(draw, ImVec2(max.x - len, min.y), ImVec2(max.x, min.y), accent);
+        cornerline(draw, ImVec2(max.x, min.y), ImVec2(max.x, min.y + len), accent);
+        cornerline(draw, ImVec2(min.x, max.y), ImVec2(min.x + len, max.y), accent);
+        cornerline(draw, ImVec2(min.x, max.y - len), ImVec2(min.x, max.y), accent);
+        cornerline(draw, ImVec2(max.x - len, max.y), max, accent);
+        cornerline(draw, ImVec2(max.x, max.y - len), max, accent);
     }
 
     static void healthbar(ImDrawList* draw, ImVec2 pos, ImVec2 size, float ratio)
@@ -334,12 +332,12 @@ namespace style
             return false;
 
         sdk::part part(inst.Address);
-        sdk::part primitive = part.primitive();
-        if (!primitive.Address)
+        sdk::primitive_data pdata;
+        if (!part.get_primitive_data(pdata))
             return false;
 
-        position = primitive.position();
-        rotation = primitive.rotation();
+        position = pdata.position;
+        rotation = pdata.rotation;
         return !(std::isnan(position.x) || std::isnan(position.y) || std::isnan(position.z));
     }
 
@@ -463,13 +461,13 @@ namespace style
             return false;
 
         const sdk::part part(instance.Address);
-        const sdk::part primitive = part.primitive();
-        if (!primitive.Address)
+        sdk::primitive_data pdata;
+        if (!part.get_primitive_data(pdata))
             return false;
 
-        const sdk::vector3 position = primitive.position();
-        const sdk::vector3 size = primitive.size();
-        const sdk::matrix3 rotation = primitive.rotation();
+        const sdk::vector3 position = pdata.position;
+        const sdk::vector3 size = pdata.size;
+        const sdk::matrix3 rotation = pdata.rotation;
         if (size.x == 0.f && size.y == 0.f && size.z == 0.f)
             return false;
 
@@ -588,12 +586,12 @@ namespace style
         if (!head.Address)
             return;
 
-        const sdk::part primitive = head.primitive();
-        if (!primitive.Address)
+        sdk::primitive_data pdata;
+        if (!head.get_primitive_data(pdata))
             return;
 
-        const sdk::vector3 position = primitive.position();
-        const sdk::vector3 size = primitive.size();
+        const sdk::vector3 position = pdata.position;
+        const sdk::vector3 size = pdata.size;
         if (size.x == 0.f && size.y == 0.f && size.z == 0.f)
             return;
 
@@ -787,67 +785,67 @@ namespace esp {
             style::VisibilityTint = global::esp::VisibleCheck;
             style::TargetVisible = PlayerVisible;
 
+            bool isAimbotTarget = (global::aim::AimTarget.Address != 0 && player.character.Address == global::aim::AimTarget.Address);
+            bool isSilentTarget = (SilentCachedTarget.character.Address != 0 && player.character.Address == SilentCachedTarget.character.Address);
+            bool isCurrentTarget = isAimbotTarget || isSilentTarget;
+
             float Left = FLT_MAX, Top = FLT_MAX, Right = -FLT_MAX, Bottom = -FLT_MAX;
             bool valid = false;
 
             auto Bones = esp::bone(player);
             if (Bones.empty()) continue;
 
+            std::unordered_map<std::uintptr_t, ImVec2> projectedCache;
+            projectedCache.reserve(Bones.size());
+
             for (auto* Inst : Bones) {
                 if (!Inst || !Inst->Address) continue;
 
-                const auto part = sdk::part(Inst->Address);
-                const auto primitive = part.primitive();
+                sdk::part part(Inst->Address);
+                sdk::primitive_data prim_data;
+                if (!part.get_primitive_data(prim_data)) continue;
 
-                sdk::vector3 Size = primitive.size();
-                const auto Position = primitive.position();
-                const auto Rotation = primitive.rotation();
+                sdk::vector3 pos = prim_data.position;
+                auto W2S = global::render.screen(pos);
 
-                if (global::GameID == 292439477)
-                {
-                    std::string name = part.name();
-                    if (name.find("Other_") != std::string::npos) {
-                        Size = { 1.f, 2.f, 1.f };
-                    }
-                    else if (name == "Head") {
-                        Size = { 1.f, 1.f, 1.f };
-                    }
-                    else if (name == "Torso") {
-                        Size = { 2.f, 2.f, 1.f };
-                    }
-                }
+                if (!validscreen(W2S.x, W2S.y)) continue;
 
-                if (Size.x == 0.f && Size.y == 0.f && Size.z == 0.f)
-                    continue;
+                ImVec2 pt(W2S.x, W2S.y);
+                projectedCache[Inst->Address] = pt;
 
-                for (const auto& LocalCorners : Corners) {
-                    sdk::vector3 Offset{
-                        LocalCorners.x * Size.x * 0.5f,
-                        LocalCorners.y * Size.y * 0.5f,
-                        LocalCorners.z * Size.z * 0.5f
-                    };
-
-                    sdk::vector3 world = Position + Rotation * Offset;
-                    auto W2S = global::render.screen(world);
-
-                    if (!validscreen(W2S.x, W2S.y)) continue;
-
-                    valid = true;
-                    Left = min(Left, W2S.x);
-                    Top = min(Top, W2S.y);
-                    Right = max(Right, W2S.x);
-                    Bottom = max(Bottom, W2S.y);
-                }
+                valid = true;
+                Left = min(Left, pt.x);
+                Top = min(Top, pt.y);
+                Right = max(Right, pt.x);
+                Bottom = max(Bottom, pt.y);
             }
 
             if (!valid || Left >= Right || Top >= Bottom) continue;
+
+            // Pad the bounding box margins to wrap the player model nicely
+            float boxHeight = Bottom - Top;
+            float boxWidth = Right - Left;
+            Top -= boxHeight * 0.12f;
+            Bottom += boxHeight * 0.05f;
+            Left -= boxWidth * 0.2f;
+            Right += boxWidth * 0.2f;
 
             // Clip rect early exit
             if (Right < clipMin.x || Left > clipMax.x || Bottom < clipMin.y || Top > clipMax.y)
                 continue;
 
-            ImVec2 Pos(Left - 1.f, Top - 1.f);
-            ImVec2 Size((Right - Left) + 2.f, (Bottom - Top) + 2.f);
+            ImVec2 Pos(Left, Top);
+            ImVec2 Size(Right - Left, Bottom - Top);
+
+            if (isCurrentTarget) {
+                sdk::vector2 dims = global::render.size();
+                if (dims.x > 0.f && dims.y > 0.f) {
+                    ImVec2 center(dims.x * 0.5f, dims.y * 0.5f);
+                    ImVec2 headScreen(Head_W2S.x, Head_W2S.y);
+                    ImU32 lineColor = PlayerVisible ? IM_COL32(0, 255, 128, 140) : IM_COL32(255, 64, 64, 140);
+                    Draw->AddLine(center, headScreen, lineColor, 1.2f);
+                }
+            }
 
             if (global::esp::aimline && HasLocalPos)
                 style::aimline(Draw, player, LocalPos);
@@ -861,26 +859,22 @@ namespace esp {
 
             if (global::esp::Box)
             {
+                ImU32 boxColor = isCurrentTarget ? IM_COL32(255, 140, 0, 255) : style::fromfloat(global::esp::color::Box);
                 if (global::esp::Box_Type == 0) {
-
                     Pos.x = std::round(Pos.x);
                     Pos.y = std::round(Pos.y);
                     Size.x = std::round(Size.x);
                     Size.y = std::round(Size.y);
-
                     ImVec2 Min = Pos;
                     ImVec2 Max = ImVec2(Pos.x + Size.x, Pos.y + Size.y);
-
-                    style::fullbox(Draw, Min, Max);
+                    style::fullbox(Draw, Min, Max, boxColor);
                 }
                 else if (global::esp::Box_Type == 1) {
-
                     float X1 = Pos.x - 1.f;
                     float Y1 = Pos.y - 1.f;
                     float X2 = Pos.x + Size.x + 1.f;
                     float Y2 = Pos.y + Size.y + 1.f;
-
-                    style::cornerbox(Draw, ImVec2(X1, Y1), ImVec2(X2, Y2));
+                    style::cornerbox(Draw, ImVec2(X1, Y1), ImVec2(X2, Y2), boxColor);
                 }
             }
 
@@ -977,10 +971,11 @@ namespace esp {
                 auto ProjectPart = [&](const sdk::part& part) -> std::vector<ImVec2> {
                     std::vector<ImVec2> Projected;
                     if (!part.Address) return Projected;
-                    const auto Prim = part.primitive();
-                    const auto Size = Prim.size();
-                    const auto Pos = Prim.position();
-                    const auto Rot = Prim.rotation();
+                    sdk::primitive_data prim_data;
+                    if (!part.get_primitive_data(prim_data)) return Projected;
+                    const auto Size = prim_data.size;
+                    const auto Pos = prim_data.position;
+                    const auto Rot = prim_data.rotation;
                     Projected.reserve(8);
                     for (int i = 0; i < 8; ++i) {
                         const auto& Corner = Corners[i];
@@ -1080,11 +1075,9 @@ namespace esp {
                         int ValidCount = 0;
                         for (int i = 0; i < Count; ++i) {
                             if (!Instances[i].Address) { DrawPoly(ScreenPoints, ValidCount); ValidCount = 0; continue; }
-                            sdk::part part(Instances[i].Address);
-                            if (!part.Address) { DrawPoly(ScreenPoints, ValidCount); ValidCount = 0; continue; }
-                            ImVec2 ScreenPos;
-                            if (!W2S(part.primitive().position(), ScreenPos)) { DrawPoly(ScreenPoints, ValidCount); ValidCount = 0; continue; }
-                            ScreenPoints[ValidCount++] = ScreenPos;
+                            auto it = projectedCache.find(Instances[i].Address);
+                            if (it == projectedCache.end()) { DrawPoly(ScreenPoints, ValidCount); ValidCount = 0; continue; }
+                            ScreenPoints[ValidCount++] = it->second;
                         }
                         DrawPoly(ScreenPoints, ValidCount);
                         };
@@ -1105,18 +1098,18 @@ namespace esp {
                 {
                     sdk::part TorsoPart(player.Torso.Address);
                     sdk::part HeadPart(player.Head.Address);
-                    const auto& TorsoPrim = TorsoPart.primitive();
-                    const auto& HeadPrim = HeadPart.primitive();
-                    const sdk::vector3 TorsoPos = TorsoPrim.position();
-                    const sdk::vector3 TorsoSize = TorsoPrim.size();
-                    const auto TorsoRot = TorsoPrim.rotation();
-                    const sdk::vector3 HeadPos = HeadPrim.position();
-                    const sdk::vector3 HeadSize = HeadPrim.size();
-                    const sdk::vector3 ShoulderCenter = TorsoPos + TorsoRot * sdk::vector3{ 0, TorsoSize.y * 0.2f,  0 };
-                    const sdk::vector3 HipCenter = TorsoPos - TorsoRot * sdk::vector3{ 0, TorsoSize.y * 0.4f,  0 };
-                    const sdk::vector3 HeadBottom = HeadPos - sdk::vector3{ 0, HeadSize.y * 0.5f, 0 };
-                    const sdk::vector3 ShoulderLeft = ShoulderCenter + TorsoRot * sdk::vector3{ -TorsoSize.x * 0.5f, 0, 0 };
-                    const sdk::vector3 ShoulderRight = ShoulderCenter + TorsoRot * sdk::vector3{ TorsoSize.x * 0.5f, 0, 0 };
+                    sdk::primitive_data TorsoData, HeadData;
+                    if (TorsoPart.get_primitive_data(TorsoData) && HeadPart.get_primitive_data(HeadData)) {
+                        const sdk::vector3 TorsoPos = TorsoData.position;
+                        const sdk::vector3 TorsoSize = TorsoData.size;
+                        const auto TorsoRot = TorsoData.rotation;
+                        const sdk::vector3 HeadPos = HeadData.position;
+                        const sdk::vector3 HeadSize = HeadData.size;
+                        const sdk::vector3 ShoulderCenter = TorsoPos + TorsoRot * sdk::vector3{ 0, TorsoSize.y * 0.2f,  0 };
+                        const sdk::vector3 HipCenter = TorsoPos - TorsoRot * sdk::vector3{ 0, TorsoSize.y * 0.4f,  0 };
+                        const sdk::vector3 HeadBottom = HeadPos - sdk::vector3{ 0, HeadSize.y * 0.5f, 0 };
+                        const sdk::vector3 ShoulderLeft = ShoulderCenter + TorsoRot * sdk::vector3{ -TorsoSize.x * 0.5f, 0, 0 };
+                        const sdk::vector3 ShoulderRight = ShoulderCenter + TorsoRot * sdk::vector3{ TorsoSize.x * 0.5f, 0, 0 };
 
                     auto ProcessR6Chain = [&](const sdk::vector3* Points, int Count) {
                         ImVec2 ScreenPoints[8];
@@ -1136,12 +1129,11 @@ namespace esp {
                         Out[Count++] = Shoulder;
                         if (ArmInst.Address) {
                             sdk::part Arm(ArmInst.Address);
-                            const auto& P = Arm.primitive();
-                            const sdk::vector3 AP = P.position();
-                            const sdk::vector3 AS = P.size();
-                            const auto         AR = P.rotation();
-                            Out[Count++] = AP + AR * sdk::vector3{ 0, AS.y * 0.2f,  0 };
-                            Out[Count++] = AP - AR * sdk::vector3{ 0, AS.y * 0.5f,  0 };
+                            sdk::primitive_data pdata;
+                            if (Arm.get_primitive_data(pdata)) {
+                                Out[Count++] = pdata.position + pdata.rotation * sdk::vector3{ 0, pdata.size.y * 0.2f,  0 };
+                                Out[Count++] = pdata.position - pdata.rotation * sdk::vector3{ 0, pdata.size.y * 0.5f,  0 };
+                            }
                         }
                         };
 
@@ -1152,25 +1144,26 @@ namespace esp {
                         Out[Count++] = HipCenter;
                         if (LegInst.Address) {
                             sdk::part Leg(LegInst.Address);
-                            const auto& P = Leg.primitive();
-                            const sdk::vector3 LP = P.position();
-                            const sdk::vector3 LS = P.size();
-                            const auto         LR = P.rotation();
-                            Out[Count++] = LP + LR * sdk::vector3{ 0, LS.y * 0.5f,  0 };
-                            Out[Count++] = LP - LR * sdk::vector3{ 0, LS.y * 0.5f,  0 };
+                            sdk::primitive_data pdata;
+                            if (Leg.get_primitive_data(pdata)) {
+                                Out[Count++] = pdata.position + pdata.rotation * sdk::vector3{ 0, pdata.size.y * 0.5f,  0 };
+                                Out[Count++] = pdata.position - pdata.rotation * sdk::vector3{ 0, pdata.size.y * 0.5f,  0 };
+                            }
                         }
                         };
 
                     { sdk::vector3 Pts[3]; int C = 0; BuildLegChain(player.LeftLeg, Pts, C); ProcessR6Chain(Pts, C); }
                     { sdk::vector3 Pts[3]; int C = 0; BuildLegChain(player.RightLeg, Pts, C); ProcessR6Chain(Pts, C); }
+                    }
                 }
 
                 // Joint dots
                 auto Dot = [&](const sdk::instance& inst) {
                     if (!inst.Address) return;
                     sdk::part p(inst.Address);
+                    sdk::primitive_data pdata;
                     ImVec2 s;
-                    if (W2S(p.primitive().position(), s))
+                    if (p.get_primitive_data(pdata) && W2S(pdata.position, s))
                         Draw->AddCircleFilled(s, 2.f, IM_COL32(220, 230, 245, 180), 12);
                     };
                 if (player.Head.Address) Dot(player.Head);

@@ -212,6 +212,26 @@ namespace sdk {
 
     // ---- part ----
 
+    struct RawPrimitive {
+        matrix3 rot;
+        vector3 pos;
+        float pad;
+        vector3 sz;
+    };
+
+    bool part::get_primitive_data(primitive_data& out) const {
+        if (!Address) return false;
+        uintptr_t prim = drive->read<uintptr_t>(Address + offset::basepart::primitive);
+        if (!prim) {
+            prim = Address;
+        }
+        RawPrimitive raw = drive->read<RawPrimitive>(prim + offset::primitive::Rotation);
+        out.rotation = raw.rot;
+        out.position = raw.pos;
+        out.size = raw.sz;
+        return true;
+    }
+
     vector3 part::position() const {
         return drive->read<vector3>(Address + offset::primitive::Position);
     }
@@ -237,6 +257,10 @@ namespace sdk {
 
     bool part::anchored() const {
         return drive->read<bool>(Address + offset::primitiveflag::Anchored);
+    }
+
+    bool part::cancollide() const {
+        return drive->read<bool>(Address + offset::primitiveflag::CanCollide);
     }
 
     vector3 part::cframe() const {

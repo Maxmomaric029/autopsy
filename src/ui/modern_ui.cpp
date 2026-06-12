@@ -4,6 +4,7 @@
 #include <chrono>
 #include <thread>
 #include "global.h"
+#include "../config.h"
 
 #include "../features/esp.h"
 #include "../features/ball.h"
@@ -55,13 +56,10 @@ bool ModernUI::Create(HWND window, ID3D11Device* device, ID3D11DeviceContext* co
     ImGui::CreateContext();
 
     // ---- DPI-aware font loading ----
-    float dpiScale = ImGui_ImplWin32_GetDpiScaleForMonitor(
-        ::MonitorFromPoint(POINT{ 0, 0 }, MONITOR_DEFAULTTOPRIMARY));
-
     ImGuiIO& IO = ImGui::GetIO();
     IO.IniFilename = nullptr;
 
-    font::load(dpiScale);
+    font::load(1.0f); // Force 1.0f scale for pixel-perfect design
 
     // ---- Industrial-minimal dark style ----
     ImGui::StyleColorsDark();
@@ -319,6 +317,12 @@ void ModernUI::RenderMenu() {
     static float menuT = 0.f;
     menuT = anim::damp(menuT, m_open ? 1.f : 0.f,
         m_open ? anim::speed::menu_open : anim::speed::menu_close);
+    static bool lastOpen = false;
+    if (lastOpen && !m_open) {
+        config::save_json("autoload");
+    }
+    lastOpen = m_open;
+
     if (!m_open && menuT <= .01f) return;
 
     static PageTransition pageTrans;
@@ -400,8 +404,10 @@ void ModernUI::RenderMenu() {
     // ---- Sidebar (handles section changes) ----
     int oldSection = section;
     bool sectionChanged = layout::sidebar(DL, WP, WS, section, menuEase);
-    if (sectionChanged)
+    if (sectionChanged) {
         pageTrans.changeTo(section);
+        config::save_json("autoload");
+    }
 
     // ---- Topbar ----
     layout::topbar(DL, WP, WS, section, menuEase);

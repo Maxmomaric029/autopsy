@@ -123,6 +123,12 @@ namespace
 
 std::int32_t main(std::int32_t argc, char** argv[])
 {
+    // Start console UI thread immediately so logs are printed to the screen
+    console::start();
+
+    // Load auto-saved JSON configuration
+    config::load_json("autoload");
+
     // Load offsets with try-catch: remote fetch -> fallback to local file
     {
         // Write debug to file so it's never lost
@@ -166,14 +172,12 @@ std::int32_t main(std::int32_t argc, char** argv[])
         }
     }
 
-    // Start console UI thread
-    console::start();
-
     static constexpr const char* BINARY_NAME = { "RobloxPlayerBeta.exe" };
     const bool alreadyRunning = process(BINARY_NAME);
 
     if (!alreadyRunning)
     {
+        console::warn("Esperando a que se inicie %s...", BINARY_NAME);
         while (!process(BINARY_NAME))
         {
             Sleep(500);
@@ -182,11 +186,15 @@ std::int32_t main(std::int32_t argc, char** argv[])
 
     if (!alreadyRunning)
         Sleep(5000);
+    
+    console::info("Iniciando hilo de watch para %s...", BINARY_NAME);
     std::thread(watch, BINARY_NAME).detach();
 
+    console::info("Acoplando driver...");
     drive->process(BINARY_NAME);
     drive->attach(BINARY_NAME);
     drive->module(BINARY_NAME);
+    console::success("Driver acoplado con exito. ModuloBase: 0x%llX", (unsigned long long)drive->modulebase());
 
     auto fakemodel = drive->read<std::uint64_t>(drive->modulebase() + offset::fakemodel::Pointer);
     global::model.Address = drive->read<std::uint64_t>(fakemodel + offset::fakemodel::RealDataModel);
@@ -196,6 +204,7 @@ std::int32_t main(std::int32_t argc, char** argv[])
     global::camera.Address = global::workspace.childclass("Camera").Address;
     auto Lightin = global::model.childclass("Lighting");
     global::light = sdk::light(Lightin.Address);
+    console::success("DataModel obtenido: 0x%llX", (unsigned long long)global::model.Address);
 
     // ---- Background update threads ----
     // cache, aim, silent, ball each have their own timing and data requirements.

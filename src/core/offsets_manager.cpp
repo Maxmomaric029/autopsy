@@ -124,6 +124,8 @@ void OffsetsManager::write_file(const std::string& path, const std::string& cont
     f << content;
 }
 
+#include "log.h"
+
 // ------------------------------------------------------------------
 // load() - Entry point: version check -> download if stale -> parse
 // Follows the documented EnsureLatestOffsets() pattern.
@@ -134,11 +136,11 @@ bool OffsetsManager::load() {
 
     try {
         if (dbg) fprintf(dbg, "[offsets] step1: fetch_live_version...\n");
-        fprintf(stderr, "[offsets] step1: fetch_live_version...\n");
+        console::info("Conectando al servidor para buscar version...");
         // 1. Get live version
         std::string liveVersion = fetch_live_version();
         if (dbg) fprintf(dbg, "[offsets] live version: '%s'\n", liveVersion.c_str());
-        fprintf(stderr, "[offsets] live version: '%s'\n", liveVersion.c_str());
+        console::info("Version en servidor: '%s'", liveVersion.c_str());
 
         // 2. Read cached version from disk
         std::string cachedVersion = read_file(VERSION_FILE);
@@ -146,60 +148,50 @@ bool OffsetsManager::load() {
         while (!cachedVersion.empty() && (cachedVersion.back() == '\n' || cachedVersion.back() == '\r' || cachedVersion.back() == ' '))
             cachedVersion.pop_back();
         if (dbg) fprintf(dbg, "[offsets] cached version: '%s'\n", cachedVersion.empty() ? "(none)" : cachedVersion.c_str());
-        fprintf(stderr, "[offsets] cached version: '%s'\n", cachedVersion.empty() ? "(none)" : cachedVersion.c_str());
+        console::info("Version en cache local: '%s'", cachedVersion.empty() ? "(ninguna)" : cachedVersion.c_str());
 
         // 3. Check if offsets.json exists on disk
         char fullPath[MAX_PATH] = {};
         GetFullPathNameA(OFFSETS_FILE, sizeof(fullPath), fullPath, nullptr);
         bool offsetsExist = std::filesystem::exists(OFFSETS_FILE);
         if (dbg) fprintf(dbg, "[offsets] offsets.json path: %s\n", fullPath);
-        fprintf(stderr, "[offsets] offsets.json path: %s\n", fullPath);
-        if (dbg) fprintf(dbg, "[offsets] exists: %s | version match: %s\n",
-            offsetsExist ? "YES" : "NO",
-            (liveVersion == cachedVersion) ? "YES" : "NO");
-        fprintf(stderr, "[offsets] exists: %s | version match: %s\n",
-            offsetsExist ? "YES" : "NO",
-            (liveVersion == cachedVersion) ? "YES" : "NO");
-
+        
         // 4. Download only if version changed or no cache
         if (liveVersion != cachedVersion || !offsetsExist) {
             if (dbg) fprintf(dbg, "[offsets] step2: fetch_offsets_json...\n");
-            fprintf(stderr, "[offsets] step2: fetch_offsets_json...\n");
+            console::warn("Cache expirado o ausente. Descargando nuevos offsets...");
             std::string jsonBody = fetch_offsets_json();
             if (dbg) fprintf(dbg, "[offsets] downloaded %zu bytes\n", jsonBody.size());
-            fprintf(stderr, "[offsets] downloaded %zu bytes\n", jsonBody.size());
             write_file(OFFSETS_FILE, jsonBody);
             write_file(VERSION_FILE, liveVersion);
             if (dbg) fprintf(dbg, "[offsets] saved to disk\n");
-            fprintf(stderr, "[offsets] saved to disk\n");
+            console::success("Offsets guardados con exito (%zu bytes)", jsonBody.size());
+        } else {
+            console::success("Los offsets estan actualizados.");
         }
 
         // 5. Load and parse the JSON
         if (dbg) fprintf(dbg, "[offsets] step3: read offsets.json...\n");
-        fprintf(stderr, "[offsets] step3: read offsets.json...\n");
         std::string jsonStr = read_file(OFFSETS_FILE);
-        if (dbg) fprintf(dbg, "[offsets] read %zu bytes\n", jsonStr.size());
-        fprintf(stderr, "[offsets] read %zu bytes\n", jsonStr.size());
         if (jsonStr.empty()) {
             if (dbg) fprintf(dbg, "[offsets] FATAL: offsets.json is empty\n");
-            fprintf(stderr, "[offsets] FATAL: offsets.json is empty\n");
+            console::error("Error: offsets.json esta vacio");
             if (dbg) fclose(dbg);
             return false;
         }
 
         if (dbg) fprintf(dbg, "[offsets] step4: json::parse...\n");
-        fprintf(stderr, "[offsets] step4: json::parse...\n");
         auto data = json::parse(jsonStr);
         if (dbg) fprintf(dbg, "[offsets] step5: parse_json...\n");
-        fprintf(stderr, "[offsets] step5: parse_json...\n");
         bool parsed = parse_json(data);
         if (dbg) fprintf(dbg, "[offsets] parse_json: %s\n", parsed ? "SUCCESS" : "FAILED");
-        fprintf(stderr, "[offsets] parse_json: %s\n", parsed ? "SUCCESS" : "FAILED");
 
         if (parsed) {
             loaded_ = true;
             if (dbg) fprintf(dbg, "[offsets] loaded %d offsets, version=%s\n", total_offsets_, roblox_version_.c_str());
-            fprintf(stderr, "[offsets] loaded %d offsets, version=%s\n", total_offsets_, roblox_version_.c_str());
+            console::success("Offsets cargados con exito. Version=%s (%d offsets)", roblox_version_.c_str(), total_offsets_);
+        } else {
+            console::error("Error al procesar JSON de offsets");
         }
 
         if (dbg) fclose(dbg);
@@ -209,33 +201,30 @@ bool OffsetsManager::load() {
     catch (const std::exception& e) {
         if (!dbg) dbg = fopen("offsets_debug.txt", "a");
         if (dbg) fprintf(dbg, "[offsets] EXCEPTION: %s\n", e.what());
-        fprintf(stderr, "[offsets] EXCEPTION: %s\n", e.what());
+        console::error("Excepcion: %s", e.what());
         // Fallback: try loading whatever is on disk
         if (dbg) fprintf(dbg, "[offsets] fallback: trying disk cache...\n");
-        fprintf(stderr, "[offsets] fallback: trying disk cache...\n");
+        console::warn("Intentando cargar offsets locales de respaldo...");
         std::string jsonStr = read_file(OFFSETS_FILE);
         if (!jsonStr.empty()) {
             if (dbg) fprintf(dbg, "[offsets] fallback: found %zu bytes\n", jsonStr.size());
-            fprintf(stderr, "[offsets] fallback: found %zu bytes\n", jsonStr.size());
             try {
                 auto data = json::parse(jsonStr);
                 if (parse_json(data)) {
                     loaded_ = true;
                     if (dbg) fprintf(dbg, "[offsets] fallback: SUCCESS (%d offsets)\n", total_offsets_);
-                    fprintf(stderr, "[offsets] fallback: SUCCESS (%d offsets)\n", total_offsets_);
+                    console::success("Respaldo local cargado (%d offsets)", total_offsets_);
                     if (dbg) fclose(dbg);
                     return true;
                 }
                 if (dbg) fprintf(dbg, "[offsets] fallback: parse_json failed\n");
-                fprintf(stderr, "[offsets] fallback: parse_json failed\n");
             }
             catch (const std::exception& e2) {
                 if (dbg) fprintf(dbg, "[offsets] fallback exception: %s\n", e2.what());
-                fprintf(stderr, "[offsets] fallback exception: %s\n", e2.what());
             }
         } else {
             if (dbg) fprintf(dbg, "[offsets] fallback: no offsets.json on disk\n");
-            fprintf(stderr, "[offsets] fallback: no offsets.json on disk\n");
+            console::error("No se encontraron offsets locales en el disco");
         }
 
         if (dbg) fclose(dbg);

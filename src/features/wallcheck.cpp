@@ -24,7 +24,7 @@ namespace wallcheck
             kind == "CornerWedgePart" || kind == "TrussPart" || kind == "UnionOperation";
     }
 
-    static void get_parts(const sdk::instance& parent, std::vector<std::uintptr_t>& parts, int depth = 0)
+    static void get_parts(const sdk::instance& parent, std::vector<std::uintptr_t>& parts, const sdk::vector3& local_pos, int depth = 0)
     {
         if (!parent.Address || depth > 64)
             return;
@@ -41,11 +41,24 @@ namespace wallcheck
             if (is_world_part(kind))
             {
                 sdk::part part(child.Address);
-                if (part.transparency() <= 0.95f)
-                    parts.push_back(child.Address);
+                if (part.transparency() <= 0.95f && part.cancollide())
+                {
+                    sdk::part primitive = part.primitive();
+                    if (primitive.Address)
+                    {
+                        sdk::vector3 pos = primitive.position();
+                        if (valid(pos) && valid(local_pos))
+                        {
+                            if (local_pos.distance(pos) <= 500.f)
+                            {
+                                parts.push_back(child.Address);
+                            }
+                        }
+                    }
+                }
             }
 
-            get_parts(child, parts, depth + 1);
+            get_parts(child, parts, local_pos, depth + 1);
         }
     }
 
@@ -54,9 +67,16 @@ namespace wallcheck
         if (!global::workspace.Address)
             return;
 
+        sdk::vector3 local_pos{};
+        if (global::LocalPlayer.HumanoidRootPart.Address)
+        {
+            sdk::part root(global::LocalPlayer.HumanoidRootPart.Address);
+            local_pos = root.partposition();
+        }
+
         std::vector<std::uintptr_t> next;
-        next.reserve(2048);
-        get_parts(global::workspace, next);
+        next.reserve(512);
+        get_parts(global::workspace, next, local_pos);
 
         std::lock_guard<std::mutex> lock(cache_mutex);
         part_cache = std::move(next);

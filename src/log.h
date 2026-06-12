@@ -239,9 +239,89 @@ namespace console {
         printf("\n");
         reset();
 
+        // Print real-time Console Logs below the monitor box
+        printf("\n  ");
+        brightred();
+        printf(">> CONSOLE LOGS\n");
+        reset();
+
+        {
+            std::lock_guard<std::mutex> lock(logMutex);
+            if (logLines.empty()) {
+                gray();
+                printf("     No log events recorded.\n");
+                reset();
+            } else {
+                for (const auto& line : logLines) {
+                    printf("     %s\n", line.c_str());
+                }
+            }
+        }
+        printf("\n");
+
         gray();
         printf("  [INS] Toggle overlay  [END] Exit\n");
         reset();
+    }
+
+    // ========================================================================
+    // Logging functions for real-time console feedback
+    // ========================================================================
+    inline std::vector<std::string> logLines;
+    inline std::mutex logMutex;
+
+    inline void log(const std::string& message) {
+        std::lock_guard<std::mutex> lock(logMutex);
+        logLines.push_back(message);
+        if (logLines.size() > 8) { // Keep last 8 lines
+            logLines.erase(logLines.begin());
+        }
+    }
+
+    inline void log_formatted(const char* prefix, const char* colorCode, const char* fmt, va_list args) {
+        char buf[1024];
+        vsnprintf(buf, sizeof(buf), fmt, args);
+        
+        SYSTEMTIME lt;
+        GetLocalTime(&lt);
+        char timeBuf[32];
+        snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d:%02d", lt.wHour, lt.wMinute, lt.wSecond);
+
+        std::string formatted = std::string("\033[90m[") + timeBuf + "] " + colorCode + prefix + "\033[0m " + buf;
+        log(formatted);
+        
+        // Trigger a redraw if initialized
+        if (initialized) {
+            refresh();
+        }
+    }
+
+    inline void info(const char* fmt, ...) {
+        va_list args;
+        va_start(args, fmt);
+        log_formatted("[INFO]", "\033[94m", fmt, args); // Blue prefix
+        va_end(args);
+    }
+
+    inline void success(const char* fmt, ...) {
+        va_list args;
+        va_start(args, fmt);
+        log_formatted("[OK]", "\033[92m", fmt, args); // Green prefix
+        va_end(args);
+    }
+
+    inline void warn(const char* fmt, ...) {
+        va_list args;
+        va_start(args, fmt);
+        log_formatted("[WARN]", "\033[93m", fmt, args); // Yellow prefix
+        va_end(args);
+    }
+
+    inline void error(const char* fmt, ...) {
+        va_list args;
+        va_start(args, fmt);
+        log_formatted("[FAIL]", "\033[91m", fmt, args); // Red prefix
+        va_end(args);
     }
 
     // ========================================================================

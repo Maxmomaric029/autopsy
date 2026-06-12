@@ -144,8 +144,15 @@ namespace sdk
         int rig() const;
     };
 
+    struct primitive_data {
+        sdk::matrix3 rotation;
+        sdk::vector3 position;
+        sdk::vector3 size;
+    };
+
     struct part : public instance {
         using instance::instance;
+        bool get_primitive_data(primitive_data& out) const;
         sdk::vector3 position() const;
         sdk::matrix3 rotation() const;
         sdk::vector3 size() const;
@@ -156,6 +163,7 @@ namespace sdk
         part primitive() const;
         float transparency() const;
         bool anchored() const;
+        bool cancollide() const;
 
         void velocity(const sdk::vector3& Velocity) const;
         void partposition(const sdk::vector3& Position) const;

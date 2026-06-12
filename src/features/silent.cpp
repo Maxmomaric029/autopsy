@@ -331,6 +331,7 @@ static sdk::player closestplayer()
 
     std::vector<sdk::player> PlayersSnapshot;
     {
+        std::lock_guard<std::mutex> lock(cache::Mutex);
         PlayersSnapshot = global::Player_Cache;
     }
 
