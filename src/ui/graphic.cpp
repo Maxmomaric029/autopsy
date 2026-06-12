@@ -13,6 +13,7 @@
 
 #include "ui/graphic.h"
 #include "ui/modern_ui.h"
+#include "ui/core/sound.h"
 #include "global.h"
 #include "config.h"
 
