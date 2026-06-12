@@ -234,13 +234,12 @@ namespace w {
 
             // Label text
             ImGui::PushFont(font::mono());
-            const float fontSize = 10.f;
             ImVec2 ts = ImGui::CalcTextSize(labels[i]);
             ImU32 textCol = active
                 ? theme::col_accent()
                 : IM_COL32(90, 90, 96, 255); // MUTED
-            dl->AddText(font::mono(), fontSize,
-                mn + ImVec2((itemW - ts.x) * 0.5f, ((kH - kPad * 2.f) - fontSize) * 0.5f + 1.f),
+            dl->AddText(
+                mn + ImVec2((itemW - ts.x) * 0.5f, ((kH - kPad * 2.f) - font::size::mono_sm) * 0.5f + 1.f),
                 textCol, labels[i]);
             ImGui::PopFont();
         }
@@ -260,7 +259,9 @@ namespace w {
     inline void labelsection(const char* text) {
         ImDrawList* dl = ImGui::GetWindowDrawList();
         const ImVec2 p  = ImGui::GetCursorScreenPos();
-        const float  fh = font::mono()->FontSize;
+        ImGui::PushFont(font::mono());
+        const float  fh = font::size::mono;
+        ImGui::PopFont();
         const float contentWidth = ImGui::GetContentRegionAvail().x;
 
         // Background tint (subtle accent gradient)
@@ -282,9 +283,7 @@ namespace w {
         // Text
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 10.f);
         ImGui::PushFont(font::mono());
-        const float uppercaseSize = font::size::uppercase;
-        dl->AddText(font::mono(), uppercaseSize,
-            p + ImVec2(10.f, 0.f),
+        dl->AddText(p + ImVec2(10.f, 0.f),
             theme::col_muted(), text);
         ImGui::PopFont();
 
@@ -363,8 +362,7 @@ namespace w {
             ? theme::col_accent()
             : theme::col_text();
         ImGui::PushFont(font::mono());
-        dl->AddText(font::mono(), 10.f,
-            { p.x + (kw - tw) * 0.5f, p.y + (h - 10.f) * 0.5f },
+        dl->AddText({ p.x + (kw - tw) * 0.5f, p.y + (h - font::size::mono_sm) * 0.5f + 1.f },
             txtCol, text);
         ImGui::PopFont();
         ImGui::PopID();
@@ -435,8 +433,7 @@ namespace w {
         ImGui::PushFont(font::mono());
         const float ktw = ImGui::CalcTextSize(keyText).x;
         ImU32 keyTxt = listening ? theme::col_accent() : theme::col_text();
-        dl->AddText(font::mono(), 10.f,
-            { kp.x + (kw - ktw) * 0.5f, kp.y + (h - 10.f) * 0.5f },
+        dl->AddText({ kp.x + (kw - ktw) * 0.5f, kp.y + (h - font::size::mono_sm) * 0.5f + 1.f },
             keyTxt, keyText);
 
         // Mode chip
@@ -456,8 +453,7 @@ namespace w {
         dl->AddRect(mp, mp + ImVec2(mw, h), IM_COL32(255, 255, 255, 15), 5.f, 0, 1.f);
 
         const float mtw = ImGui::CalcTextSize(mn).x;
-        dl->AddText(font::mono(), 10.f,
-            { mp.x + (mw - mtw) * 0.5f, mp.y + (h - 10.f) * 0.5f },
+        dl->AddText({ mp.x + (mw - mtw) * 0.5f, mp.y + (h - font::size::mono_sm) * 0.5f + 1.f },
             IM_COL32(90, 90, 96, 255), mn);
         ImGui::PopFont();
 
@@ -595,8 +591,7 @@ namespace w {
 
         const char* cur = (*idx >= 0 && *idx < (int)items.size()) ? items[*idx] : "---";
         ImGui::PushFont(font::body());
-        dl->AddText(font::body(), font::body()->FontSize,
-            { p.x + 7.f, p.y + (h - ImGui::GetFontSize()) * 0.5f },
+        dl->AddText({ p.x + 7.f, p.y + (h - font::size::body) * 0.5f + 1.f },
             theme::col_text(), cur);
         ImGui::PopFont();
 
@@ -652,8 +647,8 @@ namespace w {
             hov ? theme::lerp_u32(brd, theme::col_accent(), 0.35f) : brd, 5.f, 0, 1.f);
         const float tw = ImGui::CalcTextSize(label).x;
         ImGui::PushFont(font::body());
-        dl->AddText(font::body(), font::body()->FontSize,
-            { p.x + (W - tw) * 0.5f, p.y + (h - ImGui::GetFontSize()) * 0.5f }, txt, label);
+        dl->AddText({ p.x + (W - tw) * 0.5f, p.y + (h - font::size::body) * 0.5f + 1.f },
+            txt, label);
         ImGui::PopFont();
         return ImGui::IsItemClicked();
     }
@@ -691,8 +686,7 @@ namespace w {
         dl->AddRectFilled(mn, mx, IM_COL32(10, 10, 11, 240), h * 0.5f);
         dl->AddRect(mn, mx, IM_COL32(200, 241, 53, (int)(255 * 0.5f)), h * 0.5f, 0, 1.f);
         ImGui::PushFont(font::mono());
-        dl->AddText(font::mono(), 10.f,
-            mn + ImVec2(padX, padY), IM_COL32(90, 90, 96, 255), text);
+        dl->AddText(mn + ImVec2(padX, padY), IM_COL32(90, 90, 96, 255), text);
         ImGui::PopFont();
     }
 

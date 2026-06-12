@@ -85,10 +85,10 @@ bool ModernUI::Create(HWND window, ID3D11Device* device, ID3D11DeviceContext* co
     S.Colors[ImGuiCol_ScrollbarGrab]  = ImVec4(0.15f, 0.20f, 0.30f, 0.9f);
     S.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.55f, 0.12f, 0.16f, 0.9f);
     S.Colors[ImGuiCol_ScrollbarGrabActive]  = ImVec4(0.86f, 0.19f, 0.25f, 1.0f);
-    S.Colors[ImGuiCol_WindowBg] = theme::to_u32(theme::c_bg);
+    S.Colors[ImGuiCol_WindowBg] = theme::c_bg;
     S.Colors[ImGuiCol_ChildBg] = ImVec4(0.f, 0.f, 0.f, 0.f);
-    S.Colors[ImGuiCol_Border] = theme::to_u32(theme::c_border);
-    S.Colors[ImGuiCol_Text] = theme::to_u32(theme::c_text);
+    S.Colors[ImGuiCol_Border] = theme::c_border;
+    S.Colors[ImGuiCol_Text] = theme::c_text;
 
     // ---- Init backends ----
     if (!ImGui_ImplWin32_Init(window)) return false;
@@ -621,13 +621,14 @@ namespace {
                 dl->AddText(p + ImVec2(logoX + logoW + 16.f, 7.f),
                     IM_COL32(140, 150, 170, 132), pcuser());
             } else {
-                ImFont* logoF = font::display();
-                float logoSize = logoF->FontSize;
+                ImGui::PushFont(font::display());
+                float logoSize = font::size::display;
                 ImVec2 text = p + ImVec2(15.f, 7.f);
-                ImVec2 nameSize = logoF->CalcTextSizeA(logoSize, FLT_MAX, 0.f, "AUTOPSY");
+                ImVec2 nameSize = ImGui::CalcTextSize("AUTOPSY");
                 dl->AddRectFilled(p + ImVec2(7.f, 9.f), p + ImVec2(10.f, s.y - 9.f), accent(), 2.f);
-                dl->AddText(logoF, logoSize, text + ImVec2(1.f, 1.f), IM_COL32(0, 0, 0, 180), "AUTOPSY");
-                dl->AddText(logoF, logoSize, text, IM_COL32(200, 241, 53, 245), "AUTOPSY");
+                dl->AddText(text + ImVec2(1.f, 1.f), IM_COL32(0, 0, 0, 180), "AUTOPSY");
+                dl->AddText(text, IM_COL32(200, 241, 53, 245), "AUTOPSY");
+                ImGui::PopFont();
                 dl->AddText(text + ImVec2(nameSize.x + 8.f, logoSize * .28f), accent(), "BETA");
                 dl->AddText(p + ImVec2(16.f, 25.f), IM_COL32(140, 150, 170, 132), pcuser());
             }
@@ -665,8 +666,9 @@ namespace {
 
         static void hotkey(ImDrawList* dl, ImVec2 p, ImVec2 s, bool hovered, bool active) {
             panelbase(dl, p, s, hovered, active);
-            ImFont* title = font::label();
-            dl->AddText(title, title->FontSize, p + ImVec2(14.f, 11.f), IM_COL32(220, 230, 245, 255), "HOTKEYS");
+            ImGui::PushFont(font::label());
+            dl->AddText(p + ImVec2(14.f, 11.f), IM_COL32(220, 230, 245, 255), "HOTKEYS");
+            ImGui::PopFont();
             dl->AddLine(p + ImVec2(14.f, 36.f), p + ImVec2(s.x - 14.f, 36.f), IM_COL32(25, 40, 55, 200), 1.f);
             float rowW = s.x - 28.f;
             float y = p.y + 47.f;
@@ -761,8 +763,9 @@ namespace {
             ImVec2 tri[3] = { center + ImVec2(0.f, -7.f), center + ImVec2(5.5f, 6.f), center + ImVec2(-5.5f, 6.f) };
             dl->AddTriangleFilled(tri[0] + ImVec2(0.f, 1.f), tri[1] + ImVec2(0.f, 1.f), tri[2] + ImVec2(0.f, 1.f), IM_COL32(0, 0, 0, 150));
             dl->AddTriangleFilled(tri[0], tri[1], tri[2], IM_COL32(220, 230, 245, 255));
-            ImFont* tf = font::label();
-            dl->AddText(tf, tf->FontSize, p + ImVec2(14.f, 10.f), IM_COL32(220, 230, 245, 255), "RADAR");
+            ImGui::PushFont(font::label());
+            dl->AddText(p + ImVec2(14.f, 10.f), IM_COL32(220, 230, 245, 255), "RADAR");
+            ImGui::PopFont();
             char zt[32]{}; std::snprintf(zt, sizeof(zt), "%.2fx", global::overlay::Radar_Zoom);
             ImVec2 zs = ImGui::CalcTextSize(zt);
             dl->AddText(ImVec2(p.x + s.x - zs.x - 14.f, p.y + 11.f), accent2(), zt);
@@ -806,9 +809,7 @@ namespace {
             char detail[96]{};
             if (threat.Count == 1) std::snprintf(detail, sizeof(detail), "%s is aiming at you", threat.name.c_str());
             else std::snprintf(detail, sizeof(detail), "%dx players aiming at you", threat.Count);
-            ImFont* font = font::label();
-            float fontSize = font->FontSize;
-            ImVec2 ts = font->CalcTextSizeA(fontSize, FLT_MAX, 0.f, title);
+            ImVec2 ts = ImGui::CalcTextSize(title);
             ImVec2 ds = ImGui::CalcTextSize(detail);
             float width = ImClamp(ImMax(ts.x, ds.x) + 74.f, 258.f, 420.f);
             ImVec2 wm(display.x * .5f - width * .5f, 72.f);
@@ -824,9 +825,11 @@ namespace {
             dl->AddRect(wm, wM, IM_COL32(255, 80, 104, 170 + (int)(pulse * 60.f)), 9.f, 0, 1.35f);
             ImVec2 icon(wm.x + 22.f, wm.y + 29.f);
             dl->AddTriangleFilled(icon + ImVec2(0.f, -12.f), icon + ImVec2(12.f, 10.f), icon + ImVec2(-12.f, 10.f), IM_COL32(255, 80, 104, 235));
-            dl->AddText(font, fontSize, ImVec2(icon.x - 3.f, icon.y - 8.f), IM_COL32(23, 6, 12, 255), "!");
-            dl->AddText(font, fontSize, ImVec2(wm.x + 48.f, wm.y + 9.f), IM_COL32(255, 238, 241, 255), title);
+            ImGui::PushFont(font::label());
+            dl->AddText(ImVec2(icon.x - 3.f, icon.y - 8.f), IM_COL32(23, 6, 12, 255), "!");
+            dl->AddText(ImVec2(wm.x + 48.f, wm.y + 9.f), IM_COL32(255, 238, 241, 255), title);
             dl->AddText(ImVec2(wm.x + 48.f, wm.y + 33.f), IM_COL32(255, 178, 190, 255), detail);
+            ImGui::PopFont();
         }
     } // namespace hud
 } // anonymous namespace

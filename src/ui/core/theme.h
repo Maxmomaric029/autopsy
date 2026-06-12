@@ -98,6 +98,8 @@ namespace theme {
     inline ImU32 col_border(float a = 1.f)  { return to_u32(c_border, a); }
     inline ImU32 col_border_hv(float a = 1.f){ return to_u32(c_border_hv, a); }
     inline ImU32 col_danger(float a = 1.f)  { return to_u32(c_danger, a); }
+    inline ImU32 col_success(float a = 1.f) { return IM_COL32(80, 230, 120, (int)(255 * a)); }
+    inline ImU32 col_warn(float a = 1.f)    { return IM_COL32(255, 200, 50, (int)(255 * a)); }
 
     // ========================================================================
     // Accent helpers

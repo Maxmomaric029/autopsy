@@ -374,10 +374,11 @@ namespace avatar {
 
     // Shutdown: releases the SRV
     inline void shutdown() {
-        if (g_srv) {
-            g_srv->Release();
-            g_srv = nullptr;
+        ID3D11ShaderResourceView* srv = g_srv.load();
+        if (srv) {
+            srv->Release();
         }
+        g_srv.store(nullptr);
         g_w = g_h = 0;
         g_loading = false;
         g_loaded = false;
