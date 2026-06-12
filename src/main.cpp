@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include <TlHelp32.h>
 #include <string>
+#include "config.h"
 
 #include "core/memory.h"
 #include "core/offsets_manager.h"

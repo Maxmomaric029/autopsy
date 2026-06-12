@@ -12,6 +12,8 @@ namespace console {
 
     inline HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     inline bool initialized = false;
+    inline std::vector<std::string> logLines;
+    inline std::mutex logMutex;
 
     // Status info
     inline int playerCount = 0;
@@ -267,8 +269,6 @@ namespace console {
     // ========================================================================
     // Logging functions for real-time console feedback
     // ========================================================================
-    inline std::vector<std::string> logLines;
-    inline std::mutex logMutex;
 
     inline void log(const std::string& message) {
         std::lock_guard<std::mutex> lock(logMutex);
@@ -292,7 +292,7 @@ namespace console {
         
         // Trigger a redraw if initialized
         if (initialized) {
-            refresh();
+            render();
         }
     }
 

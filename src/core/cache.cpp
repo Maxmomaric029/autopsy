@@ -195,9 +195,10 @@ namespace cache {
             needsFullScan = true;
         }
 
+        std::vector<sdk::instance> children;
         if (needsFullScan) {
             CachedParts newCache;
-            auto children = player.character.children();
+            children = player.character.children();
 
             std::unordered_map<std::string, sdk::instance> nameToChild;
             nameToChild.reserve(children.size());
