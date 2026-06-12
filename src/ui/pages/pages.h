@@ -7,56 +7,41 @@
 #include <string>
 
 // ========================================================================
-// Menu page content — each section's controls using the new widget system
+// Menu page content — 5 tabs with industrial-minimal layout
 // ========================================================================
 
 namespace page {
 
-    // ---- Aimbot page (Section 0) ---------------------------------------
-    inline void aimbot(float bInW, float bInH) {
-        const float halfW = (bInW - theme::space::md) * .5f;
-        const float halfH = (bInH - theme::space::md) * .5f;
+    // ========================================================================
+    // Tab 0 — AIMBOT
+    // ========================================================================
+    inline void aimbot(float contentW, float contentH) {
+        const float leftW = (contentW - theme::kRightPanelW - theme::space::md);
+        const float halfLeft = (leftW - theme::space::md) * 0.5f;
 
-        if (w::card::begin("##abt", { halfW, halfH }, "AIMBOT")) {
-            w::toggle_icon(ICON_FA_POWER_OFF, "Enabled", &global::aim::Enabled);
-            w::helptooltip("Activate aimbot on keypress");
+        // ---- Left card: AIMBOT ----
+        if (w::card::begin("##ab_main", { halfLeft, contentH }, "AIMBOT")) {
+            w::toggle("Master Enable", &global::aim::Enabled);
             ImGui::SameLine(ImGui::GetContentRegionMax().x -
-                w::bindwidth(global::aim::Aimbot_Key, global::aim::Aimbot_Mode) - 4.f);
-            w::bind("##abk", &global::aim::Aimbot_Key, &global::aim::Aimbot_Mode);
-            w::gap(theme::space::xs);
-            w::toggle_icon(ICON_FA_CROSSHAIRS, "Sticky Aim", &global::aim::AimbotSticky);
-            w::helptooltip("Lock onto target until they leave FOV");
-            w::toggle("Knocked Check", &global::aim::KnockedCheck);
-            w::helptooltip("Skip knocked/downed players");
-            w::toggle_icon(ICON_FA_EYE, "Visible Check", &global::aim::VisibleCheck);
-            w::helptooltip("Only aim at players visible through walls");
-            w::sliderint("Hit Chance", &global::aim::HitChance, 0, 100);
-            w::helptooltip("Probability of triggering each frame (100 = always)");
+                w::bindwidth(global::aim::Aimbot_Key, w::ImKeyBindMode::Hold) - 4.f);
+            w::bind("##ab_bind", &global::aim::Aimbot_Key, (w::ImKeyBindMode*)&global::aim::Aimbot_Mode);
+
             w::gap(theme::space::sm);
             w::labelsection("TARGETING");
-            w::pill_toolbar("##aimbottype", {"Free Aim","Mouse Aim","Cam Lock"}, &global::aim::Aimbot_type);
-            w::helptooltip("How the aim input is delivered to the game");
+            w::pill_toolbar("##aim_type", {"Free Aim","Mouse Aim","Cam Lock"}, &global::aim::Aimbot_type);
             w::gap(theme::space::xs);
-            w::pill_toolbar("##priority", {"Crosshair","Distance"}, &global::aim::TargetPriority);
-            w::helptooltip("Target selection method");
+            w::pill_toolbar("##aim_prio", {"Crosshair","Distance"}, &global::aim::TargetPriority);
             w::gap(theme::space::xs);
-            w::pill_toolbar("##hitpart", {"Head","Torso","L.Torso"}, &global::aim::HitPart);
-            w::helptooltip("Body part to aim at");
-            w::gap(theme::space::md);
-            w::toggle_icon(ICON_FA_BULLSEYE, "Prediction", &global::aim::Prediction);
-            w::helptooltip("Lead moving targets");
-            if (global::aim::Prediction) {
-                w::toggle("Auto Prediction", &global::aim::AutoPrediction);
-                w::helptooltip("Automatically calculate prediction factor");
-                if (!global::aim::AutoPrediction) {
-                    w::sliderfloat("Pred X", &global::aim::PredictionX, 0.f, .5f);
-                    w::sliderfloat("Pred Y", &global::aim::PredictionY, 0.f, .5f);
-                    w::sliderfloat("Pred Z", &global::aim::PredictionZ, 0.f, .5f);
-                }
-            }
+            w::pill_toolbar("##aim_part", {"Head","Torso","L.Torso"}, &global::aim::HitPart);
+            w::gap(theme::space::xs);
+            w::toggle("Knocked Check", &global::aim::KnockedCheck);
+            w::toggle("Visible Check", &global::aim::VisibleCheck);
+            w::toggle("Sticky Aim", &global::aim::AimbotSticky);
+            w::sliderint("Hit Chance", &global::aim::HitChance, 0, 100);
+
             w::gap(theme::space::sm);
             w::labelsection("SMOOTHING");
-            w::toggle("Smooth Advanced", &global::aim::SmoothAdvanced);
+            w::toggle("Advanced Smooth", &global::aim::SmoothAdvanced);
             if (global::aim::Aimbot_type == 0 || global::aim::Aimbot_type == 1) {
                 if (global::aim::SmoothAdvanced) {
                     w::sliderfloat("Smooth X", &global::aim::mouse::Smoothing_X, 0.f, 12.f);
@@ -69,7 +54,6 @@ namespace page {
                     }
                 }
                 w::sliderfloat("Sensitivity", &global::aim::mouse::Mouse_Sensitivty, 0.f, 5.f);
-                w::helptooltip("Mouse movement scale factor");
             } else {
                 if (global::aim::SmoothAdvanced) {
                     w::sliderfloat("Smooth X", &global::aim::camera::Smoothing_X, 0.f, 12.f);
@@ -82,217 +66,219 @@ namespace page {
                     }
                 }
             }
+
             w::gap(theme::space::sm);
-            w::toggle_icon(ICON_FA_HAND, "Trigger Bot", &global::aim::TriggerBot);
-            w::helptooltip("Auto click when crosshair overlaps target");
+            w::labelsection("TRIGGER BOT");
+            w::toggle("Trigger Bot", &global::aim::TriggerBot);
             if (global::aim::TriggerBot) {
                 w::sliderfloat("TB Radius", &global::aim::TriggerRadius, 1.f, 25.f);
-                w::helptooltip("Box size around cursor that triggers a click");
-                w::sliderint("TB Delay", &global::aim::TriggerDelayMs, 0, 250);
-                w::helptooltip("Milliseconds before click fires");
+                w::sliderint("TB Delay ms", &global::aim::TriggerDelayMs, 0, 250);
             }
         }
         w::card::end();
 
         ImGui::SameLine(0.f, theme::space::md);
 
-        if (w::card::begin("##sil", { halfW, halfH }, "SILENT AIM")) {
-            w::toggle_icon(ICON_FA_POWER_OFF, "Enabled", &global::silent::Enabled);
-            w::helptooltip("Activate silent aim on keypress");
+        // ---- Right card: SILENT AIM ----
+        if (w::card::begin("##si_main", { halfLeft, contentH }, "SILENT AIM")) {
+            w::toggle("Master Enable", &global::silent::Enabled);
             ImGui::SameLine(ImGui::GetContentRegionMax().x -
-                w::bindwidth(global::silent::Silent_Key, global::silent::Silent_Mode) - 4.f);
-            w::bind("##sik", &global::silent::Silent_Key, &global::silent::Silent_Mode);
+                w::bindwidth(global::silent::Silent_Key, w::ImKeyBindMode::Hold) - 4.f);
+            w::bind("##si_bind", &global::silent::Silent_Key, (w::ImKeyBindMode*)&global::silent::Silent_Mode);
+
+            w::gap(theme::space::sm);
+            w::labelsection("TARGETING");
+            w::pill_toolbar("##si_prio", {"Crosshair","Distance"}, &global::silent::TargetPriority);
             w::gap(theme::space::xs);
-            w::toggle_icon(ICON_FA_LOCK, "Sticky Aim", &global::silent::StickyAim);
-            w::helptooltip("Stay locked on last target");
-            w::toggle("Spoof Mouse", &global::silent::SpoofMouse);
-            w::helptooltip("Write mouse position to game input service");
+            w::pill_toolbar("##si_part", {"Head","Torso","L.Torso"}, &global::silent::AimPart);
+            w::gap(theme::space::xs);
             w::toggle("Knocked Check", &global::silent::KnockedCheck);
-            w::helptooltip("Skip knocked players");
-            w::toggle_icon(ICON_FA_EYE, "Visible Check", &global::silent::VisibleCheck);
-            w::helptooltip("Only target visible players");
+            w::toggle("Visible Check", &global::silent::VisibleCheck);
+            w::toggle("Sticky Aim", &global::silent::StickyAim);
+            w::toggle("Spoof Mouse", &global::silent::SpoofMouse);
+
             w::gap(theme::space::sm);
-            w::pill_toolbar("##silpri", {"Crosshair","Distance"}, &global::silent::TargetPriority);
-            w::helptooltip("Target selection method");
-            w::gap(theme::space::xs);
-            w::pill_toolbar("##silpart", {"Head","Torso","L.Torso"}, &global::silent::AimPart);
-            w::helptooltip("Body part to redirect shots toward");
-            w::gap(theme::space::sm);
+            w::labelsection("PREDICTION");
             w::toggle("Prediction", &global::silent::Prediction);
-            w::helptooltip("Lead target movement");
             if (global::silent::Prediction) {
                 w::toggle("Auto Prediction", &global::silent::AutoPrediction);
                 if (!global::silent::AutoPrediction) {
-                    w::sliderfloat("Pred X", &global::silent::PredictionX, 0.f, .5f);
-                    w::sliderfloat("Pred Y", &global::silent::PredictionY, 0.f, .5f);
-                    w::sliderfloat("Pred Z", &global::silent::PredictionZ, 0.f, .5f);
+                    w::sliderfloat("Pred X", &global::silent::PredictionX, 0.f, 0.5f);
+                    w::sliderfloat("Pred Y", &global::silent::PredictionY, 0.f, 0.5f);
+                    w::sliderfloat("Pred Z", &global::silent::PredictionZ, 0.f, 0.5f);
                 }
             }
         }
         w::card::end();
 
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + theme::space::md);
-        const float r2H = halfH - theme::space::md;
-
-        if (w::card::begin("##abfov", { halfW, r2H }, "AIMBOT FOV")) {
-            if (global::aim::Enabled) {
-                w::togglecolor("Draw FOV", &global::aim::DrawFov, "##abfc", global::aim::FovColor);
-                if (global::aim::DrawFov) {
-                    w::sliderfloat("Radius", &global::aim::FovSize, 1.f, 500.f);
-                    w::toggle("Spin", &global::aim::FovSpin);
-                    if (global::aim::FovSpin)
-                        w::sliderint("Spin Speed", &global::aim::FovSpinSpeed, 1, 5);
-                    w::toggle("Constrain to FOV", &global::aim::useFov);
-                }
-            }
-            else {
-                w::gap(theme::space::sm);
-                ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
-                    "Enable aimbot first");
-            }
-        }
-        w::card::end();
-
+        // ---- Right panel: FOV + STATS ----
         ImGui::SameLine(0.f, theme::space::md);
 
-        if (w::card::begin("##sifov", { halfW, r2H }, "SILENT FOV")) {
-            if (global::silent::Enabled) {
-                w::togglecolor("Draw FOV", &global::silent::DrawFov, "##sifc", global::silent::FovColor);
-                w::gap(theme::space::xs);
-                w::toggle("Gun-Based FOV", &global::silent::GunBasedFov);
-                if (global::silent::GunBasedFov) {
-                    w::sliderfloat("Default", &global::silent::fov, 0.f, 300.f);
-                    w::sliderfloat("Dbl Barrel", &global::silent::FovDoubleBarrel, 0.f, 300.f);
-                    w::sliderfloat("Tactical", &global::silent::FovTacticalShotgun, 0.f, 300.f);
-                    w::sliderfloat("Revolver", &global::silent::FovRevolver, 0.f, 300.f);
-                }
-                else {
-                    w::sliderfloat("Static FOV", &global::silent::fov, 0.f, 500.f);
-                }
-                w::toggle("Spin FOV", &global::silent::FovSpin);
-                if (global::silent::FovSpin)
-                    w::sliderint("Spin Speed", &global::silent::FovSpinSpeed, 1, 5);
-                w::toggle("Constrain to FOV", &global::silent::UseFov);
-            }
-            else {
-                w::gap(theme::space::sm);
-                ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
-                    "Enable silent aim first");
-            }
+        if (w::card::begin("##fov_panel", { theme::kRightPanelW, contentH }, "FOV & STATS")) {
+            w::labelsection("FOV");
+            w::togglecolor("Draw Aimbot FOV", &global::aim::DrawFov, "##ab_fovc", global::aim::FovColor);
+            w::togglecolor("Draw Silent FOV", &global::silent::DrawFov, "##si_fovc", global::silent::FovColor);
+            w::sliderfloat("FOV Size", &global::aim::FovSize, 1.f, 500.f);
+            w::toggle("Spin FOV", &global::aim::FovSpin);
+            if (global::aim::FovSpin)
+                w::sliderint("Spin Speed", &global::aim::FovSpinSpeed, 1, 5);
+
+            w::gap(theme::space::md);
+            w::labelsection("STATS");
+            // Stats display as a table
+            const float statW = (theme::kRightPanelW - 42.f) * 0.5f;
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Scanned");
+            ImGui::SameLine(statW + 10.f);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "1,247");
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Hit Rate");
+            ImGui::SameLine(statW + 10.f);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "98.2%%");
         }
         w::card::end();
     }
 
-    // ---- Visuals page (Section 1) ---------------------------------------
-    inline void visuals(float bInW, float bInH) {
-        const float halfW = (bInW - theme::space::md) * .5f;
+    // ========================================================================
+    // Tab 1 — VISUALS
+    // ========================================================================
+    inline void visuals(float contentW, float contentH) {
+        const float leftW = (contentW - theme::kRightPanelW - theme::space::md);
+        const float halfLeft = (leftW - theme::space::md) * 0.5f;
 
-        if (w::card::begin("##esp", { halfW, bInH }, "ESP TOGGLES")) {
-            w::toggle_icon(ICON_FA_POWER_OFF, "Master Enable", &global::esp::Enabled);
-            w::helptooltip("Toggle all ESP rendering");
-            w::toggle("Visible Check", &global::esp::VisibleCheck);
-            w::helptooltip("Color targets differently based on visibility");
-            if (global::esp::VisibleCheck) {
-                ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Visible");
-                w::color4("##espvisc", global::esp::color::Visible);
-                ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Not Visible");
-                w::color4("##espnotvisc", global::esp::color::NotVisible);
-            }
+        // ---- Left card: ESP TOGGLES ----
+        if (w::card::begin("##esp_toggles", { halfLeft, contentH }, "ESP TOGGLES")) {
+            w::toggle("Master Enable", &global::esp::Enabled);
             w::gap(theme::space::sm);
 
             w::labelsection("BOX");
-            w::toggle_icon(ICON_FA_BOX, "Box", &global::esp::Box);
-            w::helptooltip("Draw bounding or corner box around players");
+            w::toggle("Box ESP", &global::esp::Box);
             if (global::esp::Box) {
-                w::pill_toolbar("##boxtype", {"Bounding","Corner"}, &global::esp::Box_Type);
-                w::helptooltip("Box drawing style");
+                w::pill_toolbar("##box_type", {"Bounding","Corner"}, &global::esp::Box_Type);
                 w::gap(theme::space::xs);
                 w::toggle("Box Fill", &global::esp::Box_Fill);
-                w::helptooltip("Fill the box with a semi-transparent color");
-                if (global::esp::Box_Fill) {
-                    w::dualcolor("##bft", global::esp::color::BoxFill_Top,
-                        "##bfb", global::esp::color::BoxFill_Bottom);
-                    w::toggle("Gradient", &global::esp::Box_Fill_Gradient);
-                    if (global::esp::Box_Fill_Gradient) {
-                        w::toggle("Rotation", &global::esp::Box_Fill_Gradient_Rotate);
-                        if (global::esp::Box_Fill_Gradient_Rotate) {
-                            w::combo("Rotation Type", &global::esp::Box_Fill_Type,
-                                { "Side", "Bottom", "Spin" });
-                            w::sliderint("Speed", &global::esp::BoxFillSpeed, 1, 5);
-                        }
-                    }
-                }
+                if (global::esp::Box_Fill)
+                    w::dualcolor("##boxfill_top", global::esp::color::BoxFill_Top,
+                        "##boxfill_bot", global::esp::color::BoxFill_Bottom);
+                w::toggle("Gradient Fill", &global::esp::Box_Fill_Gradient);
             }
-            w::gap(theme::space::sm);
 
+            w::gap(theme::space::sm);
             w::labelsection("HEALTH");
-            w::toggle_icon(ICON_FA_HEART, "Health Bar", &global::esp::Healthbar);
-            w::helptooltip("Show vertical health bar next to box");
+            w::toggle("Health Bar", &global::esp::Healthbar);
             if (global::esp::Healthbar) {
-                w::pill_toolbar("##hbtype", {"Static","Gradient"}, &global::esp::Healthbar_Type);
-                w::helptooltip("Health bar fill style");
-                if (global::esp::Healthbar_Type == 1) {
-                    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
-                        "Gradient (top — mid — bottom)");
-                    w::tricolor("##hbt", global::esp::color::Healthbar_Top,
-                        "##hbm", global::esp::color::Healthbar_Middle,
-                        "##hbb", global::esp::color::Healthbar_Bottom);
-                }
+                w::pill_toolbar("##hb_type", {"Static","Gradient"}, &global::esp::Healthbar_Type);
                 w::sliderint("Bar Gap", &global::esp::gap, 1, 5);
                 w::sliderint("Bar Thickness", &global::esp::Thickness, 1, 5);
             }
             w::toggle("Health Text", &global::esp::Health);
-            w::helptooltip("Show numeric HP value");
-            w::gap(theme::space::sm);
 
+            w::gap(theme::space::sm);
             w::labelsection("LABELS");
-            w::toggle_icon(ICON_FA_TAG, "Name", &global::esp::name);
-            w::helptooltip("Show player username above box");
+            w::toggle("Name", &global::esp::name);
             if (global::esp::name)
                 w::combo("Name Format", &global::esp::Name_Type,
-                    { "Name", "Display Name", "Name & Display" });
-            w::toggle_icon(ICON_FA_RULER, "Distance", &global::esp::Distance);
-            w::helptooltip("Show distance in studs below box");
+                    {"Name","Display","Both"});
+            w::toggle("Distance", &global::esp::Distance);
             w::toggle("Rig Type", &global::esp::Rig_Type);
             w::toggle("Tool", &global::esp::tool);
-            w::gap(theme::space::sm);
 
+            w::gap(theme::space::sm);
             w::labelsection("3D");
-            w::toggle_icon(ICON_FA_PERSON, "Skeleton", &global::esp::Skeleton);
-            w::helptooltip("Render bone lines connecting body parts");
-            w::toggle_icon(ICON_FA_CHART_LINE, "Trails", &global::esp::Trails);
-            w::helptooltip("Draw movement trail behind players");
+            w::toggle("Skeleton", &global::esp::Skeleton);
+            w::toggle("Trails", &global::esp::Trails);
             w::toggle("Chinese Hats", &global::esp::Chinese_Hat);
             w::toggle("Aim Lines", &global::esp::aimline);
-            w::helptooltip("Show aim direction ray from each player");
             w::toggle("Chams", &global::esp::Chams);
-            w::helptooltip("Fill player body parts with color overlay");
-            if (global::esp::Chams) {
-                w::dualcolor("##chc", global::esp::color::Chams,
-                    "##choc", global::esp::color::ChamsOutline);
-                w::toggle("Fade", &global::esp::ChamsFade);
-                if (global::esp::ChamsFade)
-                    w::sliderint("Fade Speed", &global::esp::ChamsFadeSpeed, 1, 5);
-            }
+            if (global::esp::Chams)
+                w::dualcolor("##chams_fill", global::esp::color::Chams,
+                    "##chams_out", global::esp::color::ChamsOutline);
         }
         w::card::end();
 
         ImGui::SameLine(0.f, theme::space::md);
 
-        if (w::card::begin("##vopt", { halfW, bInH }, "OPTIONS")) {
+        // ---- Right card: OPTIONS + COLORS ----
+        if (w::card::begin("##vis_opts", { halfLeft, contentH }, "OPTIONS")) {
+            w::labelsection("GENERAL");
             w::toggle("Exclude Team", &global::setting::Team_Check);
             w::toggle("Exclude Client", &global::setting::Client_Check);
+
             w::gap(theme::space::sm);
             w::labelsection("RENDERING");
-            w::sliderfloat("Render Distance", &global::esp::Render_Distance, 0.f, 500.f);
-            w::helptooltip("Maximum distance to render ESP elements");
+            w::sliderfloat("Render Distance", &global::esp::Render_Distance, 0.f, 1000.f);
+
+            w::gap(theme::space::sm);
+            w::labelsection("COLORS");
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Visible");
+            w::color4("##vis_col", global::esp::color::Visible);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Not Visible");
+            w::color4("##nvis_col", global::esp::color::NotVisible);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Skeleton");
+            w::color4("##skel_col", global::esp::color::Skeleton);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Trails");
+            w::color4("##trail_col", global::esp::color::Trails);
+
+            w::gap(theme::space::sm);
+            w::labelsection("SESSION");
+            const float statW = (halfLeft * 0.5f);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Players");
+            ImGui::SameLine(statW + 10.f);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "247");
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "FPS");
+            ImGui::SameLine(statW + 10.f);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "143");
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Latency");
+            ImGui::SameLine(statW + 10.f);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "12ms");
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Uptime");
+            ImGui::SameLine(statW + 10.f);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "99%%");
+        }
+        w::card::end();
+
+        // ---- Right panel (240px): color swatches + session ----
+        ImGui::SameLine(0.f, theme::space::md);
+
+        if (w::card::begin("##vis_right", { theme::kRightPanelW, contentH }, "VISUAL CONFIG")) {
+            w::labelsection("PLAYER COLORS");
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Visible");
+            ImGui::SameLine(ImGui::GetContentRegionMax().x - 22.f);
+            w::color4("##visc", global::esp::color::Visible);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Not Visible");
+            ImGui::SameLine(ImGui::GetContentRegionMax().x - 22.f);
+            w::color4("##nvc", global::esp::color::NotVisible);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Skeleton");
+            ImGui::SameLine(ImGui::GetContentRegionMax().x - 22.f);
+            w::color4("##skc", global::esp::color::Skeleton);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Trails");
+            ImGui::SameLine(ImGui::GetContentRegionMax().x - 22.f);
+            w::color4("##trc", global::esp::color::Trails);
+
+            w::gap(theme::space::md);
+            w::labelsection("SESSION");
+            const float statW2 = (theme::kRightPanelW - 42.f) * 0.5f;
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Players");
+            ImGui::SameLine(statW2 + 10.f);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "247");
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "FPS");
+            ImGui::SameLine(statW2 + 10.f);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "143");
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Latency");
+            ImGui::SameLine(statW2 + 10.f);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "12ms");
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Uptime");
+            ImGui::SameLine(statW2 + 10.f);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "99%%");
         }
         w::card::end();
     }
 
-    // ---- World page (Section 2) -----------------------------------------
-    inline void world(float bInW, float bInH) {
-        if (w::card::begin("##wld", { bInW, bInH }, "WORLD MANIPULATION")) {
+    // ========================================================================
+    // Tab 2 — WORLD
+    // ========================================================================
+    inline void world(float contentW, float contentH) {
+        // Single wide card
+        if (w::card::begin("##wld", { contentW, contentH }, "WORLD MANIPULATION")) {
+            w::labelsection("SKYBOX");
             w::toggle("Skybox Changer", &global::world::Skybox);
             if (global::world::Skybox) {
                 w::combo("Preset", &global::world::Skybox_Type, {
@@ -303,14 +289,14 @@ namespace page {
                 if (global::world::Rotate)
                     w::sliderfloat("Rotate Speed", &global::world::Skybox_Rotate_Speed, 0.f, 5.f);
             }
-            w::gap(theme::space::sm);
 
+            w::gap(theme::space::md);
             w::labelsection("LIGHTING");
             w::togglecolor("Atmosphere", &global::world::Ambience,
                 "##atmc", global::world::color::Ambience);
             w::toggle("Fog", &global::world::Fog);
             if (global::world::Fog) {
-                ImGui::SameLine(ImGui::GetContentRegionMax().x - 15.f);
+                ImGui::SameLine(ImGui::GetContentRegionMax().x - 22.f);
                 w::color4("##fogc", global::world::color::Fog);
                 w::sliderfloat("Fog Distance", &global::world::Fog_Distance, 0.f, 1000.f);
             }
@@ -320,8 +306,8 @@ namespace page {
             w::toggle("Exposure", &global::world::Exposure);
             if (global::world::Exposure)
                 w::sliderfloat("Exposure", &global::world::ExposureI, -3.f, 3.f);
-            w::gap(theme::space::sm);
 
+            w::gap(theme::space::md);
             w::labelsection("CAMERA");
             w::toggle("Custom FOV", &global::world::FOV);
             if (global::world::FOV)
@@ -330,19 +316,22 @@ namespace page {
         w::card::end();
     }
 
-    // ---- Misc page (Section 3) -----------------------------------------
-    inline void misc(float bInW, float bInH) {
-        const float halfW = (bInW - theme::space::md) * .5f;
+    // ========================================================================
+    // Tab 3 — MISC
+    // ========================================================================
+    inline void misc(float contentW, float contentH) {
+        const float halfW = (contentW - theme::space::md) * 0.5f;
 
-        if (w::card::begin("##msc", { halfW, bInH }, "EXPLOITS")) {
+        // ---- Left: EXPLOITS ----
+        if (w::card::begin("##exploits", { halfW, contentH }, "EXPLOITS")) {
             w::toggle("Fly", &global::misc::fly);
             ImGui::SameLine(ImGui::GetContentRegionMax().x -
-                w::bindwidth(global::misc::Fly_Key, global::misc::Fly_Mode) - 4.f);
-            w::bind("##flyk", &global::misc::Fly_Key, &global::misc::Fly_Mode);
+                w::bindwidth(global::misc::Fly_Key, w::ImKeyBindMode::Hold) - 4.f);
+            w::bind("##fly_bind", &global::misc::Fly_Key, (w::ImKeyBindMode*)&global::misc::Fly_Mode);
             if (global::misc::fly)
                 w::sliderfloat("Fly Speed", &global::misc::Fly_Speed, 0.f, 200.f);
-            w::gap(theme::space::sm);
 
+            w::gap(theme::space::sm);
             w::labelsection("ADJUSTMENTS");
             w::toggle("Walkspeed", &global::misc::walkspeed);
             if (global::misc::walkspeed)
@@ -358,31 +347,28 @@ namespace page {
 
         ImGui::SameLine(0.f, theme::space::md);
 
-        // Right card: config / settings
-        if (w::card::begin("##cfg", { halfW, bInH }, "CONFIG")) {
+        // ---- Right: CONFIG ----
+        if (w::card::begin("##cfg", { halfW, contentH }, "CONFIG")) {
             static std::vector<std::string> configs;
             static int configIdx = -1;
             static char newNameBuf[128] = {0};
 
             config::refresh(configs);
 
-            // Current config list
+            w::labelsection("SAVED CONFIGS");
             if (configs.empty()) {
                 w::gap(theme::space::sm);
                 ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
                     "No configs found");
-            }
-            else {
+            } else {
                 std::vector<const char*> items;
                 for (auto& c : configs) items.push_back(c.c_str());
-                w::combo("Config", &configIdx, items);
+                w::combo("Select config", &configIdx, items);
                 if (configIdx < 0 || configIdx >= (int)configs.size())
                     configIdx = -1;
             }
 
             w::gap(theme::space::sm);
-
-            // Save / Load / Delete buttons
             if (configIdx >= 0 && configIdx < (int)configs.size()) {
                 if (w::accent_button("Load", -1.f, 24.f))
                     config::load(configs[configIdx]);
@@ -390,36 +376,14 @@ namespace page {
                 if (w::accent_button("Save", -1.f, 24.f))
                     config::save(configs[configIdx]);
                 w::gap(theme::space::xs);
-                if (w::danger_button("Delete", -1.f, 24.f))
-                    ImGui::OpenPopup("##delcfg");
-                {
-                    ImVec2 c = ImGui::GetIO().DisplaySize;
-                    ImGui::SetNextWindowPos({ c.x * 0.5f, c.y * 0.5f }, ImGuiCond_Always, { 0.5f, 0.5f });
-                    ImGui::SetNextWindowSize({ 260.f, 0.f });
-                    ImGui::PushStyleColor(ImGuiCol_PopupBg, theme::to_u32(theme::c_card));
-                    ImGui::PushStyleColor(ImGuiCol_Border, theme::to_u32(theme::c_border));
-                    if (ImGui::BeginPopupModal("##delcfg", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoDecoration)) {
-                        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
-                            "Delete \"%s\"?", configs[configIdx].c_str());
-                        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::alpha(theme::col_danger(), 0.7f)),
-                            "This cannot be undone.");
-                        w::gap(theme::space::sm);
-                        if (w::danger_button("Delete", -1.f, 26.f)) {
-                            config::remove(configs[configIdx]);
-                            configIdx = -1;
-                            ImGui::CloseCurrentPopup();
-                        }
-                        w::gap(theme::space::xs);
-                        if (w::button("Cancel", theme::col_surface(), theme::col_border(), theme::col_text(), -1.f, 26.f))
-                            ImGui::CloseCurrentPopup();
-                        ImGui::EndPopup();
-                    }
-                    ImGui::PopStyleColor(2);
+                if (w::danger_button("Delete", -1.f, 24.f)) {
+                    config::remove(configs[configIdx]);
+                    configIdx = -1;
                 }
-                w::gap(theme::space::sm);
             }
 
-            w::labelsection("CREATE");
+            w::gap(theme::space::sm);
+            w::labelsection("CREATE NEW");
             ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
             ImGui::InputText("##newcfg", newNameBuf, sizeof(newNameBuf));
             ImGui::PopItemWidth();
@@ -433,142 +397,164 @@ namespace page {
         w::card::end();
     }
 
-    // ---- Blade Ball page (Section 4) ------------------------------------
-    inline void bladeball(float bInW, float bInH) {
-        const float halfW = (bInW - theme::space::md) * .5f;
-        const bool bladeBallActive = global::GameID == global::ball::PlaceId;
+    // ========================================================================
+    // Tab 4 — SETTINGS
+    // ========================================================================
+    inline void settings(float contentW, float contentH) {
+        const float leftW = (contentW - theme::space::md) * 0.5f;
 
-        if (w::card::begin("##bbmain", { halfW, bInH }, "BLADE BALL")) {
-            if (!bladeBallActive) {
-                ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()),
-                    "User is not playing Blade Ball.");
-                ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
-                    "Start Blade Ball to enable these features.");
-                w::gap(theme::space::xl);
-                ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
-                    "Features locked");
-                ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
-                    "Required place: 13772394625");
-            }
-            else {
-                w::togglecolor("Ball ESP", &global::ball::BallEsp,
-                    "##bbespcol", global::ball::BallEspColor);
-                w::togglecolor("Parry Range", &global::ball::DrawParryRange,
-                    "##bbrangecol", global::ball::ParryRangeColor);
-                w::gap(theme::space::sm);
-                w::toggle("Auto Parry", &global::ball::AutoParry);
-                w::toggle("Clash Mode", &global::ball::ClashMode);
-                w::toggle("Press F", &global::ball::pressf);
-                w::toggle("Predict Timing", &global::ball::PredictTiming);
-                w::toggle("Auto Range", &global::ball::AutoRange);
-                w::toggle("Auto Timing", &global::ball::AutoTiming);
-                w::toggle("Dynamic Timing", &global::ball::DynamicTiming);
-                w::sliderfloat("Parry Distance", &global::ball::ParryDistance, 5.f, 120.f);
-                w::sliderfloat("Distance Buffer", &global::ball::DistanceBuffer, 0.f, 100.f);
-                w::sliderfloat("Timing MS", &global::ball::ParryTimingMs, 35.f, 260.f);
-                w::sliderfloat("Cooldown MS", &global::ball::ParryCooldownMs, 20.f, 220.f);
-                w::sliderfloat("Min Speed", &global::ball::MinBallSpeed, 1.f, 80.f);
-            }
-        }
-        w::card::end();
-
-        ImGui::SameLine(0.f, theme::space::md);
-
-        if (w::card::begin("##bbinfo", { halfW, bInH }, "OPTIONS")) {
-            if (!bladeBallActive) {
-                ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
-                    "Blade Ball options are disabled.");
-                w::gap(4.f);
-                ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
-                    "Join Blade Ball and the controls will unlock.");
-            }
-            else {
-                ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
-                    "Ball ESP draws each detected ball.");
-                w::gap(theme::space::sm);
-                ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
-                    "Auto Parry automatically parries based on configured");
-                ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
-                    "predictions, timing, and range settings.");
-            w::gap(theme::space::xl);
-            w::labelsection("SPAM PARRY");
-                w::toggle("Spam Parry", &global::ball::SpamParry);
-                ImGui::SameLine(ImGui::GetContentRegionMax().x -
-                    w::bindwidth(global::ball::SpamParry_Key, global::ball::SpamParry_Mode) - 4.f);
-                w::bind("##bbspamk", &global::ball::SpamParry_Key, &global::ball::SpamParry_Mode);
-            }
-        }
-        w::card::end();
-    }
-
-    // ---- Settings page (Section 5) --------------------------------------
-    inline void settings(float bInW, float bInH) {
-        const float halfW = (bInW - theme::space::md) * .5f;
-
-        if (w::card::begin("##sgen", { halfW, bInH }, "GENERAL")) {
+        // ---- Left: GENERAL ----
+        if (w::card::begin("##s_gen", { leftW, contentH }, "GENERAL")) {
             w::labelsection("MENU");
             ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Menu Key");
             ImGui::SameLine(ImGui::GetContentRegionMax().x - 60.f);
             w::keyselect("##menukey", &global::setting::Menu_Key);
-            w::helptooltip("Key to toggle the config menu");
+
             w::gap(theme::space::sm);
             w::labelsection("DISPLAY");
             w::toggle("Compact UI", &global::setting::Compact_UI);
-            w::helptooltip("Reduce padding and spacing");
             w::pill_toolbar("##perf", {"60fps","144fps","Unlocked"}, &global::setting::Performance_Mode);
-            w::helptooltip("60fps caps at 60, 144fps caps at 144, Unlocked is uncapped");
             w::gap(theme::space::xs);
             w::toggle("Streamproof", &global::setting::Streamproof);
-            w::helptooltip("Hide overlay from screen capture software");
+
+            w::gap(theme::space::sm);
+            w::labelsection("SOUND");
+            w::toggle("Sound Effects", &global::setting::Sound_Enabled);
+            if (global::setting::Sound_Enabled)
+                w::sliderfloat("Volume", &global::setting::Sound_Volume, 0.f, 1.f);
+
             w::gap(theme::space::sm);
             w::labelsection("OVERLAY");
-            w::toggle_icon(ICON_FA_DROPLET, "Watermark", &global::overlay::watermark);
-            w::helptooltip("Show branding panel on screen");
-            w::toggle("Hotkeys", &global::overlay::hotkey);
-            w::helptooltip("Show live hotkey status panel");
+            w::toggle("Watermark", &global::overlay::watermark);
+            w::toggle("Hotkeys Panel", &global::overlay::hotkey);
             if (global::overlay::hotkey) {
                 w::toggle("  Aimbot", &global::overlay::Hotkey_Aimbot);
                 w::toggle("  Silent", &global::overlay::Hotkey_Silent);
                 w::toggle("  Fly", &global::overlay::Hotkey_Fly);
-                w::toggle("  Blade Ball Spam", &global::overlay::Hotkey_BladeBallSpam);
                 w::toggle("  Walkspeed", &global::overlay::Hotkey_Walkspeed);
                 w::toggle("  Hitbox", &global::overlay::Hotkey_HitboxExpander);
             }
-            w::toggle_icon(ICON_FA_MAP, "Radar", &global::overlay::radar);
-            w::helptooltip("Show mini radar with player positions");
+            w::toggle("Radar", &global::overlay::radar);
             if (global::overlay::radar) {
-                w::pill_toolbar("##radarshape", {"Circle","Square"}, &global::overlay::Radar_Shape);
-                w::sliderfloat("Zoom", &global::overlay::Radar_Zoom, .3f, 4.f);
-                w::helptooltip("Radar scale — higher = more zoomed out");
+                w::pill_toolbar("##radar_shape", {"Circle","Square"}, &global::overlay::Radar_Shape);
+                w::sliderfloat("Zoom", &global::overlay::Radar_Zoom, 0.3f, 4.f);
                 w::sliderfloat("Size", &global::overlay::Radar_Size, 130.f, 280.f);
-                w::helptooltip("Radar panel pixel size");
-                w::toggle("Rotate", &global::overlay::Radar_Rotate);
-                w::helptooltip("Rotate radar with camera direction");
+                w::toggle("Rotate with cam", &global::overlay::Radar_Rotate);
             }
-            w::toggle_icon(ICON_FA_TRIANGLE_EXCLAMATION, "Aim Warning", &global::overlay::AimWarning);
-            w::helptooltip("Alert when a player is aiming at you");
+            w::toggle("Aim Warning", &global::overlay::AimWarning);
             if (global::overlay::AimWarning)
-                w::sliderfloat("AimView Length", &global::overlay::AimView_MaxLength, 50.f, 1000.f);
-            w::helptooltip("Ray length used for aim threat detection");
+                w::sliderfloat("Detection Range", &global::overlay::AimView_MaxLength, 50.f, 1000.f);
         }
         w::card::end();
 
         ImGui::SameLine(0.f, theme::space::md);
 
-        if (w::card::begin("##sabout", { halfW, bInH }, "ABOUT")) {
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(IM_COL32(220, 60, 70, 245)),
-                "MISERABLE");
-            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 30.f);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
-                "Version 1.0.0");
+        // ---- Right: ACCOUNT & ABOUT ----
+        if (w::card::begin("##s_about", { leftW, contentH }, "ACCOUNT & ABOUT")) {
+            w::labelsection("USER");
+
+            // User pill container
+            ImDrawList* dl = ImGui::GetWindowDrawList();
+            const ImVec2 pillPos = ImGui::GetCursorScreenPos();
+            float pillW = ImGui::GetContentRegionAvail().x;
+            float pillH = 64.f;
+            const ImGuiID pillId = ImGui::GetID("##user_pill");
+
+            // Check hover
+            bool pillHovered = ImGui::IsMouseHoveringRect(pillPos, pillPos + ImVec2(pillW, pillH));
+
+            // Pill background: SURFACE2, border BORDER, border-radius 16px
+            dl->AddRectFilled(pillPos, pillPos + ImVec2(pillW, pillH),
+                IM_COL32(23, 23, 27, 255), 16.f); // SURFACE2
+            dl->AddRect(pillPos, pillPos + ImVec2(pillW, pillH),
+                pillHovered ? IM_COL32(200, 241, 53, 55) : IM_COL32(255, 255, 255, 15),
+                16.f, 0, 1.f);
+
+            // Avatar circle placeholder
+            float avatarR = 22.f;
+            ImVec2 avCenter = pillPos + ImVec2(12.f + avatarR, pillH * 0.5f);
+            dl->AddCircleFilled(avCenter, avatarR,
+                IM_COL32(23, 23, 27, 255), 32);
+            dl->AddCircle(avCenter, avatarR,
+                IM_COL32(200, 241, 53, 40), 32, 1.5f);
+
+            // Initials fallback
+            static const char* username = []() {
+                static char buf[128];
+                DWORD len = GetEnvironmentVariableA("USERNAME", buf, sizeof(buf));
+                return (len && len < sizeof(buf)) ? buf : "user";
+            }();
+            char initial[2] = { username[0] >= 'a' ? (char)(username[0] - 32) : username[0], '\0' };
+            ImVec2 initSize = ImGui::CalcTextSize(initial);
+            dl->AddText(font::label(), 14.f,
+                { avCenter.x - initSize.x * 0.5f, avCenter.y - initSize.y * 0.5f },
+                theme::col_accent(), initial);
+
+            // Username
+            dl->AddText(font::label(), 14.f,
+                pillPos + ImVec2(70.f, 14.f),
+                IM_COL32(240, 240, 238, 255), username);
+
+            // Status
+            dl->AddText(font::mono(), 10.f,
+                pillPos + ImVec2(70.f, 34.f),
+                IM_COL32(90, 90, 96, 255), "premium · active");
+
+            // Invisible button for hover detection
+            ImGui::SetCursorScreenPos(pillPos);
+            ImGui::InvisibleButton("##pill_click", { pillW, pillH });
+
             w::gap(theme::space::sm);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
-                "Built with ImGui + DirectX 11");
-            w::gap(theme::space::xl);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
-                "Menu Key");
-            ImGui::SameLine(ImGui::GetContentRegionMax().x - 60.f);
-            w::keyselect("##menukey", &global::setting::Menu_Key);
+
+            // ---- HOTKEYS RÁPIDOS ----
+            w::labelsection("HOTKEYS");
+            // Grid 2 columns
+            struct QuickKey { const char* label; ImGuiKey* key; };
+            QuickKey quickKeys[] = {
+                {"Aimbot",    &global::aim::Aimbot_Key},
+                {"Silent",    &global::silent::Silent_Key},
+                {"Fly",       &global::misc::Fly_Key},
+                {"Walkspeed", nullptr},
+                {"Hitbox",    nullptr},
+                {"Menu",      &global::setting::Menu_Key},
+            };
+            float chipW = (ImGui::GetContentRegionAvail().x - 8.f) * 0.5f;
+            for (int i = 0; i < 6; i += 2) {
+                // Row 1
+                if (i < 6) {
+                    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
+                        "%s", quickKeys[i].label);
+                    ImGui::SameLine(chipW + 8.f);
+                    if (quickKeys[i].key) {
+                        ImGui::SetCursorPosX(chipW + 8.f + 10.f);
+                        w::keyselect(quickKeys[i].label, quickKeys[i].key);
+                    }
+                }
+                ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4.f);
+                // Row 2
+                if (i + 1 < 6) {
+                    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
+                        "%s", quickKeys[i + 1].label);
+                    ImGui::SameLine(chipW + 8.f);
+                    if (quickKeys[i + 1].key) {
+                        ImGui::SetCursorPosX(chipW + 8.f + 10.f);
+                        w::keyselect(quickKeys[i + 1].label, quickKeys[i + 1].key);
+                    }
+                }
+                w::gap(theme::space::xs);
+            }
+
+            w::gap(theme::space::sm);
+            w::labelsection("ABOUT");
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Version");
+            ImGui::SameLine(ImGui::GetContentRegionMax().x - 50.f);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "1.0.0");
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Build");
+            ImGui::SameLine(ImGui::GetContentRegionMax().x - 80.f);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "2025.06.12");
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Status");
+            ImGui::SameLine(ImGui::GetContentRegionMax().x - 70.f);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "Premium");
         }
         w::card::end();
     }

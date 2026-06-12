@@ -58,6 +58,8 @@ namespace global {
 		inline int Performance_Mode = 2;
 		inline bool Compact_UI = false;
 		inline ImGuiKey Menu_Key = ImGuiKey_Insert;
+		inline bool Sound_Enabled = true;
+		inline float Sound_Volume = 0.4f;
 
 		namespace color {
 			inline float Accent[4]{ 0.0f, 0.682f, 1.0f, 1.0f };

@@ -27,6 +27,11 @@ namespace anim {
                         : 1.f - powf(-2.f * t + 2.f, 3.f) * 0.5f;
     }
 
+    inline float ease_in_out_quad(float t) {
+        t = saturate(t);
+        return t < 0.5f ? 2.f * t * t : 1.f - powf(-2.f * t + 2.f, 2.f) * 0.5f;
+    }
+
     inline float damp(float value, float target, float speed) {
         const float dt = ImClamp(ImGui::GetIO().DeltaTime, 0.f, 1.f / 30.f);
         const float k = 1.f - expf(-speed * dt);
@@ -39,18 +44,15 @@ namespace anim {
 
         float get(ImGuiID id, bool on, float speed = 10.f) {
             if (values.empty()) values.reserve(128);
-            // Read/update current entry FIRST
             float& v = values[id];
             v = damp(v, on ? 1.f : 0.f, speed);
             return v;
         }
 
-        // Prune settled entries — call once per frame instead of inside get()
-        // to avoid O(N) overhead on every individual animation access.
         void prune() {
             static double lastPrune = 0.0;
             double now = ImGui::GetTime();
-            if (now - lastPrune < 5.0) return; // limit to once per 5 seconds
+            if (now - lastPrune < 5.0) return;
             lastPrune = now;
 
             if (values.size() > 512) {
@@ -86,6 +88,21 @@ namespace anim {
 
     inline float pulse(float speed = 2.5f) {
         return (sinf((float)ImGui::GetTime() * speed) + 1.f) * 0.5f;
+    }
+
+    // ========================================================================
+    // Recommended animation speeds (per spec)
+    // ========================================================================
+    namespace speed {
+        inline constexpr float toggle_knob   = 9.5f;
+        inline constexpr float tab_indicator = 14.0f;
+        inline constexpr float menu_open     = 8.5f;
+        inline constexpr float menu_close    = 7.2f;
+        inline constexpr float card_hover    = 8.0f;
+        inline constexpr float page_trans    = 11.0f;
+        inline constexpr float chip_hover    = 10.0f;
+        inline constexpr float sidebar_tab   = 14.0f;
+        inline constexpr float hover_sound   = 9.0f;
     }
 
 } // namespace anim

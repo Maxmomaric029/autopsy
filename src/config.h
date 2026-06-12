@@ -202,6 +202,8 @@ namespace config
         writei("Settings", "Performance_Mode", global::setting::Performance_Mode, path);
         writeb("Settings", "Compact_UI", global::setting::Compact_UI, path);
         writei("Settings", "Menu_Key", (int)global::setting::Menu_Key, path);
+        writeb("Settings", "Sound_Enabled", global::setting::Sound_Enabled, path);
+        writef("Settings", "Sound_Volume", global::setting::Sound_Volume, path);
         writec("Settings", "Theme_Accent", global::setting::color::Accent, path);
         writec("Settings", "Theme_Accent2", global::setting::color::Accent2, path);
         writec("Settings", "Theme_Window", global::setting::color::Window, path);
@@ -403,6 +405,8 @@ namespace config
         global::setting::Streamproof = readb("Settings", "Streamproof", global::setting::Streamproof, path);
         global::setting::Performance_Mode = readi("Settings", "Performance_Mode", global::setting::Performance_Mode, path);
         global::setting::Compact_UI = readb("Settings", "Compact_UI", global::setting::Compact_UI, path);
+        global::setting::Sound_Enabled = readb("Settings", "Sound_Enabled", global::setting::Sound_Enabled, path);
+        global::setting::Sound_Volume = readf("Settings", "Sound_Volume", global::setting::Sound_Volume, path);
         const int menuKey = readi("Settings", "Menu_Key", (int)global::setting::Menu_Key, path);
         global::setting::Menu_Key = (menuKey > ImGuiKey_None && menuKey < ImGuiKey_COUNT)
             ? (ImGuiKey)menuKey

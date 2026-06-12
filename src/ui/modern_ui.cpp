@@ -15,6 +15,7 @@
 #include "ui/core/icons.h"
 #include "ui/core/notifications.h"
 #include "ui/core/texture.h"
+#include "ui/core/sound.h"
 
 // Embedded logo data
 #include "ui/embedded/cuervo_logo.h"
@@ -26,12 +27,10 @@
 // ModernUI — public API implementation
 // ========================================================================
 
-// Logo SRVs for sidebar/hud
 ID3D11ShaderResourceView* g_sidebar_logo = nullptr;
 int g_sidebar_logoW = 0;
 int g_sidebar_logoH = 0;
 
-// Frame content flag (set by RenderESP/RenderMenu when drawing)
 extern bool g_frameHadContent;
 
 ModernUI::ModernUI() = default;
@@ -63,7 +62,7 @@ bool ModernUI::Create(HWND window, ID3D11Device* device, ID3D11DeviceContext* co
 
     font::load(dpiScale);
 
-    // ---- Dark style ----
+    // ---- Industrial-minimal dark style ----
     ImGui::StyleColorsDark();
     ImGuiStyle& S = ImGui::GetStyle();
     S.WindowRounding = theme::r_window;
@@ -79,14 +78,16 @@ bool ModernUI::Create(HWND window, ID3D11Device* device, ID3D11DeviceContext* co
     S.FrameBorderSize = 0.f;
     S.ScrollbarSize = 4.f;
     S.ScrollbarRounding = 2.f;
+
+    // Colors
     S.Colors[ImGuiCol_ScrollbarBg]    = ImVec4(0.f, 0.f, 0.f, 0.f);
     S.Colors[ImGuiCol_ScrollbarGrab]  = ImVec4(0.15f, 0.20f, 0.30f, 0.9f);
     S.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.55f, 0.12f, 0.16f, 0.9f);
     S.Colors[ImGuiCol_ScrollbarGrabActive]  = ImVec4(0.86f, 0.19f, 0.25f, 1.0f);
-    S.Colors[ImGuiCol_WindowBg] = theme::c_bg;
-    S.Colors[ImGuiCol_ChildBg] = theme::c_card;
-    S.Colors[ImGuiCol_Border] = theme::c_border;
-    S.Colors[ImGuiCol_Text] = theme::c_text;
+    S.Colors[ImGuiCol_WindowBg] = theme::to_u32(theme::c_bg);
+    S.Colors[ImGuiCol_ChildBg] = ImVec4(0.f, 0.f, 0.f, 0.f);
+    S.Colors[ImGuiCol_Border] = theme::to_u32(theme::c_border);
+    S.Colors[ImGuiCol_Text] = theme::to_u32(theme::c_text);
 
     // ---- Init backends ----
     if (!ImGui_ImplWin32_Init(window)) return false;
@@ -96,12 +97,16 @@ bool ModernUI::Create(HWND window, ID3D11Device* device, ID3D11DeviceContext* co
     // ---- Load embedded logos ----
     load_logos(device);
 
+    // ---- Init sound system ----
+    sound::init();
+
     m_initialized = true;
     return true;
 }
 
 void ModernUI::Destroy() {
     if (!m_initialized) return;
+    sound::shutdown();
     free_logos();
     ImGui_ImplDX11_Shutdown();
     ImGui_ImplWin32_Shutdown();
@@ -110,7 +115,7 @@ void ModernUI::Destroy() {
 }
 
 // ========================================================================
-// Key -> VK conversion (internal helper)
+// Key -> VK conversion
 // ========================================================================
 static int menukey(ImGuiKey key) {
     if (key >= ImGuiKey_0 && key <= ImGuiKey_9)   return '0' + (key - ImGuiKey_0);
@@ -173,7 +178,7 @@ static int menukey(ImGuiKey key) {
 }
 
 // ========================================================================
-// BeginFrame — MSG pump, toggle detection, ImGui::NewFrame() (F1.3)
+// BeginFrame — MSG pump, toggle detection, ImGui::NewFrame()
 // ========================================================================
 void ModernUI::BeginFrame(HWND overlayWindow) {
     // ---- MSG pump ----
@@ -185,9 +190,6 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
     }
 
     // ---- Streamproof with Windows version check ----
-    // WDA_EXCLUDEFROMCAPTURE requires Windows 10 2004 (build 19041+).
-    // On older builds it degrades to WDA_MONITOR which causes black screen in OBS/Discord.
-    // We use a local struct definition to avoid depending on <winternl.h>.
     static bool streamproofChecked = false;
     static bool streamproofSupported = true;
     if (!streamproofChecked) {
@@ -207,7 +209,6 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
                 OSVersionInfo osvi = {};
                 osvi.dwOSVersionInfoSize = sizeof(osvi);
                 if (rtlGetVersion(&osvi) == 0) {
-                    // Build 19041 = Windows 10 2004
                     if (osvi.dwBuildNumber < 19041)
                         streamproofSupported = false;
                 }
@@ -228,10 +229,7 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    // ---- Menu toggle with PID-based window detection ----
-    // Uses the process ID from the memory driver instead of FindWindowA.
-    // This is faster, avoids string-based window lookups, and prevents
-    // false positives from windows titled "Roblox" (e.g. browser tabs).
+    // ---- Menu toggle ----
     uint32_t targetPid = drive->processid();
     HWND fg = GetForegroundWindow();
     DWORD fgPid = 0;
@@ -240,36 +238,38 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
     static double lastToggle = -1.0;
     double now = ImGui::GetTime();
     int menuVk = menukey(global::setting::Menu_Key);
-    // Early-out: only check the key if menuVk != 0
     if (menuVk != 0) {
-        // Check key first (cheap), then foreground PID (fast, no string)
         if ((GetAsyncKeyState(menuVk) & 1) &&
             (fgPid == targetPid || fg == overlayWindow) &&
             now - lastToggle >= .18) {
             lastToggle = now;
             Toggle();
-            // Preserve WS_EX_LAYERED to maintain per-pixel alpha at all times!
+
+            // Sound
+            sound::play(m_open ? sound::id::menu_open : sound::id::menu_close);
+
             LONG exStyle = WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_LAYERED;
             if (!m_open) exStyle |= WS_EX_TRANSPARENT;
             SetWindowLong(overlayWindow, GWL_EXSTYLE, exStyle);
-            // Must call SetWindowPos with SWP_FRAMECHANGED after SetWindowLong
-            // for the style change to take effect.
             SetWindowPos(overlayWindow, NULL, 0, 0, 0, 0,
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
         }
     }
+
+    // Update sound system
+    sound::update();
 }
 
 // ========================================================================
-// Page transition state (F2.3)
+// Page transition state
 // ========================================================================
 namespace {
     struct PageTransition {
         int section = 0;
         int prevSection = 0;
         int exitingSection = -1;
-        float transT = 1.f;     // 0→1
-        int transDir = 0;       // +1 down, -1 up
+        float transT = 1.f;
+        int transDir = 0;
         bool pending = false;
 
         void changeTo(int newSection) {
@@ -283,7 +283,7 @@ namespace {
 
         void update() {
             if (transT < 1.f - 0.001f)
-                transT = anim::damp(transT, 1.f, 11.f);
+                transT = anim::damp(transT, 1.f, anim::speed::page_trans);
             else
                 pending = false;
         }
@@ -293,17 +293,16 @@ namespace {
 }
 
 // ========================================================================
-// RenderMenu — Config menu (F1.4: no scanlines, no vignette, 2-layer shadow)
+// RenderMenu — Config menu with new 64px sidebar + 52px topbar layout
 // ========================================================================
 void ModernUI::RenderMenu() {
-    // Prune settled animation entries once per frame (not inside get() calls)
     anim::g_anim.prune();
 
     static float menuT = 0.f;
-    menuT = anim::damp(menuT, m_open ? 1.f : 0.f, m_open ? 8.5f : 7.2f);
+    menuT = anim::damp(menuT, m_open ? 1.f : 0.f,
+        m_open ? anim::speed::menu_open : anim::speed::menu_close);
     if (!m_open && menuT <= .01f) return;
 
-    // Updated to F2.3 page transitions
     static PageTransition pageTrans;
     static int section = 0;
 
@@ -313,7 +312,7 @@ void ModernUI::RenderMenu() {
 
     ImGuiIO& IO = ImGui::GetIO();
 
-    // ---- Menu animation — stagger: sidebar first, content delayed (F2.3) ----
+    // ---- Menu animation ----
     const float menuEase = anim::ease_out_quint(menuT);
     const float contentRaw = anim::saturate(menuT * 1.15f - 0.15f);
     const float contentEase = anim::ease_out_quint(contentRaw);
@@ -325,12 +324,10 @@ void ModernUI::RenderMenu() {
     static ImVec2 menuPos = {};
     if (!menuPosReady) { menuPos = IO.DisplaySize / 2.f; menuPosReady = true; }
 
-    const float minX = kWinW * .5f, maxX = IO.DisplaySize.x - kWinW * .5f;
-    const float minY = kWinH * .5f, maxY = IO.DisplaySize.y - kWinH * .5f;
-    menuPos.x = maxX > minX ? ImClamp(menuPos.x, minX, maxX) : IO.DisplaySize.x * .5f;
-    menuPos.y = maxY > minY ? ImClamp(menuPos.y, minY, maxY) : IO.DisplaySize.y * .5f;
-
-    // Backdrop removed (user request — no black screen behind menu)
+    const float minX = kWinW * 0.5f, maxX = IO.DisplaySize.x - kWinW * 0.5f;
+    const float minY = kWinH * 0.5f, maxY = IO.DisplaySize.y - kWinH * 0.5f;
+    menuPos.x = maxX > minX ? ImClamp(menuPos.x, minX, maxX) : IO.DisplaySize.x * 0.5f;
+    menuPos.y = maxY > minY ? ImClamp(menuPos.y, minY, maxY) : IO.DisplaySize.y * 0.5f;
 
     // ---- Window ----
     ImGui::SetNextWindowSize({ kWinW, kWinH }, ImGuiCond_Always);
@@ -352,22 +349,21 @@ void ModernUI::RenderMenu() {
     const ImVec2 WS = ImGui::GetWindowSize();
     ImDrawList* DL = ImGui::GetWindowDrawList();
 
-    // ---- Content flag for idle FPS ----
     g_frameHadContent = true;
 
-    // ---- Drag handle (full window top bar) ----
+    // ---- Drag handle (full window top bar area) ----
     constexpr float kDragH = 36.f;
     ImGui::SetCursorScreenPos(WP);
     ImGui::InvisibleButton("##drag", { WS.x, kDragH });
     if (m_open && ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.f)) {
         menuPos += IO.MouseDelta;
-        menuPos.x = maxX > minX ? ImClamp(menuPos.x, minX, maxX) : IO.DisplaySize.x * .5f;
-        menuPos.y = maxY > minY ? ImClamp(menuPos.y, minY, maxY) : IO.DisplaySize.y * .5f;
-        ImGui::SetWindowPos(menuPos + menuOffset - WS * .5f, ImGuiCond_Always);
+        menuPos.x = maxX > minX ? ImClamp(menuPos.x, minX, maxX) : IO.DisplaySize.x * 0.5f;
+        menuPos.y = maxY > minY ? ImClamp(menuPos.y, minY, maxY) : IO.DisplaySize.y * 0.5f;
+        ImGui::SetWindowPos(menuPos + menuOffset - WS * 0.5f, ImGuiCond_Always);
         WP = ImGui::GetWindowPos();
     }
 
-    // ---- Web-style shadow — 2 layers (was 3) (F1.4) ----
+    // ---- Window shadow (2 layers) ----
     if (menuT > 0.02f) {
         const int shadowAlpha = (int)(32.f * menuEase);
         float spread = 3.f;
@@ -380,39 +376,41 @@ void ModernUI::RenderMenu() {
             IM_COL32(0, 0, 0, ImMax(0, shadowAlpha - 8)), kR + spread);
     }
 
+    // ---- Window background ----
+    DL->AddRectFilled(WP, WP + WS, theme::col_bg(), kR);
+
     // ---- Sidebar (handles section changes) ----
     int oldSection = section;
     bool sectionChanged = layout::sidebar(DL, WP, WS, section, menuEase);
     if (sectionChanged)
         pageTrans.changeTo(section);
 
-    // ---- Page transition update ----
-    // NOTE: sidebar() already sets section correctly via reference.
-    // pageTrans only drives the animation offset (pageOffsetY) and easeIn alpha (tIn).
-    // Removing 'section = pageTrans.section' to prevent the revert bug on first click.
+    // ---- Topbar ----
+    layout::topbar(DL, WP, WS, section, menuEase);
+
+    // ---- Page transition ----
     pageTrans.update();
     float tIn = pageTrans.easeIn();
 
     // ---- Content area ----
+    constexpr float kSideW = theme::kSidebarW;
+    constexpr float kTopH  = theme::kTopbarH;
+    constexpr float kPad   = theme::space::lg;
+
+    float contentX = WP.x + kSideW + 1.f;
+    float contentY = WP.y + kTopH + 1.f;
+    float contentW = WS.x - kSideW - 2.f;
+    float contentH = WS.y - kTopH - 2.f;
+
+    // Content area background
     layout::contentBg(DL, WP, WS);
 
-    // NO scanlines (removed — F1.4)
-    // NO vignette (removed — F1.4)
+    DL->PushClipRect({ contentX, contentY },
+        { contentX + contentW, contentY + contentH }, true);
 
-    constexpr float kSideW = 190.f;
-    constexpr float kPad = 14.f;
-    float contentX = WP.x + kSideW + 1.f;
-    float contentY = WP.y + 1.f;
-    float contentW = WS.x - kSideW - 2.f;
-    float contentH = WS.y - 2.f;
-
-    // Clip content to content area
-    DL->PushClipRect({ contentX, contentY }, { contentX + contentW, contentY + contentH }, true);
-
-    // ---- Menu stagger fade for content area ----
     float menuStaggerAlpha = m_open ? (1.f - menuT > 0.5f ? 1.f : contentEase) : contentEase;
 
-    // ---- Page transition: slide + fade (F2.3) ----
+    // Page transition slide
     float pageOffsetY = (1.f - tIn) * 22.f * pageTrans.transDir;
     ImGui::SetCursorScreenPos({ contentX + kPad, contentY + kPad + pageOffsetY });
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, tIn * menuStaggerAlpha);
@@ -426,8 +424,7 @@ void ModernUI::RenderMenu() {
     case 1: page::visuals(bInW, bInH); break;
     case 2: page::world(bInW, bInH); break;
     case 3: page::misc(bInW, bInH); break;
-    case 4: page::bladeball(bInW, bInH); break;
-    case 5: page::settings(bInW, bInH); break;
+    case 4: page::settings(bInW, bInH); break;
     }
 
     ImGui::EndGroup();
@@ -437,7 +434,7 @@ void ModernUI::RenderMenu() {
 }
 
 // ========================================================================
-// HUD helpers
+// HUD helpers (unchanged from previous, adapted for new colors)
 // ========================================================================
 namespace {
 
@@ -451,7 +448,7 @@ namespace {
         return name.c_str();
     }
 
-    // ---- Cursor render ----
+    // ---- Cursor render (unchanged) ----
     static void cursor() {
         if (!SilentAimInstance.Address) return;
         if (!drive->read<bool>(SilentAimInstance.Address + offset::gui::Visible)) return;
@@ -469,10 +466,11 @@ namespace {
         dl->AddRectFilled({ c.x + gap, c.y - 1.f }, { c.x + gap + 10.f, c.y + 1.f }, col);
     }
 
-    // ---- HUD panel helpers ----
+    // ---- HUD panel helpers (adapted for lime-green) ----
     namespace hud {
-        static ImU32 accent(float a = 1.f) { return IM_COL32(220, 60, 70, (int)(255 * a)); }
-        static ImU32 accent2(float a = 1.f) { return IM_COL32(180, 80, 90, (int)(255 * a)); }
+        static ImU32 accent(float a = 1.f) { return IM_COL32(200, 241, 53, (int)(255 * a)); }
+        static ImU32 accent2(float a = 1.f) { return IM_COL32(180, 200, 80, (int)(255 * a)); }
+
         static int hotkeycount() {
             int c = 0;
             if (global::overlay::Hotkey_Aimbot) ++c;
@@ -491,38 +489,37 @@ namespace {
             pos.y = ImClamp(pos.y, pad, ImMax(pad, display.y - size.y - pad));
         }
 
-        // ---- 2-layer shadow + gradient bg (F1.5, F2.2) ----
         static void panelbase(ImDrawList* dl, ImVec2 p, ImVec2 s, bool hovered, bool active) {
-            float r = theme::r_card; // unified 12
+            float r = theme::r_card;
             float t = hovered || active ? 1.f : 0.f;
 
-            // 2-layer shadow (was 5)
+            // Shadow
             int shadowA = (int)((26.f + t * 8.f));
             dl->AddRectFilled(p + ImVec2(0.f, 2.f), p + s + ImVec2(0.f, 6.f),
                 IM_COL32(0, 0, 0, 70), r + 4.f);
             dl->AddRectFilled(p + ImVec2(0.f, 1.f), p + s + ImVec2(0.f, 2.f),
                 IM_COL32(0, 0, 0, 90), r + 1.f);
 
-            // Gradient bg #0A0D13 dark blue-black
+            // Background
             dl->AddRectFilledMultiColorRounded(p, p + s,
-                IM_COL32(10, 14, 20, 255),           // top
-                IM_COL32(7, 10, 16, 255),             // bottom
-                IM_COL32(10, 14, 20, 255),
-                IM_COL32(7, 10, 16, 255), r);
+                IM_COL32(10, 10, 12, 255),
+                IM_COL32(7, 7, 10, 255),
+                IM_COL32(10, 10, 12, 255),
+                IM_COL32(7, 7, 10, 255), r);
 
-            // Hairline border
+            // Border
             dl->AddRect(p, p + s, IM_COL32(255, 255, 255, 14), r, 0, 1.f);
 
-            // Red accent top edge on hover
+            // Accent glow on hover
             if (t > 0.05f) {
                 float accentA = t * 8.f;
                 dl->AddRectFilledMultiColorRounded(p + ImVec2(0.f, 0.f), p + ImVec2(s.x * 0.4f, 2.f),
-                    IM_COL32(220, 60, 70, (int)(accentA * 2.f)),
-                    IM_COL32(220, 60, 70, (int)(accentA)),
+                    IM_COL32(200, 241, 53, (int)(accentA * 2.f)),
+                    IM_COL32(200, 241, 53, (int)(accentA)),
                     IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 0), 0);
             }
 
-            // Inner glass highlight top
+            // Shimmer
             dl->AddRectFilledMultiColor(p + ImVec2(1.f, 1.f), p + ImVec2(s.x - 1.f, 2.f),
                 IM_COL32(255, 255, 255, 14),
                 IM_COL32(255, 255, 255, 4),
@@ -563,7 +560,6 @@ namespace {
             ImGui::PopStyleVar(2);
         }
 
-        // Real FPS counter (500ms update)
         static float realfps() {
             static double lastTime = 0.0;
             static int    frameCount = 0;
@@ -578,7 +574,6 @@ namespace {
             return cached;
         }
 
-        // CPU usage (1s update via GetSystemTimes)
         static float cpuusage() {
             static FILETIME idleLast{}, kernelLast{}, userLast{};
             static float cached = 0.f;
@@ -607,7 +602,6 @@ namespace {
             panelbase(dl, p, s, hovered, active);
             char fps[32]{}; std::snprintf(fps, sizeof(fps), "%.0ffps  %.0f%%", realfps(), cpuusage());
 
-            // Draw CUERVO logo image if loaded
             if (g_sidebar_logo) {
                 float logoH = ImMin(s.y - 12.f, 32.f);
                 float aspect = (float)g_sidebar_logoW / (float)g_sidebar_logoH;
@@ -616,32 +610,28 @@ namespace {
                 float logoY = p.y + (s.y - logoH) * 0.5f;
                 dl->AddImage(g_sidebar_logo, { logoX, logoY }, { logoX + logoW, logoY + logoH });
 
-                // Left accent bar next to logo (fixed: logoX is absolute, not relative to p)
                 dl->AddRectFilled(ImVec2(logoX + logoW + 6.f, p.y + 9.f),
                     ImVec2(logoX + logoW + 9.f, p.y + s.y - 9.f), accent(), 2.f);
 
-                // Username
                 dl->AddText(p + ImVec2(logoX + logoW + 16.f, 7.f),
                     IM_COL32(140, 150, 170, 132), pcuser());
             } else {
-                // Fallback: text logo
-                ImFont* logo = font::bold();
-                float logoSize = logo->LegacySize;
+                ImFont* logoF = font::display();
+                float logoSize = logoF->FontSize;
                 ImVec2 text = p + ImVec2(15.f, 7.f);
-                ImVec2 nameSize = logo->CalcTextSizeA(logoSize, FLT_MAX, 0.f, "MISERABLE");
+                ImVec2 nameSize = logoF->CalcTextSizeA(logoSize, FLT_MAX, 0.f, "AUTOPSY");
                 dl->AddRectFilled(p + ImVec2(7.f, 9.f), p + ImVec2(10.f, s.y - 9.f), accent(), 2.f);
-                dl->AddText(logo, logoSize, text + ImVec2(1.f, 1.f), IM_COL32(0, 0, 0, 180), "MISERABLE");
-                dl->AddText(logo, logoSize, text, IM_COL32(230, 60, 70, 245), "MISERABLE");
+                dl->AddText(logoF, logoSize, text + ImVec2(1.f, 1.f), IM_COL32(0, 0, 0, 180), "AUTOPSY");
+                dl->AddText(logoF, logoSize, text, IM_COL32(200, 241, 53, 245), "AUTOPSY");
                 dl->AddText(text + ImVec2(nameSize.x + 8.f, logoSize * .28f), accent(), "BETA");
                 dl->AddText(p + ImVec2(16.f, 25.f), IM_COL32(140, 150, 170, 132), pcuser());
             }
 
-            // FPS pill (always)
             float keyW = ImMax(72.f, ImGui::CalcTextSize(fps).x + 20.f);
             ImVec2 pillMin = ImVec2(p.x + s.x - keyW - 18.f, p.y + 10.f);
             ImVec2 pillMax = ImVec2(p.x + s.x - 10.f, p.y + 29.f);
             dl->AddRectFilled(pillMin, pillMax, IM_COL32(8, 12, 18, 185), 6.f);
-            dl->AddRect(pillMin, pillMax, IM_COL32(200, 60, 70, 64), 6.f);
+            dl->AddRect(pillMin, pillMax, IM_COL32(200, 241, 53, 64), 6.f);
             dl->AddText(ImVec2(pillMin.x + 9.f, pillMin.y + 3.f), accent2(), fps);
         }
 
@@ -649,8 +639,8 @@ namespace {
             float t = anim::ease_out_cubic(anim::g_anim.get(ImGui::GetID(label, label + strlen(label)), live, 10.f));
             ImVec2 mn = pp;
             ImVec2 mx = pp + ImVec2(w, 24.f);
-            ImU32 bg = theme::lerp_u32(IM_COL32(6, 10, 16, 88), IM_COL32(80, 20, 28, 112), t);
-            ImU32 brd = theme::lerp_u32(IM_COL32(20, 30, 40, 92), IM_COL32(200, 60, 70, 132), t);
+            ImU32 bg = theme::lerp_u32(IM_COL32(6, 10, 16, 88), IM_COL32(30, 40, 20, 112), t);
+            ImU32 brd = theme::lerp_u32(IM_COL32(20, 30, 40, 92), IM_COL32(200, 241, 53, 132), t);
             dl->AddRectFilled(mn, mx, bg, 7.f);
             dl->AddRect(mn, mx, brd, 7.f, 0, 1.f);
             dl->AddRectFilled(mn + ImVec2(7.f, 7.f), mn + ImVec2(10.f, 17.f),
@@ -661,7 +651,7 @@ namespace {
             float keyW = ImMax(42.f, ImGui::CalcTextSize(kn).x + 18.f);
             ImVec2 keyMin = ImVec2(mx.x - keyW - 8.f, mn.y + 4.f);
             dl->AddRectFilled(keyMin, keyMin + ImVec2(keyW, 16.f),
-                theme::lerp_u32(IM_COL32(4, 8, 14, 170), IM_COL32(70, 18, 24, 205), t), 5.f);
+                theme::lerp_u32(IM_COL32(4, 8, 14, 170), IM_COL32(30, 40, 20, 205), t), 5.f);
             dl->AddRect(keyMin, keyMin + ImVec2(keyW, 16.f),
                 theme::lerp_u32(IM_COL32(25, 40, 55, 200), accent(), t * .8f), 5.f);
             dl->AddText(keyMin + ImVec2((keyW - ImGui::CalcTextSize(kn).x) * .5f, 1.f),
@@ -670,8 +660,8 @@ namespace {
 
         static void hotkey(ImDrawList* dl, ImVec2 p, ImVec2 s, bool hovered, bool active) {
             panelbase(dl, p, s, hovered, active);
-            ImFont* title = font::bold();
-            dl->AddText(title, title->LegacySize, p + ImVec2(14.f, 11.f), IM_COL32(220, 230, 245, 255), "HOTKEYS");
+            ImFont* title = font::label();
+            dl->AddText(title, title->FontSize, p + ImVec2(14.f, 11.f), IM_COL32(220, 230, 245, 255), "HOTKEYS");
             dl->AddLine(p + ImVec2(14.f, 36.f), p + ImVec2(s.x - 14.f, 36.f), IM_COL32(25, 40, 55, 200), 1.f);
             float rowW = s.x - 28.f;
             float y = p.y + 47.f;
@@ -685,7 +675,7 @@ namespace {
             if (y == p.y + 47.f) dl->AddText(p + ImVec2(14.f, 50.f), IM_COL32(140, 150, 170, 200), "No hotkeys selected");
         }
 
-        // ---- Radar ----
+        // ---- Radar (adapted for lime-green) ----
         static float dot(const sdk::vector3& a, const sdk::vector3& b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
         static bool normalize(sdk::vector3& v) {
             float mag = v.magnitude();
@@ -741,17 +731,17 @@ namespace {
             ImVec2 rmax = center + ImVec2(radius, radius);
             if (circle) {
                 dl->AddCircleFilled(center, radius, IM_COL32(2, 6, 10, 126), 96);
-                dl->AddCircle(center, radius, IM_COL32(200, 60, 70, 132), 96, 1.4f);
+                dl->AddCircle(center, radius, IM_COL32(200, 241, 53, 132), 96, 1.4f);
                 dl->AddCircle(center, radius * .66f, IM_COL32(25, 40, 55, 200), 96, 1.f);
                 dl->AddCircle(center, radius * .33f, IM_COL32(25, 40, 55, 200), 96, 1.f);
             } else {
                 dl->AddRectFilled(rmin, rmax, IM_COL32(2, 6, 10, 126), 5.f);
-                dl->AddRect(rmin, rmax, IM_COL32(200, 60, 70, 132), 5.f, 0, 1.4f);
+                dl->AddRect(rmin, rmax, IM_COL32(200, 241, 53, 132), 5.f, 0, 1.4f);
                 dl->AddRect(center - ImVec2(radius * .66f, radius * .66f), center + ImVec2(radius * .66f, radius * .66f), IM_COL32(25, 40, 55, 200), 3.f);
                 dl->AddRect(center - ImVec2(radius * .33f, radius * .33f), center + ImVec2(radius * .33f, radius * .33f), IM_COL32(25, 40, 55, 200), 3.f);
             }
-            dl->AddLine(ImVec2(center.x - radius, center.y), ImVec2(center.x + radius, center.y), IM_COL32(200, 60, 70, 71), 1.f);
-            dl->AddLine(ImVec2(center.x, center.y - radius), ImVec2(center.x, center.y + radius), IM_COL32(200, 60, 70, 71), 1.f);
+            dl->AddLine(ImVec2(center.x - radius, center.y), ImVec2(center.x + radius, center.y), IM_COL32(200, 241, 53, 71), 1.f);
+            dl->AddLine(ImVec2(center.x, center.y - radius), ImVec2(center.x, center.y + radius), IM_COL32(200, 241, 53, 71), 1.f);
             sdk::vector3 localPos{};
             if (playerposition(global::LocalPlayer, localPos)) {
                 for (const auto& player : global::Player_Cache) {
@@ -760,14 +750,14 @@ namespace {
                     sdk::vector3 pp{}; if (!playerposition(player, pp)) continue;
                     float dist = localPos.distance(pp);
                     float fade = 1.f - ImClamp(dist / 900.f, 0.f, .55f);
-                    radarblip(dl, center, radardelta(localPos, pp), radius - 8.f, circle, IM_COL32(200, 60, 70, (int)(fade * 217)), 3.6f);
+                    radarblip(dl, center, radardelta(localPos, pp), radius - 8.f, circle, IM_COL32(200, 241, 53, (int)(fade * 217)), 3.6f);
                 }
             }
             ImVec2 tri[3] = { center + ImVec2(0.f, -7.f), center + ImVec2(5.5f, 6.f), center + ImVec2(-5.5f, 6.f) };
             dl->AddTriangleFilled(tri[0] + ImVec2(0.f, 1.f), tri[1] + ImVec2(0.f, 1.f), tri[2] + ImVec2(0.f, 1.f), IM_COL32(0, 0, 0, 150));
             dl->AddTriangleFilled(tri[0], tri[1], tri[2], IM_COL32(220, 230, 245, 255));
-            ImFont* tf = font::bold();
-            dl->AddText(tf, tf->LegacySize, p + ImVec2(14.f, 10.f), IM_COL32(220, 230, 245, 255), "RADAR");
+            ImFont* tf = font::label();
+            dl->AddText(tf, tf->FontSize, p + ImVec2(14.f, 10.f), IM_COL32(220, 230, 245, 255), "RADAR");
             char zt[32]{}; std::snprintf(zt, sizeof(zt), "%.2fx", global::overlay::Radar_Zoom);
             ImVec2 zs = ImGui::CalcTextSize(zt);
             dl->AddText(ImVec2(p.x + s.x - zs.x - 14.f, p.y + 11.f), accent2(), zt);
@@ -811,8 +801,8 @@ namespace {
             char detail[96]{};
             if (threat.Count == 1) std::snprintf(detail, sizeof(detail), "%s is aiming at you", threat.name.c_str());
             else std::snprintf(detail, sizeof(detail), "%dx players aiming at you", threat.Count);
-            ImFont* font = font::bold();
-            float fontSize = font->LegacySize;
+            ImFont* font = font::label();
+            float fontSize = font->FontSize;
             ImVec2 ts = font->CalcTextSizeA(fontSize, FLT_MAX, 0.f, title);
             ImVec2 ds = ImGui::CalcTextSize(detail);
             float width = ImClamp(ImMax(ts.x, ds.x) + 74.f, 258.f, 420.f);
@@ -858,7 +848,6 @@ void ModernUI::RenderESP() {
             ImVec2(radarSize, radarSize), movable,
             [](ImDrawList* dl, ImVec2 p, ImVec2 s, bool h, bool a) { hud::radar(dl, p, s, h, a); });
     }
-
 }
 
 // ========================================================================
@@ -867,5 +856,4 @@ void ModernUI::RenderESP() {
 void ModernUI::EndFrame(IDXGISwapChain* swapChain) {
     if (!swapChain) return;
     ImGui::Render();
-    // Rendering + Present handled by parent (graphic class)
 }
