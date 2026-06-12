@@ -16,6 +16,7 @@
 #include "ui/core/notifications.h"
 #include "ui/core/texture.h"
 #include "ui/core/sound.h"
+#include "ui/core/avatar.h"
 
 // Embedded logo data
 #include "ui/embedded/cuervo_logo.h"
@@ -100,6 +101,9 @@ bool ModernUI::Create(HWND window, ID3D11Device* device, ID3D11DeviceContext* co
     // ---- Init sound system ----
     sound::init();
 
+    // ---- Init avatar (async download from Roblox) ----
+    avatar::init(device);
+
     m_initialized = true;
     return true;
 }
@@ -107,6 +111,7 @@ bool ModernUI::Create(HWND window, ID3D11Device* device, ID3D11DeviceContext* co
 void ModernUI::Destroy() {
     if (!m_initialized) return;
     sound::shutdown();
+    avatar::shutdown();
     free_logos();
     ImGui_ImplDX11_Shutdown();
     ImGui_ImplWin32_Shutdown();

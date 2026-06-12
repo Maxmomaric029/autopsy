@@ -3,6 +3,7 @@
 #include "../widgets/controls.h"
 #include "../../global.h"
 #include "../../config.h"
+#include "../core/avatar.h"
 #include <vector>
 #include <string>
 
@@ -458,8 +459,6 @@ namespace page {
             const ImVec2 pillPos = ImGui::GetCursorScreenPos();
             float pillW = ImGui::GetContentRegionAvail().x;
             float pillH = 64.f;
-            const ImGuiID pillId = ImGui::GetID("##user_pill");
-
             // Check hover
             bool pillHovered = ImGui::IsMouseHoveringRect(pillPos, pillPos + ImVec2(pillW, pillH));
 
@@ -470,27 +469,44 @@ namespace page {
                 pillHovered ? IM_COL32(200, 241, 53, 55) : IM_COL32(255, 255, 255, 15),
                 16.f, 0, 1.f);
 
-            // Avatar circle placeholder
+            // Avatar (real image if loaded, otherwise initials fallback)
             float avatarR = 22.f;
             ImVec2 avCenter = pillPos + ImVec2(12.f + avatarR, pillH * 0.5f);
-            dl->AddCircleFilled(avCenter, avatarR,
-                IM_COL32(23, 23, 27, 255), 32);
-            dl->AddCircle(avCenter, avatarR,
-                IM_COL32(200, 241, 53, 40), 32, 1.5f);
 
-            // Initials fallback
-            static const char* username = []() {
-                static char buf[128];
-                DWORD len = GetEnvironmentVariableA("USERNAME", buf, sizeof(buf));
-                return (len && len < sizeof(buf)) ? buf : "user";
-            }();
-            char initial[2] = { username[0] >= 'a' ? (char)(username[0] - 32) : username[0], '\0' };
-            ImVec2 initSize = ImGui::CalcTextSize(initial);
-            dl->AddText(font::label(), 14.f,
-                { avCenter.x - initSize.x * 0.5f, avCenter.y - initSize.y * 0.5f },
-                theme::col_accent(), initial);
+            // AddImageRounded trick: draw the image into a circle clip
+            ID3D11ShaderResourceView* avatarSrv = avatar::get_srv();
+            if (avatarSrv && avatar::is_loaded()) {
+                // Circle clip via AddImageRounded with radius = 24 (full circle)
+                dl->AddImageRounded(avatarSrv,
+                    pillPos + ImVec2(12.f, 10.f),
+                    pillPos + ImVec2(60.f, 58.f),
+                    ImVec2(0, 0), ImVec2(1, 1),
+                    IM_COL32(255, 255, 255, 255), 24.f);
+                // Border ring
+                dl->AddCircle(avCenter, avatarR + 1.f,
+                    IM_COL32(200, 241, 53, 40), 32, 1.5f);
+            } else {
+                // Circle placeholder with initials fallback
+                dl->AddCircleFilled(avCenter, avatarR,
+                    IM_COL32(23, 23, 27, 255), 32);
+                dl->AddCircle(avCenter, avatarR,
+                    IM_COL32(200, 241, 53, 40), 32, 1.5f);
+
+                static const char* username = []() {
+                    static char buf[128];
+                    DWORD len = GetEnvironmentVariableA("USERNAME", buf, sizeof(buf));
+                    return (len && len < sizeof(buf)) ? buf : "user";
+                }();
+                char initial[2] = { username[0] >= 'a' ? (char)(username[0] - 32) : username[0], '\0' };
+                ImVec2 initSize = ImGui::CalcTextSize(initial);
+                dl->AddText(font::label(), 14.f,
+                    { avCenter.x - initSize.x * 0.5f, avCenter.y - initSize.y * 0.5f },
+                    theme::col_accent(), initial);
+            }
 
             // Username
+            static std::string username_str = avatar::get_username();
+            const char* username = username_str.c_str();
             dl->AddText(font::label(), 14.f,
                 pillPos + ImVec2(70.f, 14.f),
                 IM_COL32(240, 240, 238, 255), username);

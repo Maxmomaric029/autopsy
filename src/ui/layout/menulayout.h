@@ -7,6 +7,7 @@
 #include "../core/fonts.h"
 #include "../core/icons.h"
 #include "../core/sound.h"
+#include "../core/avatar.h"
 
 #include "../modern_ui.h"
 
@@ -157,23 +158,36 @@ namespace layout {
         // Avatar pill: small circle 28px
         float avatarY = footerY + 14.f;
         float avatarX = sbMin.x + (kSideW - 28.f) * 0.5f;
-        dl->AddCircleFilled({ avatarX + 14.f, avatarY + 14.f },
-            14.f, IM_COL32(23, 23, 27, 255), 24);
-        dl->AddCircle({ avatarX + 14.f, avatarY + 14.f },
-            14.f, IM_COL32(255, 255, 255, 15), 24, 1.f);
 
-        // Initials fallback
-        static const char* username = []() {
-            static char buf[128];
-            DWORD len = GetEnvironmentVariableA("USERNAME", buf, sizeof(buf));
-            return (len && len < sizeof(buf)) ? buf : "U";
-        }();
-        char initial[2] = { username[0], '\0' };
-        ImVec2 initSize = ImGui::CalcTextSize(initial);
-        dl->AddText(font::body(), 12.f,
-            { avatarX + 14.f - initSize.x * 0.5f,
-              avatarY + 14.f - initSize.y * 0.5f },
-            theme::col_accent(), initial);
+        ID3D11ShaderResourceView* avatarSrv = avatar::get_srv();
+        if (avatarSrv && avatar::is_loaded()) {
+            // Real avatar image (circular via AddImageRounded)
+            dl->AddImageRounded(avatarSrv,
+                { avatarX, avatarY },
+                { avatarX + 28.f, avatarY + 28.f },
+                ImVec2(0, 0), ImVec2(1, 1),
+                IM_COL32(255, 255, 255, 255), 14.f);
+            dl->AddCircle({ avatarX + 14.f, avatarY + 14.f },
+                14.f, IM_COL32(255, 255, 255, 15), 24, 1.f);
+        } else {
+            // Circle placeholder with initials fallback
+            dl->AddCircleFilled({ avatarX + 14.f, avatarY + 14.f },
+                14.f, IM_COL32(23, 23, 27, 255), 24);
+            dl->AddCircle({ avatarX + 14.f, avatarY + 14.f },
+                14.f, IM_COL32(255, 255, 255, 15), 24, 1.f);
+
+            static const char* username = []() {
+                static char buf[128];
+                DWORD len = GetEnvironmentVariableA("USERNAME", buf, sizeof(buf));
+                return (len && len < sizeof(buf)) ? buf : "U";
+            }();
+            char initial[2] = { username[0], '\0' };
+            ImVec2 initSize = ImGui::CalcTextSize(initial);
+            dl->AddText(font::body(), 12.f,
+                { avatarX + 14.f - initSize.x * 0.5f,
+                  avatarY + 14.f - initSize.y * 0.5f },
+                theme::col_accent(), initial);
+        }
 
         // Status dot
         float dotY = avatarY + 20.f;
