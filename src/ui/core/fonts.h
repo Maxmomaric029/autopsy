@@ -4,11 +4,11 @@
 #include <imgui/misc/imgui_freetype.h>
 #include "FontAwesome/IconsFontAwesome6.h"
 
-// Embedded font data
-#include "../embedded/font_inter_regular.h"
-#include "../embedded/font_inter_semibold.h"
-#include "../embedded/font_inter_bold.h"
-#include "../embedded/font_inter_black.h"
+// Embedded font data — Syne + JetBrains Mono + FontAwesome
+#include "../embedded/font_syne_regular.h"
+#include "../embedded/font_syne_medium.h"
+#include "../embedded/font_syne_extrabold.h"
+#include "../embedded/font_jetbrains_mono_regular.h"
 #include "../embedded/font_fa_solid.h"
 
 namespace font {
@@ -21,13 +21,6 @@ namespace font {
     inline ImFont* g_body     = nullptr; // Syne Regular 13px — toggles/options
     inline ImFont* g_mono     = nullptr; // JetBrains Mono Regular 12px — values
     inline ImFont* g_mono_sm  = nullptr; // JetBrains Mono Regular 10px — chips/pills
-
-    // Fallback fonts (Inter) for when Syne/JetBrains aren't embedded yet
-    inline ImFont* g_fallback_regular = nullptr;
-    inline ImFont* g_fallback_medium  = nullptr;
-    inline ImFont* g_fallback_bold    = nullptr;
-    inline ImFont* g_fallback_mono    = nullptr;
-    inline ImFont* g_fallback_logo    = nullptr;
 
     // ========================================================================
     // Typography scale
@@ -84,42 +77,33 @@ namespace font {
             return f;
         };
 
-        // Load Syne fonts (currently fallback to Inter until Syne TTFs are embedded)
-        // When Syne fonts are available, use:
-        //   loadFont(font_syne_extrabold, ..., &g_display, false);
-        //   loadFont(font_syne_medium, ..., &g_label, true);
-        //   loadFont(font_syne_regular, ..., &g_body, true);
-        //
-        // For now, use Inter as fallback:
+        // ========================================================================
+        // Syne — UI display fonts
+        // ========================================================================
 
-        // g_display: Syne ExtraBold 20px → Inter Black 20px
-        g_fallback_logo = loadFont(font_inter_black, font_inter_black_size,
+        // g_display: Syne ExtraBold 20px — logo (no FA merge)
+        loadFont(font_syne_extrabold, font_syne_extrabold_size,
             size::display, &g_display, false);
 
-        // g_label: Syne Medium 13px → Inter SemiBold 13px
-        g_fallback_medium = loadFont(font_inter_semibold, font_inter_semibold_size,
-            size::body, &g_label, true);
+        // g_label: Syne Medium 13px — card headers (with FA merge)
+        loadFont(font_syne_medium, font_syne_medium_size,
+            size::label, &g_label, true);
 
-        // g_body: Syne Regular 13px → Inter Regular 13px
-        g_fallback_regular = loadFont(font_inter_regular, font_inter_regular_size,
+        // g_body: Syne Regular 13px — body text (with FA merge)
+        loadFont(font_syne_regular, font_syne_regular_size,
             size::body, &g_body, true);
 
-        // g_mono: JetBrains Mono 12px → Inter Regular 12px
-        g_fallback_mono = loadFont(font_inter_regular, font_inter_regular_size,
+        // ========================================================================
+        // JetBrains Mono — monospace values
+        // ========================================================================
+
+        // g_mono: JetBrains Mono Regular 12px — slider values, stats
+        loadFont(font_jetbrains_mono_regular, font_jetbrains_mono_regular_size,
             size::mono, &g_mono, false);
 
-        // g_mono_sm: JetBrains Mono 10px → Inter Regular 10px
-        // Reuse g_mono font at smaller size if available
-        if (g_mono) {
-            g_mono_sm = g_mono;
-        } else {
-            cfg.FontLoaderFlags = ImGuiFreeTypeLoaderFlags_LightHinting;
-            cfg.MergeMode = false;
-            cfg.FontDataOwnedByAtlas = false;
-            g_mono_sm = io.Fonts->AddFontFromMemoryTTF(
-                (void*)font_inter_regular, (int)font_inter_regular_size,
-                size::mono_sm * dpiScale, &cfg);
-        }
+        // g_mono_sm: JetBrains Mono Regular 10px — chips, pills, version
+        loadFont(font_jetbrains_mono_regular, font_jetbrains_mono_regular_size,
+            size::mono_sm, &g_mono_sm, false);
 
         // Fallbacks
         if (!g_display) g_display = g_label ? g_label : io.Fonts->AddFontDefault();
