@@ -289,7 +289,7 @@ namespace w {
 
         // Separator line under text — fade horizontal
         const ImVec2 lp = ImGui::GetCursorScreenPos();
-        float textEndX = p.x + 10.f + ImGui::CalcTextSize(text).x * (uppercaseSize / 13.f);
+        float textEndX = p.x + 10.f + ImGui::CalcTextSize(text).x * (font::size::uppercase / 13.f);
         const float lw = ImGui::GetContentRegionAvail().x;
         float sepStart = ImMax(lp.x, textEndX + 8.f);
         float sepW = lw - (sepStart - lp.x);
