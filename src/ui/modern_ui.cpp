@@ -95,6 +95,9 @@ bool ModernUI::Create(HWND window, ID3D11Device* device, ID3D11DeviceContext* co
     if (!device || !context) return false;
     if (!ImGui_ImplDX11_Init(device, context)) return false;
 
+    // Store device for avatar refresh
+    m_device = device;
+
     // ---- Load embedded logos ----
     load_logos(device);
 
@@ -116,6 +119,7 @@ void ModernUI::Destroy() {
     ImGui_ImplDX11_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
+    m_device = nullptr;
     m_initialized = false;
 }
 
@@ -268,10 +272,8 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
     static double lastAvatarRefresh = 0.0;
     if (now - lastAvatarRefresh > 5.0) {
         lastAvatarRefresh = now;
-        if (m_initialized) {
-            // Get D3D11 device from the backend
-            ID3D11Device* dev = ImGui_ImplDX11_GetDevice();
-            if (dev) avatar::refresh_later(dev);
+        if (m_initialized && m_device) {
+            avatar::refresh_later(m_device);
         }
     }
 }

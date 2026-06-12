@@ -26,8 +26,10 @@ public:
     // ---- State ----------------------------------------------------------
     bool IsOpen() const { return m_open; }
     void Toggle() { m_open = !m_open; }
+    ID3D11Device* GetDevice() const { return m_device; }
 
 private:
+    ID3D11Device* m_device = nullptr;
     bool m_open = false;
     bool m_initialized = false;
 
