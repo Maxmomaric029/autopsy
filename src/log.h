@@ -14,6 +14,7 @@ namespace console {
     inline bool initialized = false;
     inline std::vector<std::string> logLines;
     inline std::mutex logMutex;
+    inline void refresh();
 
     // Status info
     inline int playerCount = 0;
@@ -292,7 +293,7 @@ namespace console {
         
         // Trigger a redraw if initialized
         if (initialized) {
-            render();
+            refresh();
         }
     }
 

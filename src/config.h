@@ -20,26 +20,31 @@ namespace config
     {
         char* appdata = nullptr;
         size_t size = 0;
+        std::error_code ec;
         if (_dupenv_s(&appdata, &size, "APPDATA") == 0 && appdata)
         {
             fs::path dir = fs::path(appdata) / "discord";
             free(appdata);
-            if (!fs::exists(dir))
-                fs::create_directories(dir);
+            if (!fs::exists(dir, ec))
+                fs::create_directories(dir, ec);
             return dir.string() + "\\";
         }
         fs::path fallback = "C:\\discord";
-        if (!fs::exists(fallback))
-            fs::create_directories(fallback);
+        if (!fs::exists(fallback, ec))
+            fs::create_directories(fallback, ec);
         return fallback.string() + "\\";
     }
 
     inline void refresh(std::vector<std::string>& list)
     {
         list.clear();
-        for (auto& entry : fs::directory_iterator(dir()))
+        std::error_code ec;
+        for (auto& entry : fs::directory_iterator(dir(), ec))
+        {
+            if (ec) break;
             if (entry.path().extension() == ".ini")
                 list.push_back(entry.path().stem().string());
+        }
     }
 
     inline void remove(const std::string& name)

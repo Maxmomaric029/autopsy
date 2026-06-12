@@ -43,10 +43,10 @@ namespace wallcheck
                 sdk::part part(child.Address);
                 if (part.transparency() <= 0.95f && part.cancollide())
                 {
-                    sdk::part primitive = part.primitive();
-                    if (primitive.Address)
+                    sdk::primitive_data pdata;
+                    if (part.get_primitive_data(pdata))
                     {
-                        sdk::vector3 pos = primitive.position();
+                        sdk::vector3 pos = pdata.position;
                         if (valid(pos) && valid(local_pos))
                         {
                             if (local_pos.distance(pos) <= 500.f)
@@ -159,13 +159,13 @@ namespace wallcheck
             if (local_char && part.parent().Address == local_char)
                 continue;
 
-            sdk::part primitive = part.primitive();
-            if (!primitive.Address)
+            sdk::primitive_data pdata;
+            if (!part.get_primitive_data(pdata))
                 continue;
 
-            const sdk::vector3 pos = primitive.position();
-            const sdk::vector3 size = primitive.size();
-            const sdk::matrix3 rot = primitive.rotation();
+            const sdk::vector3 pos = pdata.position;
+            const sdk::vector3 size = pdata.size;
+            const sdk::matrix3 rot = pdata.rotation;
             if (!valid(pos) || !valid(size) || (size.x <= 0.f && size.y <= 0.f && size.z <= 0.f))
                 continue;
 
