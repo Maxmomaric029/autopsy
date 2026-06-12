@@ -751,24 +751,27 @@ namespace esp {
 
             // Fallback: try Head first, then HumanoidRootPart, then any available part
             sdk::part Head(player.Head.Address);
-            bool hasHead = Head.Address && Head.primitive().Address;
+            sdk::primitive_data head_data;
+            bool hasHead = Head.Address && Head.get_primitive_data(head_data);
 
             sdk::vector3 HeadPosition{};
             if (hasHead) {
-                HeadPosition = Head.primitive().position();
+                HeadPosition = head_data.position;
             } else {
                 // Try HumanoidRootPart as fallback reference point
                 sdk::part Root(player.HumanoidRootPart.Address);
-                if (Root.Address && Root.primitive().Address) {
-                    HeadPosition = Root.primitive().position();
+                sdk::primitive_data root_data;
+                if (Root.Address && Root.get_primitive_data(root_data)) {
+                    HeadPosition = root_data.position;
                     HeadPosition.y += 1.5f;
                 } else {
                     auto Bones = esp::bone(player);
                     for (auto* Inst : Bones) {
                         if (!Inst || !Inst->Address) continue;
                         sdk::part bp(Inst->Address);
-                        if (bp.Address && bp.primitive().Address) {
-                            HeadPosition = bp.primitive().position();
+                        sdk::primitive_data bp_data;
+                        if (bp.Address && bp.get_primitive_data(bp_data)) {
+                            HeadPosition = bp_data.position;
                             break;
                         }
                     }

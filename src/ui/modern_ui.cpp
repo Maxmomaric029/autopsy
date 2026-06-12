@@ -710,9 +710,10 @@ namespace {
         }
         static bool partpose(const sdk::instance& inst, sdk::vector3& out, sdk::matrix3& rot) {
             if (!inst.Address) return false;
-            sdk::part part(inst.Address); sdk::part prim = part.primitive();
-            if (!prim.Address) return false;
-            out = prim.position(); rot = prim.rotation();
+            sdk::part part(inst.Address);
+            sdk::primitive_data pdata;
+            if (!part.get_primitive_data(pdata)) return false;
+            out = pdata.position; rot = pdata.rotation;
             return !(std::isnan(out.x) || std::isnan(out.y) || std::isnan(out.z));
         }
         static bool partposition(const sdk::instance& inst, sdk::vector3& out) {

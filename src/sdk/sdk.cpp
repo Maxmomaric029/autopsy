@@ -220,9 +220,7 @@ namespace sdk {
     bool part::get_primitive_data(primitive_data& out) const {
         if (!Address) return false;
         uintptr_t prim = drive->read<uintptr_t>(Address + offset::basepart::primitive);
-        if (!prim) {
-            prim = Address;
-        }
+        if (!prim) return false;
         RawRotPos rotpos = drive->read<RawRotPos>(prim + offset::primitive::Rotation);
         out.rotation = rotpos.rot;
         out.position = rotpos.pos;
