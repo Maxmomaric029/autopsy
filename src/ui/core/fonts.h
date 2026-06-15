@@ -4,41 +4,41 @@
 #include <imgui/misc/imgui_freetype.h>
 #include "FontAwesome/IconsFontAwesome6.h"
 
-// Embedded font data — Syne + JetBrains Mono + FontAwesome
-#include "../embedded/font_syne_regular.h"
-#include "../embedded/font_syne_medium.h"
-#include "../embedded/font_syne_extrabold.h"
+// Embedded font data — Inter + JetBrains Mono + FontAwesome
+#include "../embedded/font_inter_regular.h"
+#include "../embedded/font_inter_bold.h"
+#include "../embedded/font_inter_semibold.h"
+#include "../embedded/font_inter_black.h"
 #include "../embedded/font_jetbrains_mono_regular.h"
 #include "../embedded/font_fa_solid.h"
 
 namespace font {
 
     // ========================================================================
-    // Font pointers — Syne for display, JetBrains Mono for values
+    // Font pointers — Inter for UI, JetBrains Mono for values
     // ========================================================================
-    inline ImFont* g_display  = nullptr; // Syne ExtraBold 17px — logo
-    inline ImFont* g_label    = nullptr; // Syne Medium 12px — card headers
-    inline ImFont* g_body     = nullptr; // Syne Regular 12px — toggles/options
-    inline ImFont* g_mono     = nullptr; // JetBrains Mono Regular 11px — values
-    inline ImFont* g_mono_sm  = nullptr; // JetBrains Mono Regular 9px — chips/pills
+    inline ImFont* g_display  = nullptr; // Inter Black 16px — logo
+    inline ImFont* g_label    = nullptr; // Inter SemiBold 11px — card headers
+    inline ImFont* g_body     = nullptr; // Inter Regular 11px — toggles/options
+    inline ImFont* g_mono     = nullptr; // JetBrains Mono Regular 10px — values
+    inline ImFont* g_mono_sm  = nullptr; // JetBrains Mono Regular 8px — chips/pills
 
     // ========================================================================
-    // Typography scale (compact)
+    // Typography scale (compact, readable)
     // ========================================================================
     namespace size {
-        inline constexpr float display = 14.f;   // logo / product name
-        inline constexpr float label   = 10.f;   // card headers, section titles
-        inline constexpr float body    = 10.f;   // toggles, options
-        inline constexpr float mono    = 9.f;    // slider values, stats
+        inline constexpr float display = 16.f;   // logo / product name
+        inline constexpr float label   = 11.f;   // card headers, section titles
+        inline constexpr float body    = 11.f;   // toggles, options
+        inline constexpr float mono    = 10.f;   // slider values, stats
         inline constexpr float mono_sm = 8.f;    // chips, pills, version
-        inline constexpr float icon    = 11.f;   // FA6 icon size
-        inline constexpr float tab_icon = 13.f;  // sidebar tab icons
+        inline constexpr float icon    = 12.f;   // FA6 icon size
+        inline constexpr float tab_icon = 14.f;  // sidebar tab icons
         inline constexpr float uppercase = 7.f;  // section headers (uppercase)
     }
 
     // ========================================================================
     // Font loading with FreeType rendering (sharper text)
-    // First tries embedded Syne/JetBrains, falls back to Inter
     // ========================================================================
     inline bool load(float dpiScale = 1.0f) {
         ImGuiIO& io = ImGui::GetIO();
@@ -57,7 +57,7 @@ namespace font {
         ImFontConfig fa_cfg;
         fa_cfg.MergeMode        = true;
         fa_cfg.PixelSnapH       = true;
-        fa_cfg.GlyphMinAdvanceX = 14.f;
+        fa_cfg.GlyphMinAdvanceX = 12.f;
         fa_cfg.OversampleH      = 1;
         fa_cfg.OversampleV      = 1;
 
@@ -78,30 +78,30 @@ namespace font {
         };
 
         // ========================================================================
-        // Syne — UI display fonts
+        // Inter — UI display fonts
         // ========================================================================
 
-        // g_display: Syne ExtraBold 20px — logo (no FA merge)
-        loadFont(font_syne_extrabold, font_syne_extrabold_size,
+        // g_display: Inter Black 18px — logo (no FA merge)
+        loadFont(font_inter_black, font_inter_black_size,
             size::display, &g_display, false);
 
-        // g_label: Syne Medium 13px — card headers (with FA merge)
-        loadFont(font_syne_medium, font_syne_medium_size,
+        // g_label: Inter SemiBold 12px — card headers (with FA merge)
+        loadFont(font_inter_semibold, font_inter_semibold_size,
             size::label, &g_label, true);
 
-        // g_body: Syne Regular 13px — body text (with FA merge)
-        loadFont(font_syne_regular, font_syne_regular_size,
+        // g_body: Inter Regular 12px — body text (with FA merge)
+        loadFont(font_inter_regular, font_inter_regular_size,
             size::body, &g_body, true);
 
         // ========================================================================
         // JetBrains Mono — monospace values
         // ========================================================================
 
-        // g_mono: JetBrains Mono Regular 12px — slider values, stats
+        // g_mono: JetBrains Mono Regular 11px — slider values, stats
         loadFont(font_jetbrains_mono_regular, font_jetbrains_mono_regular_size,
             size::mono, &g_mono, false);
 
-        // g_mono_sm: JetBrains Mono Regular 10px — chips, pills, version
+        // g_mono_sm: JetBrains Mono Regular 9px — chips, pills, version
         loadFont(font_jetbrains_mono_regular, font_jetbrains_mono_regular_size,
             size::mono_sm, &g_mono_sm, false);
 

@@ -3,13 +3,11 @@
 #include "../sdk/sdk.h"
 #include <cfloat>
 #include <cmath>
-#include <Clipper2Lib/include/clipper2/clipper.h>
 #include <imgui/imgui.h>
 #include "global.h"
 #include <Windows.h>
 #include <algorithm>
 #include <cstdint>
-#include <deque>
 #include <unordered_map>
 #include <imgui/imgui_internal.h>
 #include "ui/graphic.h"
@@ -18,7 +16,7 @@
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 
-#define FlotationDevice(c) ImGui::ColorConvertFloat4ToU32(ImVec4(c[0], c[1], c[2], c[3]))
+// ── Helpers ────────────────────────────────────────────────────────────────
 
 static inline bool validscreen(float x, float y)
 {
@@ -29,6 +27,8 @@ static inline float dot3(const sdk::vector3& a, const sdk::vector3& b)
 {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
+
+// ── Visual frame (per-frame camera & window data) ──────────────────────────
 
 namespace visual_frame
 {
@@ -71,569 +71,85 @@ static bool visiblecheck(const sdk::vector3& target, const sdk::vector2& screen)
     return wallcheck::can_see(visual_frame::CameraPos, target);
 }
 
-namespace style
+// ── Projection helper ──────────────────────────────────────────────────────
+
+static bool project(const sdk::vector3& world, ImVec2& out)
 {
-    // Aurora Dark palette from theme.h
-    static constexpr ImU32 Surface     = IM_COL32(3, 8, 14, 188);
-    static constexpr ImU32 SurfaceSoft = IM_COL32(5, 13, 22, 132);
-    static constexpr ImU32 Border      = IM_COL32(18, 32, 52, 180); // #1A3348
-    static constexpr ImU32 Accent      = IM_COL32(220, 60, 70, 255);      // blood red
-    static constexpr ImU32 AccentDim   = IM_COL32(179, 50, 61, 255);      // darker red
-    static constexpr ImU32 text        = IM_COL32(234, 244, 255, 240);    // EAF4FF
-    static constexpr ImU32 TextDim     = IM_COL32(142, 164, 181, 255);    // #8EA4B5
-    static bool VisibilityTint = false;
-    static bool TargetVisible = true;
+    auto screen = global::render.screen(world);
+    if (!validscreen(screen.x, screen.y))
+        return false;
+    out.x = std::roundf(screen.x);
+    out.y = std::roundf(screen.y);
+    return true;
+}
 
-    static ImU32 alpha(ImU32 c, float a)
+// ── Part pose helper ───────────────────────────────────────────────────────
+
+static bool partpose(const sdk::instance& inst, sdk::vector3& position)
+{
+    if (!inst.Address)
+        return false;
+    sdk::part p(inst.Address);
+    sdk::primitive_data pdata;
+    if (!p.get_primitive_data(pdata))
+        return false;
+    position = pdata.position;
+    return !(std::isnan(position.x) || std::isnan(position.y) || std::isnan(position.z));
+}
+
+static bool playerposition(const sdk::player& player, sdk::vector3& out)
+{
+    if (partpose(player.HumanoidRootPart, out)) return true;
+    if (partpose(player.LowerTorso, out)) return true;
+    if (partpose(player.Torso, out)) return true;
+    return partpose(player.Head, out);
+}
+
+// ── Color helpers ──────────────────────────────────────────────────────────
+
+static ImU32 col4_to_u32(const float c[4], float alpha_mul = 1.f)
+{
+    return IM_COL32(
+        (int)(ImClamp(c[0], 0.f, 1.f) * 255.f),
+        (int)(ImClamp(c[1], 0.f, 1.f) * 255.f),
+        (int)(ImClamp(c[2], 0.f, 1.f) * 255.f),
+        (int)(ImClamp(c[3] * alpha_mul, 0.f, 1.f) * 255.f));
+}
+
+static ImU32 u32_alpha(ImU32 c, float a)
+{
+    int alpha = (int)(((c >> 24) & 0xFF) * ImClamp(a, 0.f, 1.f));
+    return (c & 0x00FFFFFF) | ((ImU32)alpha << 24);
+}
+
+static ImU32 health_color(float ratio)
+{
+    ratio = ImClamp(ratio, 0.f, 1.f);
+    // green → yellow → red
+    if (ratio > 0.5f)
     {
-        const int alpha = (int)(((c >> 24) & 0xFF) * ImClamp(a, 0.f, 1.f));
-        return (c & 0x00FFFFFF) | ((ImU32)alpha << 24);
-    }
-
-    static ImU32 fromfloat(const float col[4], float a = 1.f)
-    {
-        if (VisibilityTint)
-            col = TargetVisible ? global::esp::color::Visible : global::esp::color::NotVisible;
-
+        float t = (ratio - 0.5f) * 2.f;
         return IM_COL32(
-            (int)(ImClamp(col[0], 0.f, 1.f) * 255.f),
-            (int)(ImClamp(col[1], 0.f, 1.f) * 255.f),
-            (int)(ImClamp(col[2], 0.f, 1.f) * 255.f),
-            (int)(ImClamp(col[3] * a, 0.f, 1.f) * 255.f));
+            (int)(61 + (61) * t),
+            (int)(224 + (-32) * t),
+            (int)(160 + (-80) * t), 255);
     }
-
-    static ImU32 lerp(ImU32 a, ImU32 b, float t)
-    {
-        auto ch = [](ImU32 c, int s) { return (int)((c >> s) & 0xFF); };
-        auto mix = [&](int s) { return (int)(ch(a, s) * (1.f - t) + ch(b, s) * t); };
-        return IM_COL32(mix(0), mix(8), mix(16), mix(24));
-    }
-
-    // Health bar colour interpolation: green → yellow → red
-    static ImU32 healthcolor(float ratio)
-    {
-        ratio = ImClamp(ratio, 0.f, 1.f);
-        if (ratio > 0.5f)
-        {
-            const float t = (ratio - 0.5f) * 2.f;
-            return lerp(IM_COL32(240, 192, 80, 255), IM_COL32(61, 224, 160, 255), t);
-        }
-        const float t = ratio * 2.f;
-        return lerp(IM_COL32(224, 60, 70, 255), IM_COL32(240, 192, 80, 255), t);
-    }
-
-    static void shadow(ImDrawList* draw, ImVec2 min, ImVec2 max, float rounding, float strength = 1.f)
-    {
-        for (int i = 0; i < 5; i++)
-        {
-            const float spread = 4.f + i * 3.5f;
-            const int alpha = (int)((32.f - i * 4.5f) * strength);
-            draw->AddRectFilled(min - ImVec2(spread * .45f, spread * .18f) + ImVec2(0.f, 3.f + i),
-                max + ImVec2(spread * .45f, spread * .62f),
-                IM_COL32(0, 0, 0, alpha), rounding + spread);
-        }
-    }
-
-    static void frame(ImDrawList* draw, ImVec2 min, ImVec2 max, ImU32 accent, bool fill)
-    {
-        const float rounding = 0.f;
-        shadow(draw, min, max, rounding, .75f);
-        draw->AddRectFilled(min + ImVec2(1.f, 1.f), max - ImVec2(1.f, 1.f),
-            fill ? IM_COL32(3, 8, 14, 34) : IM_COL32(3, 8, 14, 36), rounding);
-        draw->AddRect(min - ImVec2(1.f, 1.f), max + ImVec2(1.f, 1.f), IM_COL32(0, 0, 0, 92), rounding, 0, 1.4f);
-        draw->AddRect(min, max, alpha(accent, .7f), rounding, 0, 1.35f);
-        draw->AddRect(min + ImVec2(1.f, 1.f), max - ImVec2(1.f, 1.f), IM_COL32(255, 255, 255, 18), rounding, 0, 1.f);
-    }
-
-    static void fillbox(ImDrawList* draw, ImVec2 min, ImVec2 max)
-    {
-        if (global::esp::Box_Fill_Gradient)
-        {
-            const float time = global::esp::Box_Fill_Gradient_Rotate ? (float)ImGui::GetTime() * global::esp::BoxFillSpeed : 0.f;
-            const ImU32 col1 = fromfloat(global::esp::color::BoxFill_Top, .75f);
-            const ImU32 col2 = fromfloat(global::esp::color::BoxFill_Bottom, .75f);
-            const float s = sinf(time);
-            const float c = cosf(time);
-            ImU32 c_tl;
-            ImU32 c_tr;
-            ImU32 c_br;
-            ImU32 c_bl;
-
-            if (global::esp::Box_Fill_Type == 0)
-            {
-                c_tl = c_bl = ImGui::ColorConvertFloat4ToU32(ImLerp(ImGui::ColorConvertU32ToFloat4(col1), ImGui::ColorConvertU32ToFloat4(col2), (s + 1.f) * .5f));
-                c_tr = c_br = ImGui::ColorConvertFloat4ToU32(ImLerp(ImGui::ColorConvertU32ToFloat4(col1), ImGui::ColorConvertU32ToFloat4(col2), (c + 1.f) * .5f));
-            }
-            else if (global::esp::Box_Fill_Type == 1)
-            {
-                c_tl = c_tr = ImGui::ColorConvertFloat4ToU32(ImLerp(ImGui::ColorConvertU32ToFloat4(col1), ImGui::ColorConvertU32ToFloat4(col2), (s + 1.f) * .5f));
-                c_bl = c_br = ImGui::ColorConvertFloat4ToU32(ImLerp(ImGui::ColorConvertU32ToFloat4(col1), ImGui::ColorConvertU32ToFloat4(col2), (c + 1.f) * .5f));
-            }
-            else
-            {
-                c_tl = ImGui::ColorConvertFloat4ToU32(ImLerp(ImGui::ColorConvertU32ToFloat4(col1), ImGui::ColorConvertU32ToFloat4(col2), (s + 1.f) * .5f));
-                c_tr = ImGui::ColorConvertFloat4ToU32(ImLerp(ImGui::ColorConvertU32ToFloat4(col1), ImGui::ColorConvertU32ToFloat4(col2), (c + 1.f) * .5f));
-                c_br = ImGui::ColorConvertFloat4ToU32(ImLerp(ImGui::ColorConvertU32ToFloat4(col1), ImGui::ColorConvertU32ToFloat4(col2), (-s + 1.f) * .5f));
-                c_bl = ImGui::ColorConvertFloat4ToU32(ImLerp(ImGui::ColorConvertU32ToFloat4(col1), ImGui::ColorConvertU32ToFloat4(col2), (-c + 1.f) * .5f));
-            }
-
-            draw->AddRectFilledMultiColor(min, max, c_tl, c_tr, c_br, c_bl);
-            return;
-        }
-
-        draw->AddRectFilled(min, max, fromfloat(global::esp::color::BoxFill_Top, .72f));
-    }
-
-    static void fullbox(ImDrawList* draw, ImVec2 min, ImVec2 max, ImU32 accent)
-    {
-        if (global::esp::Box_Fill)
-            fillbox(draw, min + ImVec2(2.f, 2.f), max - ImVec2(2.f, 2.f));
-        frame(draw, min, max, accent, global::esp::Box_Fill);
-    }
-
-    static void cornerline(ImDrawList* draw, ImVec2 a, ImVec2 b, ImU32 accent)
-    {
-        draw->AddLine(a, b, IM_COL32(0, 0, 0, 160), 3.8f);
-        draw->AddLine(a, b, alpha(accent, 0.15f), 2.8f);
-        draw->AddLine(a, b, accent, 1.2f);
-    }
-
-    static void cornerbox(ImDrawList* draw, ImVec2 min, ImVec2 max, ImU32 accent)
-    {
-        const float w = max.x - min.x;
-        const float h = max.y - min.y;
-        const float len = ImClamp(ImMin(w, h) * 0.22f, 8.f, 40.f);
-
-        shadow(draw, min, max, 0.f, .52f);
-        if (global::esp::Box_Fill)
-            fillbox(draw, min + ImVec2(2.f, 2.f), max - ImVec2(2.f, 2.f));
-        else
-            draw->AddRectFilled(min + ImVec2(1.f, 1.f), max - ImVec2(1.f, 1.f), IM_COL32(3, 8, 14, 24));
-
-        draw->AddRect(min, max, IM_COL32(255, 255, 255, 18), 0.f, 0, 1.f);
-        cornerline(draw, min, ImVec2(min.x + len, min.y), accent);
-        cornerline(draw, min, ImVec2(min.x, min.y + len), accent);
-        cornerline(draw, ImVec2(max.x - len, min.y), ImVec2(max.x, min.y), accent);
-        cornerline(draw, ImVec2(max.x, min.y), ImVec2(max.x, min.y + len), accent);
-        cornerline(draw, ImVec2(min.x, max.y), ImVec2(min.x + len, max.y), accent);
-        cornerline(draw, ImVec2(min.x, max.y - len), ImVec2(min.x, max.y), accent);
-        cornerline(draw, ImVec2(max.x - len, max.y), max, accent);
-        cornerline(draw, ImVec2(max.x, max.y - len), max, accent);
-    }
-
-    static void healthbar(ImDrawList* draw, ImVec2 pos, ImVec2 size, float ratio)
-    {
-        ratio = ImClamp(ratio, 0.f, 1.f);
-        const float gap = (float)global::esp::gap;
-        const float thick = ImMax(3.f, (float)global::esp::Thickness + 2.f);
-        const float x = pos.x - gap - thick - 5.f;
-        const float y0 = pos.y;
-        const float y1 = pos.y + size.y;
-        const ImVec2 bgMin(x, y0);
-        const ImVec2 bgMax(x + thick, y1);
-        const float rounding = thick * 0.5f;
-
-        shadow(draw, bgMin, bgMax, rounding, .45f);
-        draw->AddRectFilled(bgMin, bgMax, IM_COL32(4, 8, 14, 210), rounding);
-        draw->AddRect(bgMin, bgMax, IM_COL32(18, 32, 52, 180), rounding, 0, 1.f);
-
-        const float fillH = (y1 - y0 - 4.f) * ratio;
-        const ImVec2 fillMin(x + 2.f, y1 - 2.f - fillH);
-        const ImVec2 fillMax(x + thick - 2.f, y1 - 2.f);
-
-        if (fillH > 1.f)
-        {
-            if (global::esp::Healthbar_Type == 1)
-                draw->AddRectFilledMultiColor(fillMin, fillMax,
-                    healthcolor(1.f),
-                    healthcolor(1.f),
-                    healthcolor(0.f),
-                    healthcolor(0.f));
-            else
-                draw->AddRectFilled(fillMin, fillMax, healthcolor(ratio), rounding - 1.f);
-        }
-    }
-
-    static void label(ImDrawList* draw, ImVec2 pos, const char* text, const float col[4])
-    {
-        if (!text || !*text)
-            return;
-
-        ImFont* font = ImGui::GetFont();
-        const float fontSize = ImGui::GetFontSize();
-
-        pos.x = std::roundf(pos.x);
-        pos.y = std::roundf(pos.y);
-        const ImU32 accent = fromfloat(col);
-
-        // Clean single drop shadow
-        draw->AddText(font, fontSize, pos + ImVec2(1.f, 1.f), IM_COL32(0, 0, 0, 200), text);
-        draw->AddText(font, fontSize, pos, accent, text);
-    }
-
-    static void fov(ImDrawList* draw, ImVec2 center, float radius, const float color[4], bool fill, bool spin, int speed)
-    {
-        static float rotation = 0.f;
-        if (spin)
-            rotation += ImGui::GetIO().DeltaTime * ImMax(1, speed) * 1.4f;
-
-        const ImU32 accent = fromfloat(color);
-        if (fill)
-            draw->AddCircleFilled(center, radius, alpha(accent, .10f), 96);
-
-        // Glow rings behind
-        for (int i = 0; i < 3; i++)
-            draw->AddCircle(center, radius + 2.f + i * 2.f, IM_COL32(0, 0, 0, 30), 96, 1.3f);
-
-        draw->AddCircle(center, radius, alpha(accent, .90f), 96, 1.5f);
-        draw->AddCircle(center, radius - 2.f, IM_COL32(255, 255, 255, 18), 96, 1.f);
-
-        if (spin)
-        {
-            const float arc = IM_PI * .34f;
-            for (int i = 0; i < 3; i++)
-            {
-                const float start = rotation + i * IM_PI * .666f;
-                draw->PathArcTo(center, radius + 4.f, start, start + arc, 18);
-                draw->PathStroke(alpha(accent, .78f), false, 2.1f);
-            }
-        }
-    }
-
-    static bool project(const sdk::vector3& world, ImVec2& out)
-    {
-        auto screen = global::render.screen(world);
-        if (!validscreen(screen.x, screen.y))
-            return false;
-
-        out.x = std::roundf(screen.x);
-        out.y = std::roundf(screen.y);
-        return true;
-    }
-
-    static float dot(const sdk::vector3& a, const sdk::vector3& b)
-    {
-        return a.x * b.x + a.y * b.y + a.z * b.z;
-    }
-
-    static bool normalize(sdk::vector3& v)
-    {
-        const float mag = v.magnitude();
-        if (mag < .001f || std::isnan(mag))
-            return false;
-
-        v = v / mag;
-        return true;
-    }
-
-    static bool partpose(const sdk::instance& inst, sdk::vector3& position, sdk::matrix3& rotation)
-    {
-        if (!inst.Address)
-            return false;
-
-        sdk::part part(inst.Address);
-        sdk::primitive_data pdata;
-        if (!part.get_primitive_data(pdata))
-            return false;
-
-        position = pdata.position;
-        rotation = pdata.rotation;
-        return !(std::isnan(position.x) || std::isnan(position.y) || std::isnan(position.z));
-    }
-
-    static bool playerposition(const sdk::player& player, sdk::vector3& out)
-    {
-        sdk::matrix3 ignored{};
-        if (partpose(player.HumanoidRootPart, out, ignored))
-            return true;
-        if (partpose(player.LowerTorso, out, ignored))
-            return true;
-        if (partpose(player.Torso, out, ignored))
-            return true;
-        return partpose(player.Head, out, ignored);
-    }
-
-    static bool aimray(const sdk::player& player, sdk::vector3& origin, sdk::vector3& direction)
-    {
-        sdk::matrix3 rotation{};
-        if (!partpose(player.Head, origin, rotation) &&
-            !partpose(player.HumanoidRootPart, origin, rotation) &&
-            !partpose(player.Torso, origin, rotation))
-            return false;
-
-        direction = rotation * sdk::vector3{ 0.f, 0.f, -1.f };
-        return normalize(direction);
-    }
-
-    static bool aimingat(const sdk::player& player, const sdk::vector3& target, float* closestDistance = nullptr)
-    {
-        sdk::vector3 origin{};
-        sdk::vector3 direction{};
-        if (!aimray(player, origin, direction))
-            return false;
-
-        const sdk::vector3 toTarget = target - origin;
-        const float along = dot(toTarget, direction);
-        const float maxLength = ImClamp(global::overlay::AimView_MaxLength, 50.f, 1000.f);
-        if (along < 0.f || along > maxLength)
-            return false;
-
-        const sdk::vector3 closest = origin + direction * along;
-        const float miss = closest.distance(target);
-        if (closestDistance)
-            *closestDistance = miss;
-
-        const float tolerance = ImClamp(toTarget.magnitude() * .018f, 4.0f, 10.0f);
-        return miss <= tolerance;
-    }
-
-    static void aimline(ImDrawList* draw, const sdk::player& player, const sdk::vector3& localPos)
-    {
-        sdk::vector3 origin{};
-        sdk::vector3 direction{};
-        if (!aimray(player, origin, direction))
-            return;
-
-        const bool threat = aimingat(player, localPos);
-        const float maxLength = ImClamp(global::overlay::AimView_MaxLength, 50.f, 1000.f);
-        const sdk::vector3 end = origin + direction * maxLength;
-
-        ImVec2 a{};
-        ImVec2 b{};
-        if (!project(origin, a) || !project(end, b))
-            return;
-
-        if (threat)
-        {
-            draw->AddLine(a, b, IM_COL32(0, 0, 0, 140), 4.1f);
-            draw->AddLine(a, b, IM_COL32(224, 60, 70, 230), 1.6f);
-            draw->AddCircleFilled(b, 3.4f, IM_COL32(224, 60, 70, 200), 16);
-        }
-        else
-        {
-            draw->AddLine(a, b, IM_COL32(0, 0, 0, 140), 3.6f);
-            draw->AddLine(a, b, IM_COL32(220, 230, 245, 120), 1.1f);
-            draw->AddCircleFilled(b, 2.6f, IM_COL32(220, 230, 245, 100), 16);
-        }
-    }
-
-    struct trailpoint
-    {
-        sdk::vector3 world;
-        float Time;
-    };
-
-    static std::unordered_map<std::uint64_t, std::deque<trailpoint>> PlayerTrails;
-    static constexpr float TrailLifetime = 1.45f;
-    static constexpr float TrailMinStep = 0.28f;
-    static constexpr size_t TrailMaxPoints = 34;
-
-    static void trimtrail(std::deque<trailpoint>& trail, float now)
-    {
-        while (!trail.empty() && now - trail.front().Time > TrailLifetime)
-            trail.pop_front();
-
-        while (trail.size() > TrailMaxPoints)
-            trail.pop_front();
-    }
-
-    static void cleartrail()
-    {
-        PlayerTrails.clear();
-    }
-
-    static void prunetrail()
-    {
-        const float now = (float)ImGui::GetTime();
-        for (auto it = PlayerTrails.begin(); it != PlayerTrails.end();)
-        {
-            trimtrail(it->second, now);
-            if (it->second.empty())
-                it = PlayerTrails.erase(it);
-            else
-                ++it;
-        }
-    }
-
-    static bool bottom(const sdk::instance& instance, sdk::vector3& out)
-    {
-        if (!instance.Address)
-            return false;
-
-        const sdk::part part(instance.Address);
-        sdk::primitive_data pdata;
-        if (!part.get_primitive_data(pdata))
-            return false;
-
-        const sdk::vector3 position = pdata.position;
-        const sdk::vector3 size = pdata.size;
-        const sdk::matrix3 rotation = pdata.rotation;
-        if (size.x == 0.f && size.y == 0.f && size.z == 0.f)
-            return false;
-
-        out = position - rotation * sdk::vector3{ 0.f, size.y * .5f, 0.f };
-        return !(out.x == 0.f && out.y == 0.f && out.z == 0.f);
-    }
-
-    static bool trailanchor(const sdk::player& player, const std::vector<const sdk::instance*>& bones, sdk::vector3& out)
-    {
-        auto AveragePair = [&](const sdk::instance& left, const sdk::instance& right) -> bool {
-            sdk::vector3 sum{};
-            int count = 0;
-            sdk::vector3 point{};
-
-            if (bottom(left, point)) {
-                sum += point;
-                ++count;
-            }
-            if (bottom(right, point)) {
-                sum += point;
-                ++count;
-            }
-
-            if (count == 0)
-                return false;
-
-            out = sum / (float)count;
-            return true;
-            };
-
-        if (AveragePair(player.LeftFoot, player.RightFoot))
-            return true;
-
-        if (AveragePair(player.LeftLeg, player.RightLeg))
-            return true;
-
-        sdk::vector3 lowest{};
-        bool found = false;
-        for (auto* part : bones)
-        {
-            sdk::vector3 point{};
-            if (!bottom(*part, point))
-                continue;
-
-            if (!found || point.y < lowest.y)
-            {
-                lowest = point;
-                found = true;
-            }
-        }
-
-        if (found)
-        {
-            out = lowest;
-            return true;
-        }
-
-        return bottom(player.HumanoidRootPart, out);
-    }
-
-    static bool trailanchor(const sdk::player& player, sdk::vector3& out)
-    {
-        return trailanchor(player, esp::bone(player), out);
-    }
-
-    static void trail(ImDrawList* draw, std::uint64_t key, const sdk::vector3& world)
-    {
-        if (!key)
-            return;
-
-        const float now = (float)ImGui::GetTime();
-        auto& trail = PlayerTrails[key];
-        trimtrail(trail, now);
-
-        if (trail.empty() || trail.back().world.distance(world) >= TrailMinStep)
-            trail.push_back({ world, now });
-        else
-            trail.back().Time = now;
-
-        trimtrail(trail, now);
-        if (trail.size() < 2)
-            return;
-
-        ImVec2 prev;
-        bool prevValid = project(trail.front().world, prev);
-        const float denom = ImMax(1.f, (float)trail.size() - 1.f);
-
-        for (size_t i = 1; i < trail.size(); ++i)
-        {
-            ImVec2 current;
-            const bool currentValid = project(trail[i].world, current);
-            if (prevValid && currentValid)
-            {
-                const float order = (float)i / denom;
-                const float life = 1.f - ImClamp((now - trail[i].Time) / TrailLifetime, 0.f, 1.f);
-                const float alpha = life * (.18f + order * .82f);
-                if (alpha > .035f)
-                {
-                    const float width = 1.f + order * 1.8f;
-                    draw->AddLine(prev, current, IM_COL32(0, 0, 0, (int)(142.f * alpha)), width + 3.0f);
-                    draw->AddLine(prev, current, fromfloat(global::esp::color::Trails, .92f * alpha), width);
-
-                    if (i == trail.size() - 1 || (i % 4) == 0)
-                        draw->AddCircleFilled(current, width * .85f, fromfloat(global::esp::color::Trails, .45f * alpha), 12);
-                }
-            }
-
-            prev = current;
-            prevValid = currentValid;
-        }
-    }
-
-    // Diamond indicator (replaces Chinese hat)
-    static void diamond(ImDrawList* draw, const sdk::part& head)
-    {
-        if (!head.Address)
-            return;
-
-        sdk::primitive_data pdata;
-        if (!head.get_primitive_data(pdata))
-            return;
-
-        const sdk::vector3 position = pdata.position;
-        const sdk::vector3 size = pdata.size;
-        if (size.x == 0.f && size.y == 0.f && size.z == 0.f)
-            return;
-
-        const float headHeight = ImMax(size.y, .5f);
-        const sdk::vector3 above = position + sdk::vector3{ 0.f, headHeight * 1.2f, 0.f };
-
-        ImVec2 screen;
-        if (!project(above, screen))
-            return;
-
-        const float ds = 8.f; // diamond size
-        const ImU32 col = style::Accent;
-        const ImU32 shd = IM_COL32(0, 0, 0, 160);
-
-        // Shadow
-        draw->AddLine(screen + ImVec2(0.f, 1.f), screen + ImVec2(ds * .5f, ds + 1.f), shd, 1.5f);
-        draw->AddLine(screen + ImVec2(ds * .5f, ds + 1.f), screen + ImVec2(ds + 1.f, 1.f), shd, 1.5f);
-        draw->AddLine(screen + ImVec2(ds + 1.f, 1.f), screen + ImVec2(ds * .5f, -ds + 1.f), shd, 1.5f);
-        draw->AddLine(screen + ImVec2(ds * .5f, -ds + 1.f), screen + ImVec2(0.f, 1.f), shd, 1.5f);
-
-        // Diamond
-        draw->AddLine(screen, screen + ImVec2(ds * .5f, ds), col, 1.5f);
-        draw->AddLine(screen + ImVec2(ds * .5f, ds), screen + ImVec2(ds, 0.f), col, 1.5f);
-        draw->AddLine(screen + ImVec2(ds, 0.f), screen + ImVec2(ds * .5f, -ds), col, 1.5f);
-        draw->AddLine(screen + ImVec2(ds * .5f, -ds), screen, col, 1.5f);
-    }
+    float t = ratio * 2.f;
+    return IM_COL32(
+        (int)(224 + (16) * t),
+        (int)(60 + (132) * t),
+        (int)(70 + (10) * t), 255);
 }
 
-static void outline(const ImVec2& Pos, const char* text, const float Col[4]) {
+// ── Draw primitives ────────────────────────────────────────────────────────
 
-    if (!text || !*text)
-        return;
-
-    ImDrawList* Draw = ImGui::GetBackgroundDrawList();
-    Draw->Flags |= ImDrawListFlags_AntiAliasedLines | ImDrawListFlags_AntiAliasedFill;
-    style::label(Draw, Pos, text, Col);
+static void draw_text_shadowed(ImDrawList* dl, ImFont* font, float size, ImVec2 pos, ImU32 col, const char* text)
+{
+    dl->AddText(font, size, pos + ImVec2(1.f, 1.f), IM_COL32(0, 0, 0, 180), text);
+    dl->AddText(font, size, pos, col, text);
 }
 
-static const sdk::vector3 Corners[8] = {
-    {-1,-1,-1}, {1,-1,-1}, {-1,1,-1}, {1,1,-1},
-    {-1,-1, 1}, {1,-1, 1}, {-1,1, 1}, {1,1, 1}
-};
+// ── ESP rendering ──────────────────────────────────────────────────────────
 
 namespace esp {
 
@@ -693,22 +209,15 @@ namespace esp {
 
         visual_frame::begin();
 
-        // Declare background draw list ONCE at the top (performance)
-        ImDrawList* Draw = ImGui::GetBackgroundDrawList();
-        Draw->Flags |= ImDrawListFlags_AntiAliasedLines | ImDrawListFlags_AntiAliasedFill;
+        ImDrawList* dl = ImGui::GetBackgroundDrawList();
+        dl->Flags |= ImDrawListFlags_AntiAliasedLines | ImDrawListFlags_AntiAliasedFill;
 
-        if (!global::esp::Enabled || !global::esp::Trails)
-            style::cleartrail();
-        else
-            style::prunetrail();
-
-        // Thread-safe snapshot with rate-limiting to reduce stuttering
-        // Only copy the player cache at 30fps max (every ~33ms)
+        // ── Snapshot (rate-limited) ────────────────────────────────────
         static double lastSnapshotTime = 0.0;
         static std::vector<sdk::player> Snapshot;
         static std::vector<sdk::player> SnapshotSwap;
         double now = ImGui::GetTime();
-        if (now - lastSnapshotTime > 0.033) { // ~30fps cache refresh
+        if (now - lastSnapshotTime > 0.033) {
             {
                 std::lock_guard<std::mutex> lock(cache::Mutex);
                 SnapshotSwap = global::Player_Cache;
@@ -717,492 +226,433 @@ namespace esp {
             lastSnapshotTime = now;
         }
 
-        // Early exit if no players
         if (Snapshot.empty())
             return;
 
         const auto& Local = global::LocalPlayer;
-        sdk::vector3 LocalPos{};
-        const bool HasLocalPos = style::playerposition(Local, LocalPos);
-        style::VisibilityTint = false;
+        const auto& LocalPlayerRef = Local;
+        ImVec2 clipMin = dl->GetClipRectMin();
+        ImVec2 clipMax = dl->GetClipRectMax();
 
-        // Clip rect for performance
-        ImVec2 clipMin = Draw->GetClipRectMin();
-        ImVec2 clipMax = Draw->GetClipRectMax();
-
-        // Cache render address for fast access
-        uintptr_t renderAddr = global::render.Address;
-
-        // Skip heavy operations (Chams/Clipper2) every 4th frame to prevent stuttering
-        static int frameCounter = 0;
-        frameCounter++;
-        const bool heavyFrame = (frameCounter % 4 == 0);
-
+        // ── Per-player rendering ───────────────────────────────────────
         for (auto& player : Snapshot)
         {
             if (!player.character.Address)
                 continue;
-
             if (Local.character.Address && player.character.Address == Local.character.Address)
                 continue;
-
             if (global::esp::Render_Distance > 0.f && player.Distance > global::esp::Render_Distance)
                 continue;
 
-            // Fallback: try Head first, then HumanoidRootPart, then any available part
-            sdk::part Head(player.Head.Address);
-            sdk::primitive_data head_data;
-            bool hasHead = Head.Address && Head.get_primitive_data(head_data);
+            // ── Get head position ──────────────────────────────────────
+            sdk::part HeadPart(player.Head.Address);
+            sdk::primitive_data headData;
+            bool hasHead = HeadPart.Address && HeadPart.get_primitive_data(headData);
 
-            sdk::vector3 HeadPosition{};
+            sdk::vector3 HeadPos{};
             if (hasHead) {
-                HeadPosition = head_data.position;
+                HeadPos = headData.position;
             } else {
-                // Try HumanoidRootPart as fallback reference point
-                sdk::part Root(player.HumanoidRootPart.Address);
-                sdk::primitive_data root_data;
-                if (Root.Address && Root.get_primitive_data(root_data)) {
-                    HeadPosition = root_data.position;
-                    HeadPosition.y += 1.5f;
+                sdk::part RootPart(player.HumanoidRootPart.Address);
+                sdk::primitive_data rootData;
+                if (RootPart.Address && RootPart.get_primitive_data(rootData)) {
+                    HeadPos = rootData.position;
+                    HeadPos.y += 1.5f;
                 } else {
-                    auto Bones = esp::bone(player);
-                    for (auto* Inst : Bones) {
-                        if (!Inst || !Inst->Address) continue;
-                        sdk::part bp(Inst->Address);
-                        sdk::primitive_data bp_data;
-                        if (bp.Address && bp.get_primitive_data(bp_data)) {
-                            HeadPosition = bp_data.position;
-                            break;
-                        }
-                    }
-                    if (HeadPosition.x == 0.f && HeadPosition.y == 0.f && HeadPosition.z == 0.f)
-                        continue;
+                    continue;
                 }
             }
 
-            auto Head_W2S = global::render.screen(HeadPosition);
-            if (!validscreen(Head_W2S.x, Head_W2S.y))
+            auto HeadScreen = global::render.screen(HeadPos);
+            if (!validscreen(HeadScreen.x, HeadScreen.y))
                 continue;
 
-            const bool PlayerVisible = !global::esp::VisibleCheck || visiblecheck(HeadPosition, Head_W2S);
-            style::VisibilityTint = global::esp::VisibleCheck;
-            style::TargetVisible = PlayerVisible;
+            // ── Visibility ─────────────────────────────────────────────
+            const bool PlayerVisible = !global::esp::VisibleCheck || visiblecheck(HeadPos, HeadScreen);
+            const bool IsTarget = (global::aim::AimTarget.Address != 0 && player.character.Address == global::aim::AimTarget.Address)
+                || (SilentCachedTarget.character.Address != 0 && player.character.Address == SilentCachedTarget.character.Address);
 
-            bool isAimbotTarget = (global::aim::AimTarget.Address != 0 && player.character.Address == global::aim::AimTarget.Address);
-            bool isSilentTarget = (SilentCachedTarget.character.Address != 0 && player.character.Address == SilentCachedTarget.character.Address);
-            bool isCurrentTarget = isAimbotTarget || isSilentTarget;
-
-            float Left = FLT_MAX, Top = FLT_MAX, Right = -FLT_MAX, Bottom = -FLT_MAX;
-            bool valid = false;
-
+            // ── Project bones & compute bounding box ───────────────────
             auto Bones = esp::bone(player);
             if (Bones.empty()) continue;
 
-            std::unordered_map<std::uintptr_t, ImVec2> projectedCache;
-            projectedCache.reserve(Bones.size());
+            std::unordered_map<std::uintptr_t, ImVec2> projected;
+            projected.reserve(Bones.size());
 
-            for (auto* Inst : Bones) {
-                if (!Inst || !Inst->Address) continue;
+            float L = FLT_MAX, T = FLT_MAX, R = -FLT_MAX, B = -FLT_MAX;
+            bool valid = false;
 
-                sdk::part part(Inst->Address);
-                sdk::primitive_data prim_data;
-                if (!part.get_primitive_data(prim_data)) continue;
-
-                sdk::vector3 pos = prim_data.position;
-                auto W2S = global::render.screen(pos);
-
-                if (!validscreen(W2S.x, W2S.y)) continue;
-
-                ImVec2 pt(W2S.x, W2S.y);
-                projectedCache[Inst->Address] = pt;
-
+            for (auto* inst : Bones) {
+                if (!inst || !inst->Address) continue;
+                sdk::part p(inst->Address);
+                sdk::primitive_data pd;
+                if (!p.get_primitive_data(pd)) continue;
+                auto sc = global::render.screen(pd.position);
+                if (!validscreen(sc.x, sc.y)) continue;
+                ImVec2 pt(sc.x, sc.y);
+                projected[inst->Address] = pt;
                 valid = true;
-                Left = min(Left, pt.x);
-                Top = min(Top, pt.y);
-                Right = max(Right, pt.x);
-                Bottom = max(Bottom, pt.y);
+                L = min(L, pt.x);
+                T = min(T, pt.y);
+                R = max(R, pt.x);
+                B = max(B, pt.y);
             }
 
-            if (!valid || Left >= Right || Top >= Bottom) continue;
+            if (!valid || L >= R || T >= B) continue;
 
-            // Pad the bounding box margins to wrap the player model nicely
-            float boxHeight = Bottom - Top;
-            float boxWidth = Right - Left;
-            Top -= boxHeight * 0.12f;
-            Bottom += boxHeight * 0.05f;
-            Left -= boxWidth * 0.2f;
-            Right += boxWidth * 0.2f;
+            // ── Bounding box padding ───────────────────────────────────
+            float h = B - T;
+            float w = R - L;
+            T -= h * 0.12f;
+            B += h * 0.05f;
+            L -= w * 0.20f;
+            R += w * 0.20f;
 
-            // Clip rect early exit
-            if (Right < clipMin.x || Left > clipMax.x || Bottom < clipMin.y || Top > clipMax.y)
+            // ── Clip rect cull ─────────────────────────────────────────
+            if (R < clipMin.x || L > clipMax.x || B < clipMin.y || T > clipMax.y)
                 continue;
 
-            ImVec2 Pos(Left, Top);
-            ImVec2 Size(Right - Left, Bottom - Top);
+            ImVec2 boxMin(L, T);
+            ImVec2 boxMax(R, B);
 
-            if (isCurrentTarget) {
-                sdk::vector2 dims = global::render.size();
-                if (dims.x > 0.f && dims.y > 0.f) {
-                    ImVec2 center(dims.x * 0.5f, dims.y * 0.5f);
-                    ImVec2 headScreen(Head_W2S.x, Head_W2S.y);
-                    ImU32 lineColor = PlayerVisible ? IM_COL32(0, 255, 128, 140) : IM_COL32(255, 64, 64, 140);
-                    Draw->AddLine(center, headScreen, lineColor, 1.2f);
-                }
-            }
+            // ── Box color ──────────────────────────────────────────────
+            ImU32 boxCol = col4_to_u32(global::esp::color::Box);
+            if (global::esp::VisibleCheck)
+                boxCol = PlayerVisible ? col4_to_u32(global::esp::color::Visible) : col4_to_u32(global::esp::color::NotVisible);
+            if (IsTarget)
+                boxCol = IM_COL32(255, 140, 0, 255);
 
-            if (global::esp::aimline && HasLocalPos)
-                style::aimline(Draw, player, LocalPos);
-
-            if (global::esp::Trails)
-            {
-                sdk::vector3 TrailAnchor;
-                if (style::trailanchor(player, Bones, TrailAnchor))
-                    style::trail(Draw, player.character.Address, TrailAnchor);
-            }
-
+            // ── Box ────────────────────────────────────────────────────
             if (global::esp::Box)
             {
-                ImU32 boxColor = isCurrentTarget ? IM_COL32(255, 140, 0, 255) : style::fromfloat(global::esp::color::Box);
-                if (global::esp::Box_Type == 0) {
-                    Pos.x = std::round(Pos.x);
-                    Pos.y = std::round(Pos.y);
-                    Size.x = std::round(Size.x);
-                    Size.y = std::round(Size.y);
-                    ImVec2 Min = Pos;
-                    ImVec2 Max = ImVec2(Pos.x + Size.x, Pos.y + Size.y);
-                    style::fullbox(Draw, Min, Max, boxColor);
+                float bx = std::roundf(L);
+                float by = std::roundf(T);
+                float bw = std::roundf(R - L);
+                float bh = std::roundf(B - T);
+                ImVec2 rMin(bx, by);
+                ImVec2 rMax(bx + bw, by + bh);
+
+                if (global::esp::Box_Type == 0)
+                {
+                    // Full box
+                    dl->AddRect(rMin, rMax, boxCol, 0.f, 0, 1.f);
                 }
-                else if (global::esp::Box_Type == 1) {
-                    float X1 = Pos.x - 1.f;
-                    float Y1 = Pos.y - 1.f;
-                    float X2 = Pos.x + Size.x + 1.f;
-                    float Y2 = Pos.y + Size.y + 1.f;
-                    style::cornerbox(Draw, ImVec2(X1, Y1), ImVec2(X2, Y2), boxColor);
+                else
+                {
+                    // Corner box
+                    float len = ImClamp(ImMin(bw, bh) * 0.22f, 8.f, 40.f);
+                    // top-left
+                    dl->AddLine(rMin, ImVec2(rMin.x + len, rMin.y), boxCol, 1.f);
+                    dl->AddLine(rMin, ImVec2(rMin.x, rMin.y + len), boxCol, 1.f);
+                    // top-right
+                    dl->AddLine(ImVec2(rMax.x, rMin.y), ImVec2(rMax.x - len, rMin.y), boxCol, 1.f);
+                    dl->AddLine(ImVec2(rMax.x, rMin.y), ImVec2(rMax.x, rMin.y + len), boxCol, 1.f);
+                    // bottom-left
+                    dl->AddLine(ImVec2(rMin.x, rMax.y), ImVec2(rMin.x + len, rMax.y), boxCol, 1.f);
+                    dl->AddLine(ImVec2(rMin.x, rMax.y), ImVec2(rMin.x, rMax.y - len), boxCol, 1.f);
+                    // bottom-right
+                    dl->AddLine(ImVec2(rMax.x, rMax.y), ImVec2(rMax.x - len, rMax.y), boxCol, 1.f);
+                    dl->AddLine(ImVec2(rMax.x, rMax.y), ImVec2(rMax.x, rMax.y - len), boxCol, 1.f);
                 }
             }
 
-            if (global::esp::Chinese_Hat)
-                style::diamond(Draw, Head);
-
-            if (global::esp::Healthbar) {
-                float Ratio = (player.MaxHealth > 0.f) ? player.Health / player.MaxHealth : 0.f;
-                style::healthbar(Draw, Pos, Size, Ratio);
+            // ── Head dot ───────────────────────────────────────────────
+            if (global::esp::Chinese_Hat && HeadScreen.x > -0.5f && HeadScreen.y > -0.5f)
+            {
+                dl->AddCircleFilled(ImVec2(HeadScreen.x, HeadScreen.y), 3.f, boxCol, 12);
             }
 
+            // ── Health bar ─────────────────────────────────────────────
+            if (global::esp::Healthbar)
+            {
+                float ratio = (player.MaxHealth > 0.f) ? player.Health / player.MaxHealth : 0.f;
+                ratio = ImClamp(ratio, 0.f, 1.f);
+
+                float gap = (float)global::esp::gap;
+                float thick = ImMax(2.f, (float)global::esp::Thickness + 1.f);
+                float barX = L - gap - thick - 4.f;
+
+                ImVec2 barMin(barX, T);
+                ImVec2 barMax(barX + thick, B);
+
+                // Background
+                dl->AddRectFilled(barMin, barMax, IM_COL32(0, 0, 0, 140), thick * 0.5f);
+
+                // Fill
+                float fillH = (B - T - 2.f) * ratio;
+                if (fillH > 0.f)
+                {
+                    ImVec2 fillMin(barX + 1.f, B - 1.f - fillH);
+                    ImVec2 fillMax(barX + thick - 1.f, B - 1.f);
+                    ImU32 hCol = health_color(ratio);
+                    dl->AddRectFilled(fillMin, fillMax, hCol, (thick - 2.f) * 0.5f);
+                }
+            }
+
+            // ── Health text ────────────────────────────────────────────
             if (global::esp::Health)
             {
-                std::string HealthStr = "[" + std::to_string(static_cast<int>(player.Health)) + "]";
-                float X_Text = Pos.x - 6.0f;
+                char buf[16];
+                snprintf(buf, sizeof(buf), "%d", (int)player.Health);
+                float textX = L - 4.f;
                 if (global::esp::Healthbar)
-                    X_Text -= global::esp::Thickness + global::esp::gap;
-                float Y_text = Pos.y - 3.0f;
-                ImVec2 Text_Size = ImGui::CalcTextSize(HealthStr.c_str());
-                ImVec2 Text_Pos(X_Text - Text_Size.x, Y_text);
-                outline(Text_Pos, HealthStr.c_str(), global::esp::color::Health);
+                    textX -= (float)global::esp::Thickness + (float)global::esp::gap + 4.f;
+                ImVec2 ts = ImGui::CalcTextSize(buf);
+                ImVec2 tp(textX - ts.x, T - 2.f);
+                draw_text_shadowed(dl, ImGui::GetFont(), ImGui::GetFontSize(), tp, col4_to_u32(global::esp::color::Health), buf);
             }
 
-            // Name label — clean single drop shadow via style::label
-            if (global::esp::name) {
-                const char* nameText = player.name.c_str();
-                bool useDisplay = (global::esp::Name_Type == 1);
-                bool both = (global::esp::Name_Type == 2);
-                if (both) {
-                    std::string combined = player.name + " [" + player.Display_Name + "]";
-                    ImVec2 ts = ImGui::CalcTextSize(combined.c_str());
-                    ImVec2 tp(Pos.x + (Size.x * 0.5f) - (ts.x * 0.5f), Pos.y - ts.y - 3.f);
-                    outline(tp, combined.c_str(), global::esp::color::name);
-                } else {
-                    const char* useName = useDisplay ? player.Display_Name.c_str() : player.name.c_str();
-                    ImVec2 ts = ImGui::CalcTextSize(useName);
-                    ImVec2 tp(Pos.x + (Size.x * 0.5f) - (ts.x * 0.5f), Pos.y - ts.y - 3.f);
-                    // Name in clean text color, not accent
-                    static float white[4] = { 0.918f, 0.957f, 1.f, 0.941f };
-                    outline(tp, useName, white);
-                }
+            // ── Name ───────────────────────────────────────────────────
+            if (global::esp::name)
+            {
+                const char* nameText = nullptr;
+                if (global::esp::Name_Type == 1)
+                    nameText = player.Display_Name.c_str();
+                else if (global::esp::Name_Type == 2)
+                    nameText = player.name.c_str();
+                else
+                    nameText = player.name.c_str();
+
+                ImVec2 ts = ImGui::CalcTextSize(nameText);
+                ImVec2 tp(L + ((R - L) - ts.x) * 0.5f, T - ts.y - 4.f);
+                draw_text_shadowed(dl, ImGui::GetFont(), ImGui::GetFontSize(), tp, col4_to_u32(global::esp::color::name), nameText);
             }
 
-            if (global::esp::Distance) {
-                char Buffer[16];
-                snprintf(Buffer, sizeof(Buffer), "[%dm]", static_cast<int>(player.Distance));
-                ImVec2 Text_Size = ImGui::CalcTextSize(Buffer);
-                ImVec2 Text_Position(Pos.x + (Size.x * 0.5f) - (Text_Size.x * 0.5f), Pos.y + Size.y + 3.0f);
-                // Distance in muted color
-                outline(Text_Position, Buffer, global::esp::color::Distance);
+            // ── Distance ───────────────────────────────────────────────
+            if (global::esp::Distance)
+            {
+                char buf[16];
+                snprintf(buf, sizeof(buf), "%dm", (int)player.Distance);
+                ImVec2 ts = ImGui::CalcTextSize(buf);
+                ImVec2 tp(L + ((R - L) - ts.x) * 0.5f, B + 3.f);
+                draw_text_shadowed(dl, ImGui::GetFont(), ImGui::GetFontSize(), tp, col4_to_u32(global::esp::color::Distance), buf);
             }
 
+            // ── Tool ───────────────────────────────────────────────────
+            if (global::esp::tool && !player.Tool_Name.empty())
+            {
+                std::string tool = "[" + player.Tool_Name + "]";
+                ImVec2 ts = ImGui::CalcTextSize(tool.c_str());
+                float offset = global::esp::Distance ? 16.f : 3.f;
+                ImVec2 tp(L + ((R - L) - ts.x) * 0.5f, B + offset);
+                draw_text_shadowed(dl, ImGui::GetFont(), ImGui::GetFontSize(), tp, col4_to_u32(global::esp::color::tool), tool.c_str());
+            }
+
+            // ── Rig type ───────────────────────────────────────────────
             if (global::esp::Rig_Type)
             {
-                const char* Rig_Type = nullptr;
-                if (player.Rig_Type == 1)
-                    Rig_Type = "[R15]";
-                else if (player.Rig_Type == 0)
-                    Rig_Type = "[R6]";
-                else continue;
-                ImVec2 Text_Size = ImGui::CalcTextSize(Rig_Type);
-                ImVec2 Text_Position(std::round(Pos.x + Size.x + 5.0f), std::round(Pos.y - Text_Size.y + 10.0f));
-                outline(Text_Position, Rig_Type, global::esp::color::Rig_Type);
+                const char* rig = (player.Rig_Type == 1) ? "R15" : (player.Rig_Type == 0) ? "R6" : nullptr;
+                if (rig) {
+                    ImVec2 ts = ImGui::CalcTextSize(rig);
+                    ImVec2 tp(R + 4.f, T + 2.f);
+                    draw_text_shadowed(dl, ImGui::GetFont(), ImGui::GetFontSize(), tp, col4_to_u32(global::esp::color::Rig_Type), rig);
+                }
             }
 
-            if (global::esp::tool)
+            // ── Skeleton ───────────────────────────────────────────────
+            if (global::esp::Skeleton)
             {
-                std::string Cl_Name;
-                const std::string& Tool_Name = player.Tool_Name;
-                if (Tool_Name.empty()) {
-                    Cl_Name = "[None]";
-                }
-                else {
-                    Cl_Name.reserve(Tool_Name.size());
-                    for (char c : Tool_Name) {
-                        if (c != '[' && c != ']')
-                            Cl_Name.push_back(c);
-                    }
-                    if (!Cl_Name.empty()) {
-                        Cl_Name.insert(Cl_Name.begin(), '[');
-                        Cl_Name.push_back(']');
-                    }
-                }
-                ImVec2 Text_Size = ImGui::CalcTextSize(Cl_Name.c_str());
-                float Offset = global::esp::Distance ? 18.0f : 3.0f;
-                ImVec2 Text_Position(std::round(Pos.x + (Size.x * 0.5f) - (Text_Size.x * 0.5f)), std::round(Pos.y + Size.y + Offset));
-                outline(Text_Position, Cl_Name.c_str(), global::esp::color::tool);
-            }
+                ImU32 skelCol = col4_to_u32(global::esp::color::Skeleton, 0.85f);
 
-                // Heavy operations (Chams, Clipper2) only every 4th frame
-            if (global::esp::Chams && heavyFrame) {
-                Draw->Flags |= ImDrawListFlags_AntiAliasedLines | ImDrawListFlags_AntiAliasedFill;
+                auto draw_chain = [&](const ImVec2* pts, int count) {
+                    if (count < 2) return;
+                    for (int i = 0; i < count - 1; ++i) {
+                        if (pts[i].x < -0.5f || pts[i + 1].x < -0.5f) continue;
+                        dl->AddLine(pts[i], pts[i + 1], IM_COL32(0, 0, 0, 100), 2.f);
+                        dl->AddLine(pts[i], pts[i + 1], skelCol, 1.f);
+                    }
+                };
 
-                auto ProjectPart = [&](const sdk::part& part) -> std::vector<ImVec2> {
-                    std::vector<ImVec2> Projected;
-                    if (!part.Address) return Projected;
-                    sdk::primitive_data prim_data;
-                    if (!part.get_primitive_data(prim_data)) return Projected;
-                    const auto Size = prim_data.size;
-                    const auto Pos = prim_data.position;
-                    const auto Rot = prim_data.rotation;
-                    Projected.reserve(8);
-                    for (int i = 0; i < 8; ++i) {
-                        const auto& Corner = Corners[i];
-                        sdk::vector3 world = Pos + Rot * sdk::vector3{ Corner.x * Size.x * 0.5f, Corner.y * Size.y * 0.5f, Corner.z * Size.z * 0.5f };
-                        sdk::vector2 Screen = global::render.screen(world);
-                        if (validscreen(Screen.x, Screen.y))
-                            Projected.emplace_back(Screen.x, Screen.y);
-                    }
-                    if (Projected.size() < 3) return {};
-                    std::sort(Projected.begin(), Projected.end(), [](const ImVec2& A, const ImVec2& B) {
-                        return A.x < B.x || (A.x == B.x && A.y < B.y);
-                        });
-                    std::vector<ImVec2> Hull;
-                    Hull.reserve(Projected.size() * 2);
-                    auto cross2 = [](const ImVec2& O, const ImVec2& A, const ImVec2& B) {
-                        return (A.x - O.x) * (B.y - O.y) - (A.y - O.y) * (B.x - O.x);
-                        };
-                    for (auto& P : Projected) {
-                        while (Hull.size() >= 2 && cross2(Hull[Hull.size() - 2], Hull.back(), P) <= 0)
-                            Hull.pop_back();
-                        Hull.push_back(P);
-                    }
-                    size_t T = Hull.size() + 1;
-                    for (int i = (int)Projected.size() - 1; i >= 0; --i) {
-                        auto& P = Projected[i];
-                        while (Hull.size() >= T && cross2(Hull[Hull.size() - 2], Hull.back(), P) <= 0)
-                            Hull.pop_back();
-                        Hull.push_back(P);
-                    }
-                    Hull.pop_back();
-                    return Hull;
-                    };
-
-                Clipper2Lib::Paths64 AllParts;
-                AllParts.reserve(Bones.size());
-                for (auto* Inst : Bones) {
-                    const sdk::part part(Inst->Address);
-                    auto Hull = ProjectPart(part);
-                    if (Hull.size() < 3) continue;
-                    Clipper2Lib::Path64 Path;
-                    Path.reserve(Hull.size());
-                    for (auto& Pt : Hull) Path.emplace_back(static_cast<int64_t>(Pt.x * 1000.0), static_cast<int64_t>(Pt.y * 1000.0));
-                    AllParts.push_back(std::move(Path));
-                }
-
-                if (!AllParts.empty()) {
-                    auto UnifiedSolution = Clipper2Lib::Union(AllParts, Clipper2Lib::FillRule::NonZero);
-                    std::vector<std::vector<ImVec2>> AllPolys;
-                    AllPolys.reserve(UnifiedSolution.size());
-                    for (auto& Sp : UnifiedSolution) {
-                        std::vector<ImVec2> Poly;
-                        Poly.reserve(Sp.size());
-                        for (auto& Pt : Sp) Poly.emplace_back(Pt.x / 1000.0f, Pt.y / 1000.0f);
-                        if (Poly.size() >= 3) AllPolys.push_back(std::move(Poly));
-                    }
-                    ImU32 FillColor = style::fromfloat(global::esp::color::Chams, 0.45f);
-                    ImU32 OutlineColor = style::fromfloat(global::esp::color::ChamsOutline, .72f);
-                    if (global::esp::ChamsFade) {
-                        float time = (float)ImGui::GetTime() * global::esp::ChamsFadeSpeed;
-                        float t = (sinf(time) + 1.0f) * 0.5f;
-                        ImVec4 c = ImGui::ColorConvertU32ToFloat4(FillColor);
-                        c.w *= t;
-                        FillColor = ImGui::ColorConvertFloat4ToU32(c);
-                    }
-                    for (auto& Poly : AllPolys)
-                        Draw->AddConcavePolyFilled(Poly.data(), (int)Poly.size(), FillColor);
-                    for (auto& Poly : AllPolys)
-                    {
-                        Draw->AddPolyline(Poly.data(), (int)Poly.size(), IM_COL32(0, 0, 0, 100), true, 3.0f);
-                        Draw->AddPolyline(Poly.data(), (int)Poly.size(), OutlineColor, true, 1.2f);
-                    }
-                }
-            }
-
-            // Skeleton — clean lines without purple tint
-            if (global::esp::Skeleton) {
-                const float Thickness = 1.0f;
-
-                auto W2S = [&](const sdk::vector3& WorldPos, ImVec2& Out) -> bool {
-                    auto ScreenPos = global::render.screen(WorldPos);
-                    if (!validscreen(ScreenPos.x, ScreenPos.y)) return false;
-                    Out.x = std::roundf(ScreenPos.x);
-                    Out.y = std::roundf(ScreenPos.y);
+                auto get_proj = [&](const sdk::instance& inst, ImVec2& out) -> bool {
+                    if (!inst.Address) return false;
+                    auto it = projected.find(inst.Address);
+                    if (it == projected.end()) return false;
+                    out = it->second;
                     return true;
-                    };
-
-                auto DrawPoly = [&](const ImVec2* Points, int Count) {
-                    if (Count < 2) return;
-                    Draw->AddPolyline(Points, Count, IM_COL32(0, 0, 0, 120), false, Thickness + 2.f);
-                    Draw->AddPolyline(Points, Count, IM_COL32(220, 230, 245, 160), false, Thickness);
-                    };
+                };
 
                 if (player.UpperTorso.Address && player.LowerTorso.Address)
                 {
-                    auto ProcessR15Chain = [&](const sdk::instance* Instances, int Count) {
-                        ImVec2 ScreenPoints[4];
-                        int ValidCount = 0;
-                        for (int i = 0; i < Count; ++i) {
-                            if (!Instances[i].Address) { DrawPoly(ScreenPoints, ValidCount); ValidCount = 0; continue; }
-                            auto it = projectedCache.find(Instances[i].Address);
-                            if (it == projectedCache.end()) { DrawPoly(ScreenPoints, ValidCount); ValidCount = 0; continue; }
-                            ScreenPoints[ValidCount++] = it->second;
-                        }
-                        DrawPoly(ScreenPoints, ValidCount);
-                        };
+                    // R15
+                    ImVec2 pts[4];
+                    int n;
 
-                    const sdk::instance Spine[] = { player.Head, player.UpperTorso, player.LowerTorso };
-                    const sdk::instance LeftArm[] = { player.UpperTorso, player.LeftUpperArm,  player.LeftLowerArm,  player.LeftHand };
-                    const sdk::instance RightArm[] = { player.UpperTorso, player.RightUpperArm, player.RightLowerArm, player.RightHand };
-                    const sdk::instance LeftLeg[] = { player.LowerTorso, player.LeftUpperLeg,  player.LeftLowerLeg,  player.LeftFoot };
-                    const sdk::instance RightLeg[] = { player.LowerTorso, player.RightUpperLeg, player.RightLowerLeg, player.RightFoot };
+                    // Spine
+                    n = 0;
+                    if (get_proj(player.Head, pts[n])) n++;
+                    if (get_proj(player.UpperTorso, pts[n])) n++;
+                    if (get_proj(player.LowerTorso, pts[n])) n++;
+                    draw_chain(pts, n);
 
-                    ProcessR15Chain(Spine, 3);
-                    ProcessR15Chain(LeftArm, 4);
-                    ProcessR15Chain(RightArm, 4);
-                    ProcessR15Chain(LeftLeg, 4);
-                    ProcessR15Chain(RightLeg, 4);
+                    // Left arm
+                    n = 0;
+                    if (get_proj(player.UpperTorso, pts[n])) n++;
+                    if (get_proj(player.LeftUpperArm, pts[n])) n++;
+                    if (get_proj(player.LeftLowerArm, pts[n])) n++;
+                    if (get_proj(player.LeftHand, pts[n])) n++;
+                    draw_chain(pts, n);
+
+                    // Right arm
+                    n = 0;
+                    if (get_proj(player.UpperTorso, pts[n])) n++;
+                    if (get_proj(player.RightUpperArm, pts[n])) n++;
+                    if (get_proj(player.RightLowerArm, pts[n])) n++;
+                    if (get_proj(player.RightHand, pts[n])) n++;
+                    draw_chain(pts, n);
+
+                    // Left leg
+                    n = 0;
+                    if (get_proj(player.LowerTorso, pts[n])) n++;
+                    if (get_proj(player.LeftUpperLeg, pts[n])) n++;
+                    if (get_proj(player.LeftLowerLeg, pts[n])) n++;
+                    if (get_proj(player.LeftFoot, pts[n])) n++;
+                    draw_chain(pts, n);
+
+                    // Right leg
+                    n = 0;
+                    if (get_proj(player.LowerTorso, pts[n])) n++;
+                    if (get_proj(player.RightUpperLeg, pts[n])) n++;
+                    if (get_proj(player.RightLowerLeg, pts[n])) n++;
+                    if (get_proj(player.RightFoot, pts[n])) n++;
+                    draw_chain(pts, n);
                 }
                 else if (player.Torso.Address && player.Head.Address)
                 {
+                    // R6
                     sdk::part TorsoPart(player.Torso.Address);
-                    sdk::part HeadPart(player.Head.Address);
-                    sdk::primitive_data TorsoData, HeadData;
-                    if (TorsoPart.get_primitive_data(TorsoData) && HeadPart.get_primitive_data(HeadData)) {
-                        const sdk::vector3 TorsoPos = TorsoData.position;
-                        const sdk::vector3 TorsoSize = TorsoData.size;
-                        const auto TorsoRot = TorsoData.rotation;
-                        const sdk::vector3 HeadPos = HeadData.position;
-                        const sdk::vector3 HeadSize = HeadData.size;
-                        const sdk::vector3 ShoulderCenter = TorsoPos + TorsoRot * sdk::vector3{ 0, TorsoSize.y * 0.2f,  0 };
-                        const sdk::vector3 HipCenter = TorsoPos - TorsoRot * sdk::vector3{ 0, TorsoSize.y * 0.4f,  0 };
-                        const sdk::vector3 HeadBottom = HeadPos - sdk::vector3{ 0, HeadSize.y * 0.5f, 0 };
-                        const sdk::vector3 ShoulderLeft = ShoulderCenter + TorsoRot * sdk::vector3{ -TorsoSize.x * 0.5f, 0, 0 };
-                        const sdk::vector3 ShoulderRight = ShoulderCenter + TorsoRot * sdk::vector3{ TorsoSize.x * 0.5f, 0, 0 };
+                    sdk::part HeadPart2(player.Head.Address);
+                    sdk::primitive_data td, hd;
+                    if (TorsoPart.get_primitive_data(td) && HeadPart2.get_primitive_data(hd)) {
+                        const sdk::vector3& TorsoPos = td.position;
+                        const sdk::vector3& TorsoSize = td.size;
+                        const auto& TorsoRot = td.rotation;
+                        const sdk::vector3& HeadPos2 = hd.position;
+                        const sdk::vector3& HeadSize = hd.size;
 
-                    auto ProcessR6Chain = [&](const sdk::vector3* Points, int Count) {
-                        ImVec2 ScreenPoints[8];
-                        int ValidCount = 0;
-                        for (int i = 0; i < Count; ++i) {
-                            ImVec2 ScreenPos;
-                            if (W2S(Points[i], ScreenPos))
-                                ScreenPoints[ValidCount++] = ScreenPos;
-                        }
-                        DrawPoly(ScreenPoints, ValidCount);
+                        sdk::vector3 ShoulderCenter = TorsoPos + TorsoRot * sdk::vector3{ 0, TorsoSize.y * 0.2f, 0 };
+                        sdk::vector3 HipCenter = TorsoPos - TorsoRot * sdk::vector3{ 0, TorsoSize.y * 0.4f, 0 };
+                        sdk::vector3 HeadBottom = HeadPos2 - sdk::vector3{ 0, HeadSize.y * 0.5f, 0 };
+
+                        auto proj_vec = [&](const sdk::vector3& w, ImVec2& out) -> bool {
+                            auto s = global::render.screen(w);
+                            if (!validscreen(s.x, s.y)) return false;
+                            out = ImVec2(std::roundf(s.x), std::roundf(s.y));
+                            return true;
                         };
 
-                    { const sdk::vector3 SpinePts[] = { HeadPos, HeadBottom, ShoulderCenter, HipCenter }; ProcessR6Chain(SpinePts, 4); }
+                        ImVec2 pts[4];
+                        int n;
 
-                    auto BuildArmChain = [&](const sdk::vector3& Shoulder, const sdk::instance& ArmInst, sdk::vector3* Out, int& Count) {
-                        Out[Count++] = ShoulderCenter;
-                        Out[Count++] = Shoulder;
-                        if (ArmInst.Address) {
-                            sdk::part Arm(ArmInst.Address);
-                            sdk::primitive_data pdata;
-                            if (Arm.get_primitive_data(pdata)) {
-                                Out[Count++] = pdata.position + pdata.rotation * sdk::vector3{ 0, pdata.size.y * 0.2f,  0 };
-                                Out[Count++] = pdata.position - pdata.rotation * sdk::vector3{ 0, pdata.size.y * 0.5f,  0 };
+                        // Spine
+                        n = 0;
+                        if (proj_vec(HeadPos2, pts[n])) n++;
+                        if (proj_vec(HeadBottom, pts[n])) n++;
+                        if (proj_vec(ShoulderCenter, pts[n])) n++;
+                        if (proj_vec(HipCenter, pts[n])) n++;
+                        draw_chain(pts, n);
+
+                        // Left arm
+                        sdk::vector3 ShoulderLeft = ShoulderCenter + TorsoRot * sdk::vector3{ -TorsoSize.x * 0.5f, 0, 0 };
+                        n = 0;
+                        if (proj_vec(ShoulderCenter, pts[n])) n++;
+                        if (proj_vec(ShoulderLeft, pts[n])) n++;
+                        if (player.LeftArm.Address) {
+                            sdk::part arm(player.LeftArm.Address);
+                            sdk::primitive_data ap;
+                            if (arm.get_primitive_data(ap)) {
+                                sdk::vector3 armTop = ap.position + ap.rotation * sdk::vector3{ 0, ap.size.y * 0.2f, 0 };
+                                sdk::vector3 armBot = ap.position - ap.rotation * sdk::vector3{ 0, ap.size.y * 0.5f, 0 };
+                                if (proj_vec(armTop, pts[n])) n++;
+                                if (proj_vec(armBot, pts[n])) n++;
                             }
                         }
-                        };
+                        draw_chain(pts, n);
 
-                    { sdk::vector3 Pts[4]; int C = 0; BuildArmChain(ShoulderLeft, player.LeftArm, Pts, C); ProcessR6Chain(Pts, C); }
-                    { sdk::vector3 Pts[4]; int C = 0; BuildArmChain(ShoulderRight, player.RightArm, Pts, C); ProcessR6Chain(Pts, C); }
-
-                    auto BuildLegChain = [&](const sdk::instance& LegInst, sdk::vector3* Out, int& Count) {
-                        Out[Count++] = HipCenter;
-                        if (LegInst.Address) {
-                            sdk::part Leg(LegInst.Address);
-                            sdk::primitive_data pdata;
-                            if (Leg.get_primitive_data(pdata)) {
-                                Out[Count++] = pdata.position + pdata.rotation * sdk::vector3{ 0, pdata.size.y * 0.5f,  0 };
-                                Out[Count++] = pdata.position - pdata.rotation * sdk::vector3{ 0, pdata.size.y * 0.5f,  0 };
+                        // Right arm
+                        sdk::vector3 ShoulderRight = ShoulderCenter + TorsoRot * sdk::vector3{ TorsoSize.x * 0.5f, 0, 0 };
+                        n = 0;
+                        if (proj_vec(ShoulderCenter, pts[n])) n++;
+                        if (proj_vec(ShoulderRight, pts[n])) n++;
+                        if (player.RightArm.Address) {
+                            sdk::part arm(player.RightArm.Address);
+                            sdk::primitive_data ap;
+                            if (arm.get_primitive_data(ap)) {
+                                sdk::vector3 armTop = ap.position + ap.rotation * sdk::vector3{ 0, ap.size.y * 0.2f, 0 };
+                                sdk::vector3 armBot = ap.position - ap.rotation * sdk::vector3{ 0, ap.size.y * 0.5f, 0 };
+                                if (proj_vec(armTop, pts[n])) n++;
+                                if (proj_vec(armBot, pts[n])) n++;
                             }
                         }
-                        };
+                        draw_chain(pts, n);
 
-                    { sdk::vector3 Pts[3]; int C = 0; BuildLegChain(player.LeftLeg, Pts, C); ProcessR6Chain(Pts, C); }
-                    { sdk::vector3 Pts[3]; int C = 0; BuildLegChain(player.RightLeg, Pts, C); ProcessR6Chain(Pts, C); }
+                        // Left leg
+                        n = 0;
+                        if (proj_vec(HipCenter, pts[n])) n++;
+                        if (player.LeftLeg.Address) {
+                            sdk::part leg(player.LeftLeg.Address);
+                            sdk::primitive_data lp;
+                            if (leg.get_primitive_data(lp)) {
+                                sdk::vector3 legTop = lp.position + lp.rotation * sdk::vector3{ 0, lp.size.y * 0.5f, 0 };
+                                sdk::vector3 legBot = lp.position - lp.rotation * sdk::vector3{ 0, lp.size.y * 0.5f, 0 };
+                                if (proj_vec(legTop, pts[n])) n++;
+                                if (proj_vec(legBot, pts[n])) n++;
+                            }
+                        }
+                        draw_chain(pts, n);
+
+                        // Right leg
+                        n = 0;
+                        if (proj_vec(HipCenter, pts[n])) n++;
+                        if (player.RightLeg.Address) {
+                            sdk::part leg(player.RightLeg.Address);
+                            sdk::primitive_data lp;
+                            if (leg.get_primitive_data(lp)) {
+                                sdk::vector3 legTop = lp.position + lp.rotation * sdk::vector3{ 0, lp.size.y * 0.5f, 0 };
+                                sdk::vector3 legBot = lp.position - lp.rotation * sdk::vector3{ 0, lp.size.y * 0.5f, 0 };
+                                if (proj_vec(legTop, pts[n])) n++;
+                                if (proj_vec(legBot, pts[n])) n++;
+                            }
+                        }
+                        draw_chain(pts, n);
                     }
                 }
-
-                // Joint dots
-                auto Dot = [&](const sdk::instance& inst) {
-                    if (!inst.Address) return;
-                    sdk::part p(inst.Address);
-                    sdk::primitive_data pdata;
-                    ImVec2 s;
-                    if (p.get_primitive_data(pdata) && W2S(pdata.position, s))
-                        Draw->AddCircleFilled(s, 2.f, IM_COL32(220, 230, 245, 180), 12);
-                    };
-                if (player.Head.Address) Dot(player.Head);
-                if (player.Torso.Address) Dot(player.Torso);
-                if (player.UpperTorso.Address) Dot(player.UpperTorso);
-                if (player.LowerTorso.Address) Dot(player.LowerTorso);
-                if (player.HumanoidRootPart.Address) Dot(player.HumanoidRootPart);
             }
         }
 
-        style::VisibilityTint = false;
-
+        // ── FOV circles ────────────────────────────────────────────────
         POINT Cursor{};
         bool HasCursor = false;
         if ((global::aim::DrawFov && global::aim::Enabled) || (global::silent::DrawFov && global::silent::Enabled))
-        {
             HasCursor = GetCursorPos(&Cursor);
-            // Don't convert to client coords — overlay draws in screen coords
-            // If Roblox window is not at (0,0), ScreenToClient would offset the FOV
-        }
 
-        auto DrawFovCircle = [&](bool ShouldDraw, float FovRadius, const float tocolor[4], bool Fill, bool Spin, int SpinSpeed)
-            {
-                if (!ShouldDraw || !HasCursor) return;
+        auto draw_fov = [&](bool show, float radius, const float color[4], bool fill, bool spin, int speed) {
+            if (!show || !HasCursor) return;
+            ImVec2 center((float)Cursor.x, (float)Cursor.y);
+            ImU32 col = col4_to_u32(color);
 
-                ImVec2 MousePos((float)Cursor.x, (float)Cursor.y);
-                style::fov(Draw, MousePos, FovRadius, tocolor, Fill, Spin, SpinSpeed);
-            };
+            if (fill)
+                dl->AddCircleFilled(center, radius, u32_alpha(col, 0.10f), 64);
+            dl->AddCircle(center, radius, u32_alpha(col, 0.85f), 64, 1.5f);
 
-        DrawFovCircle(global::aim::DrawFov && global::aim::Enabled,
+            if (spin) {
+                static float rotation = 0.f;
+                rotation += ImGui::GetIO().DeltaTime * ImMax(1, speed) * 1.4f;
+                const float arc = IM_PI * 0.34f;
+                for (int i = 0; i < 3; i++) {
+                    float start = rotation + i * IM_PI * 0.666f;
+                    dl->PathArcTo(center, radius + 3.f, start, start + arc, 16);
+                    dl->PathStroke(u32_alpha(col, 0.75f), false, 2.f);
+                }
+            }
+        };
+
+        draw_fov(global::aim::DrawFov && global::aim::Enabled,
             global::aim::FovSize, global::aim::FovColor,
             global::aim::FillFov, global::aim::FovSpin, global::aim::FovSpinSpeed);
 
         {
             float silentFov = effectivefov();
-            DrawFovCircle(global::silent::DrawFov && global::silent::Enabled,
+            draw_fov(global::silent::DrawFov && global::silent::Enabled,
                 silentFov, global::silent::FovColor,
                 global::silent::FillFov, global::silent::FovSpin, global::silent::FovSpinSpeed);
         }
