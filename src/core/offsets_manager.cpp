@@ -4,6 +4,7 @@
 #include <sstream>
 #include <fstream>
 #include <stdexcept>
+#include <filesystem>
 
 #include <winhttp.h>
 #pragma comment(lib, "winhttp.lib")

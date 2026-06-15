@@ -14,7 +14,7 @@ namespace console {
     inline bool initialized = false;
     inline std::vector<std::string> logLines;
     inline std::mutex logMutex;
-    inline void refresh();
+    inline void refresh();  // defined below render()
 
     // Status info
     inline int playerCount = 0;

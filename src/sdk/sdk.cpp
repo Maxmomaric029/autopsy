@@ -144,7 +144,9 @@ namespace sdk {
         if (!this->Address) return 0.0f;
         union Conv { std::uint64_t hex; float f; } EasyConversion;
         uintptr_t healthPtr = drive->read<uintptr_t>(this->Address + offset::humanoid::Health);
+        if (!healthPtr) return 0.0f;
         uintptr_t healthRead = drive->read<uintptr_t>(healthPtr);
+        if (!healthRead) return 0.0f;
         EasyConversion.hex = healthPtr ^ healthRead;
         return EasyConversion.f;
     }
@@ -153,7 +155,9 @@ namespace sdk {
         if (!this->Address) return 0.0f;
         union Conv { std::uint64_t hex; float f; } EasyConversion;
         uintptr_t healthPtr = drive->read<uintptr_t>(this->Address + offset::humanoid::MaxHealth);
+        if (!healthPtr) return 0.0f;
         uintptr_t healthRead = drive->read<uintptr_t>(healthPtr);
+        if (!healthRead) return 0.0f;
         EasyConversion.hex = healthPtr ^ healthRead;
         return EasyConversion.f;
     }

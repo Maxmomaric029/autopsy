@@ -111,6 +111,7 @@ void driver::writestring(std::uint64_t Address, const std::string& Value)
         // Free old heap allocation before allocating new one
         if (OldDataPointer)
             VirtualFreeEx(handle, reinterpret_cast<LPVOID>(OldDataPointer), 0, MEM_RELEASE);
+        OldDataPointer = 0; // consumed
 
         Str.Data.Pointer = reinterpret_cast<std::uint64_t>(
             VirtualAllocEx(
@@ -122,8 +123,6 @@ void driver::writestring(std::uint64_t Address, const std::string& Value)
             )
             );
     }
-    // else: no reallocation needed, keep OldDataPointer for cleanup below
-    // (it will be freed in the short-branch if switching from heap→inline)
 
     Str.Length = Value.length();
 
