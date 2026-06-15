@@ -4,21 +4,18 @@
 #include <string>
 #include <unordered_map>
 #include <filesystem>
-#include "nlohmann_json.hpp"
 
 #define NOMINMAX
 #include <windows.h>
 
-using json = nlohmann::json;
-
 // ------------------------------------------------------------------
-// OffsetsManager - Auto-Updater via WinHTTP
+// OffsetsManager - Auto-Updater via GitHub raw .hpp
 // ------------------------------------------------------------------
-// Host: offsets.imtheo.lol
-//   1. GET /roblox/version   -> plain text: "version-abc123..."
-//   2. Compare vs cached offsets.version
-//   3. If different: GET /offsets.json -> save as offsets.json
-//   4. Load offsets.json into memory
+// Source: https://raw.githubusercontent.com/LadyDarknes/Roblox-Offsets/refs/heads/main/offsets.hpp
+//   1. GET /offsets.hpp -> C++ header with constexpr offsets
+//   2. Compare with cached offsets.hpp on disk (by size)
+//   3. If different: save as offsets.hpp
+//   4. Parse namespaces and constexpr values into cache_
 // ------------------------------------------------------------------
 
 struct OffsetsEntry {
@@ -30,7 +27,7 @@ class OffsetsManager {
 public:
     static OffsetsManager& instance();
 
-    // Full load: check version, download if stale, parse
+    // Full load: download .hpp, compare, cache, parse
     bool load();
 
     // Helpers (return 0 if not found)
@@ -38,7 +35,6 @@ public:
     std::string get_hex_offset(const std::string& cls, const std::string& field) const;
 
     bool is_loaded() const { return loaded_; }
-    std::string roblox_version() const { return roblox_version_; }
     int total_offsets() const { return total_offsets_; }
 
 private:
@@ -50,35 +46,21 @@ private:
     // WinHTTP GET helper (throws on failure)
     static std::string http_get(const wchar_t* host, const wchar_t* path);
 
-    // Get live version from server
-    static std::string fetch_live_version();
-
-    // Download offsets.json from server
-    static std::string fetch_offsets_json();
+    // Download the .hpp file from GitHub
+    static std::string fetch_hpp();
 
     // File I/O for caching
     static std::string read_file(const std::string& path);
     static void write_file(const std::string& path, const std::string& content);
 
-    // Parse JSON into cache
-    bool parse_json(const json& data);
+    // Parse .hpp content into cache_
+    bool parse_hpp(const std::string& content);
 
     std::unordered_map<std::string, OffsetsEntry> cache_;
-    std::string roblox_version_;
     int total_offsets_ = 0;
     bool loaded_ = false;
 
-    static constexpr const wchar_t* HOST = L"offsets.imtheo.lol";
-    static constexpr const char* VERSION_FILE = "offsets.version";
-    static constexpr const char* OFFSETS_FILE = "offsets.json";
+    static constexpr const wchar_t* HOST = L"raw.githubusercontent.com";
+    static constexpr const wchar_t* PATH = L"/LadyDarknes/Roblox-Offsets/refs/heads/main/offsets.hpp";
+    static constexpr const char* HPP_CACHE_FILE = "offsets.hpp";
 };
-
-// Helper: safe offset lookup from json data
-inline uintptr_t GetOffset(const json& data, const char* cls, const char* field) {
-    if (!data.contains("Offsets")) return 0;
-    const auto& offsets = data["Offsets"];
-    if (!offsets.contains(cls)) return 0;
-    const auto& entry = offsets[cls];
-    if (!entry.contains(field)) return 0;
-    return entry[field].get<uintptr_t>();
-}

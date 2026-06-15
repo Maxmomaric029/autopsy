@@ -152,7 +152,6 @@ std::int32_t main(std::int32_t argc, char** argv[])
             fprintf(dbg, "[offsets] is_loaded: %s\n",
                 OffsetsManager::instance().is_loaded() ? "YES" : "NO");
             if (ok) {
-                fprintf(dbg, "[offsets] version: %s\n", OffsetsManager::instance().roblox_version().c_str());
                 fprintf(dbg, "[offsets] total: %d\n", OffsetsManager::instance().total_offsets());
             }
             fprintf(dbg, "[offsets] _before_ init() - defaults:\n");

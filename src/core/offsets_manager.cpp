@@ -5,6 +5,8 @@
 #include <fstream>
 #include <stdexcept>
 #include <filesystem>
+#include <algorithm>
+#include <cctype>
 
 #include <winhttp.h>
 #pragma comment(lib, "winhttp.lib")
@@ -18,7 +20,7 @@ OffsetsManager& OffsetsManager::instance() {
 }
 
 // ------------------------------------------------------------------
-// WinHTTP GET helper - matches the documented implementation
+// WinHTTP GET helper
 // ------------------------------------------------------------------
 std::string OffsetsManager::http_get(const wchar_t* host, const wchar_t* path) {
     HINTERNET hSession = WinHttpOpen(
@@ -91,22 +93,10 @@ std::string OffsetsManager::http_get(const wchar_t* host, const wchar_t* path) {
 }
 
 // ------------------------------------------------------------------
-// fetch_live_version - GET /roblox/version, returns plain text
+// fetch_hpp - Download the .hpp offsets file from GitHub
 // ------------------------------------------------------------------
-std::string OffsetsManager::fetch_live_version() {
-    std::string version = http_get(HOST, L"/roblox/version");
-    // Trim whitespace/newlines
-    while (!version.empty() && (version.back() == '\n' || version.back() == '\r' || version.back() == ' '))
-        version.pop_back();
-    return version;
-}
-
-// ------------------------------------------------------------------
-// fetch_offsets_json - GET /offsets.json, returns JSON string
-// ------------------------------------------------------------------
-std::string OffsetsManager::fetch_offsets_json() {
-    std::string body = http_get(HOST, L"/offsets.json");
-    return body;
+std::string OffsetsManager::fetch_hpp() {
+    return http_get(HOST, PATH);
 }
 
 // ------------------------------------------------------------------
@@ -128,71 +118,163 @@ void OffsetsManager::write_file(const std::string& path, const std::string& cont
 #include "log.h"
 
 // ------------------------------------------------------------------
-// load() - Entry point: version check -> download if stale -> parse
-// Follows the documented EnsureLatestOffsets() pattern.
+// parse_hpp - Parse C++ constexpr offsets from .hpp content
+// ------------------------------------------------------------------
+// Format:
+//   namespace FakeDataModel {
+//       constexpr std::uintptr_t Pointer = 0x7A39AD8;
+//   }
+// ------------------------------------------------------------------
+static void trim(std::string& s) {
+    s.erase(0, s.find_first_not_of(" \t\r\n"));
+    s.erase(s.find_last_not_of(" \t\r\n") + 1);
+}
+
+bool OffsetsManager::parse_hpp(const std::string& content) {
+    std::istringstream stream(content);
+    std::string line;
+    std::string currentNamespace;
+    int parsed = 0;
+
+    while (std::getline(stream, line)) {
+        trim(line);
+
+        if (line.empty()) continue;
+
+        // Detect namespace open: "namespace Name {"
+        {
+            // Check for "namespace <name> {"
+            const std::string nsPrefix = "namespace ";
+            if (line.rfind(nsPrefix, 0) == 0) {
+                std::string rest = line.substr(nsPrefix.size());
+                auto bracePos = rest.find('{');
+                if (bracePos != std::string::npos) {
+                    currentNamespace = rest.substr(0, bracePos);
+                    trim(currentNamespace);
+                    continue;
+                }
+            }
+        }
+
+        // Detect namespace close: "}"
+        if (line == "}") {
+            currentNamespace.clear();
+            continue;
+        }
+
+        // Detect constexpr line: "constexpr std::uintptr_t Name = 0xVALUE;"
+        if (currentNamespace.empty()) continue;
+
+        // Must contain "constexpr" and "uintptr_t"
+        if (line.find("constexpr") == std::string::npos) continue;
+        if (line.find("uintptr_t") == std::string::npos) continue;
+
+        // Extract field name: between "uintptr_t" and "="
+        auto uintptrPos = line.find("uintptr_t");
+        std::string afterType = line.substr(uintptrPos + 9); // skip "uintptr_t"
+        trim(afterType);
+
+        auto equalsPos = afterType.find('=');
+        if (equalsPos == std::string::npos) continue;
+
+        std::string fieldName = afterType.substr(0, equalsPos);
+        trim(fieldName);
+
+        // Extract value: after "=" until ";"
+        std::string afterEquals = afterType.substr(equalsPos + 1);
+        trim(afterEquals);
+
+        auto semicolonPos = afterEquals.find(';');
+        if (semicolonPos == std::string::npos) continue;
+
+        std::string valueStr = afterEquals.substr(0, semicolonPos);
+        trim(valueStr);
+
+        // Parse hex value: "0x1A2B" or decimal
+        uintptr_t val = 0;
+        if (valueStr.size() > 2 && valueStr[0] == '0' && (valueStr[1] == 'x' || valueStr[1] == 'X')) {
+            val = std::stoull(valueStr, nullptr, 16);
+        } else {
+            val = std::stoull(valueStr, nullptr, 0);
+        }
+
+        // Build cache key: "lowercase_namespace/lowercase_field"
+        std::string ns_lower = currentNamespace;
+        for (auto& c : ns_lower) c = (char)std::tolower((unsigned char)c);
+
+        std::string field_lower = fieldName;
+        for (auto& c : field_lower) c = (char)std::tolower((unsigned char)c);
+
+        std::string key = ns_lower + "/" + field_lower;
+        OffsetsEntry entry;
+        entry.value = val;
+
+        std::stringstream ss;
+        ss << "0x" << std::hex << val;
+        entry.hex = ss.str();
+
+        cache_[key] = entry;
+        parsed++;
+    }
+
+    total_offsets_ = parsed;
+    return parsed > 0;
+}
+
+// ------------------------------------------------------------------
+// load() - Entry point: download .hpp -> compare with disk -> cache -> parse
 // ------------------------------------------------------------------
 bool OffsetsManager::load() {
-    // Debug file (append)
     FILE* dbg = fopen("offsets_debug.txt", "a");
 
     try {
-        if (dbg) fprintf(dbg, "[offsets] step1: fetch_live_version...\n");
-        console::info("Conectando al servidor para buscar version...");
-        // 1. Get live version
-        std::string liveVersion = fetch_live_version();
-        if (dbg) fprintf(dbg, "[offsets] live version: '%s'\n", liveVersion.c_str());
-        console::info("Version en servidor: '%s'", liveVersion.c_str());
+        if (dbg) fprintf(dbg, "[offsets] step1: fetch_hpp from GitHub...\n");
+        console::info("Descargando offsets desde GitHub...");
+        std::string hppContent = fetch_hpp();
+        if (dbg) fprintf(dbg, "[offsets] downloaded %zu bytes\n", hppContent.size());
+        console::info("Descargados %zu bytes del .hpp", hppContent.size());
 
-        // 2. Read cached version from disk
-        std::string cachedVersion = read_file(VERSION_FILE);
-        // Trim whitespace
-        while (!cachedVersion.empty() && (cachedVersion.back() == '\n' || cachedVersion.back() == '\r' || cachedVersion.back() == ' '))
-            cachedVersion.pop_back();
-        if (dbg) fprintf(dbg, "[offsets] cached version: '%s'\n", cachedVersion.empty() ? "(none)" : cachedVersion.c_str());
-        console::info("Version en cache local: '%s'", cachedVersion.empty() ? "(ninguna)" : cachedVersion.c_str());
+        // Compare with cached file on disk (by size for fast check)
+        std::string cachedContent = read_file(HPP_CACHE_FILE);
+        bool needsUpdate = false;
 
-        // 3. Check if offsets.json exists on disk
-        char fullPath[MAX_PATH] = {};
-        GetFullPathNameA(OFFSETS_FILE, sizeof(fullPath), fullPath, nullptr);
-        bool offsetsExist = std::filesystem::exists(OFFSETS_FILE);
-        if (dbg) fprintf(dbg, "[offsets] offsets.json path: %s\n", fullPath);
-        
-        // 4. Download only if version changed or no cache
-        if (liveVersion != cachedVersion || !offsetsExist) {
-            if (dbg) fprintf(dbg, "[offsets] step2: fetch_offsets_json...\n");
-            console::warn("Cache expirado o ausente. Descargando nuevos offsets...");
-            std::string jsonBody = fetch_offsets_json();
-            if (dbg) fprintf(dbg, "[offsets] downloaded %zu bytes\n", jsonBody.size());
-            write_file(OFFSETS_FILE, jsonBody);
-            write_file(VERSION_FILE, liveVersion);
-            if (dbg) fprintf(dbg, "[offsets] saved to disk\n");
-            console::success("Offsets guardados con exito (%zu bytes)", jsonBody.size());
+        if (cachedContent.empty()) {
+            if (dbg) fprintf(dbg, "[offsets] no cache file on disk\n");
+            console::warn("No hay cache local. Guardando...");
+            needsUpdate = true;
+        } else if (cachedContent.size() != hppContent.size()) {
+            if (dbg) fprintf(dbg, "[offsets] size mismatch: cached=%zu vs remote=%zu\n",
+                cachedContent.size(), hppContent.size());
+            console::warn("Offsets actualizados disponibles (%zu -> %zu bytes)",
+                cachedContent.size(), hppContent.size());
+            needsUpdate = true;
+        } else if (cachedContent != hppContent) {
+            if (dbg) fprintf(dbg, "[offsets] content differs (same size)\n");
+            console::warn("Offsets diferentes detectados. Actualizando...");
+            needsUpdate = true;
         } else {
-            console::success("Los offsets estan actualizados.");
+            if (dbg) fprintf(dbg, "[offsets] cache is up to date\n");
+            console::success("Offsets en cache estan actualizados.");
         }
 
-        // 5. Load and parse the JSON
-        if (dbg) fprintf(dbg, "[offsets] step3: read offsets.json...\n");
-        std::string jsonStr = read_file(OFFSETS_FILE);
-        if (jsonStr.empty()) {
-            if (dbg) fprintf(dbg, "[offsets] FATAL: offsets.json is empty\n");
-            console::error("Error: offsets.json esta vacio");
-            if (dbg) fclose(dbg);
-            return false;
+        if (needsUpdate) {
+            write_file(HPP_CACHE_FILE, hppContent);
+            if (dbg) fprintf(dbg, "[offsets] saved to disk\n");
+            console::success("Offsets guardados en disco (%zu bytes)", hppContent.size());
+            cachedContent = hppContent; // use the freshly downloaded content
         }
 
-        if (dbg) fprintf(dbg, "[offsets] step4: json::parse...\n");
-        auto data = json::parse(jsonStr);
-        if (dbg) fprintf(dbg, "[offsets] step5: parse_json...\n");
-        bool parsed = parse_json(data);
-        if (dbg) fprintf(dbg, "[offsets] parse_json: %s\n", parsed ? "SUCCESS" : "FAILED");
+        // Parse the .hpp content
+        if (dbg) fprintf(dbg, "[offsets] step2: parse_hpp...\n");
+        bool parsed = parse_hpp(cachedContent);
+        if (dbg) fprintf(dbg, "[offsets] parse_hpp: %s (%d offsets)\n",
+            parsed ? "SUCCESS" : "FAILED", total_offsets_);
 
         if (parsed) {
             loaded_ = true;
-            if (dbg) fprintf(dbg, "[offsets] loaded %d offsets, version=%s\n", total_offsets_, roblox_version_.c_str());
-            console::success("Offsets cargados con exito. Version=%s (%d offsets)", roblox_version_.c_str(), total_offsets_);
+            console::success("Offsets cargados: %d offsets", total_offsets_);
         } else {
-            console::error("Error al procesar JSON de offsets");
+            console::error("Error al procesar offsets.hpp");
         }
 
         if (dbg) fclose(dbg);
@@ -203,28 +285,28 @@ bool OffsetsManager::load() {
         if (!dbg) dbg = fopen("offsets_debug.txt", "a");
         if (dbg) fprintf(dbg, "[offsets] EXCEPTION: %s\n", e.what());
         console::error("Excepcion: %s", e.what());
+
         // Fallback: try loading whatever is on disk
         if (dbg) fprintf(dbg, "[offsets] fallback: trying disk cache...\n");
         console::warn("Intentando cargar offsets locales de respaldo...");
-        std::string jsonStr = read_file(OFFSETS_FILE);
-        if (!jsonStr.empty()) {
-            if (dbg) fprintf(dbg, "[offsets] fallback: found %zu bytes\n", jsonStr.size());
+        std::string cachedContent = read_file(HPP_CACHE_FILE);
+        if (!cachedContent.empty()) {
+            if (dbg) fprintf(dbg, "[offsets] fallback: found %zu bytes\n", cachedContent.size());
             try {
-                auto data = json::parse(jsonStr);
-                if (parse_json(data)) {
+                if (parse_hpp(cachedContent)) {
                     loaded_ = true;
                     if (dbg) fprintf(dbg, "[offsets] fallback: SUCCESS (%d offsets)\n", total_offsets_);
                     console::success("Respaldo local cargado (%d offsets)", total_offsets_);
                     if (dbg) fclose(dbg);
                     return true;
                 }
-                if (dbg) fprintf(dbg, "[offsets] fallback: parse_json failed\n");
+                if (dbg) fprintf(dbg, "[offsets] fallback: parse_hpp failed\n");
             }
             catch (const std::exception& e2) {
                 if (dbg) fprintf(dbg, "[offsets] fallback exception: %s\n", e2.what());
             }
         } else {
-            if (dbg) fprintf(dbg, "[offsets] fallback: no offsets.json on disk\n");
+            if (dbg) fprintf(dbg, "[offsets] fallback: no offsets.hpp on disk\n");
             console::error("No se encontraron offsets locales en el disco");
         }
 
@@ -234,83 +316,13 @@ bool OffsetsManager::load() {
 }
 
 // ------------------------------------------------------------------
-// parse_json - Parse the documented offsets.json structure
-// ------------------------------------------------------------------
-bool OffsetsManager::parse_json(const json& data) {
-    try {
-        // Roblox Version
-        if (data.contains("Roblox Version") && data["Roblox Version"].is_string()) {
-            roblox_version_ = data["Roblox Version"].get<std::string>();
-        }
-        // Also check "ClientVersion" as fallback
-        else if (data.contains("ClientVersion") && data["ClientVersion"].is_string()) {
-            roblox_version_ = data["ClientVersion"].get<std::string>();
-        }
-
-        // Total Offsets
-        if (data.contains("Total Offsets") && data["Total Offsets"].is_number()) {
-            total_offsets_ = data["Total Offsets"].get<int>();
-        }
-
-        // The actual offsets are under "Offsets" key
-        if (!data.contains("Offsets") || !data["Offsets"].is_object()) {
-            return false;
-        }
-
-        const auto& offsets_obj = data["Offsets"];
-        int parsed = 0;
-
-        for (auto& [group_name, group_obj] : offsets_obj.items()) {
-            if (!group_obj.is_object()) continue;
-
-            // Normalize group name to lowercase for case-insensitive matching
-            std::string group_lower = group_name;
-            for (auto& c : group_lower) c = (char)tolower(c);
-
-            for (auto& [offset_name, offset_value] : group_obj.items()) {
-                if (!offset_value.is_number()) continue;
-
-                uintptr_t val = static_cast<uintptr_t>(offset_value.get<uint64_t>());
-
-                // Lowercase field name too for case-insensitive matching
-                std::string field_lower = offset_name;
-                for (auto& c : field_lower) c = (char)tolower(c);
-
-                std::string key = group_lower + "/" + field_lower;
-                OffsetsEntry entry;
-                entry.value = val;
-
-                std::stringstream ss;
-                ss << "0x" << std::hex << val;
-                entry.hex = ss.str();
-
-                cache_[key] = entry;
-                parsed++;
-            }
-        }
-
-        return parsed > 0;
-
-    }
-    catch (const json::parse_error&) {
-        return false;
-    }
-    catch (const json::type_error&) {
-        return false;
-    }
-    catch (const std::exception&) {
-        return false;
-    }
-}
-
-// ------------------------------------------------------------------
 // get_offset - Lookup uintptr_t value by class/field name
 // ------------------------------------------------------------------
 uintptr_t OffsetsManager::get_offset(const std::string& cls, const std::string& field) const {
     std::string cls_lower = cls;
-    for (auto& c : cls_lower) c = (char)tolower(c);
+    for (auto& c : cls_lower) c = (char)std::tolower((unsigned char)c);
     std::string fld_lower = field;
-    for (auto& c : fld_lower) c = (char)tolower(c);
+    for (auto& c : fld_lower) c = (char)std::tolower((unsigned char)c);
     std::string key = cls_lower + "/" + fld_lower;
     auto it = cache_.find(key);
     if (it != cache_.end()) {
@@ -324,9 +336,9 @@ uintptr_t OffsetsManager::get_offset(const std::string& cls, const std::string& 
 // ------------------------------------------------------------------
 std::string OffsetsManager::get_hex_offset(const std::string& cls, const std::string& field) const {
     std::string cls_lower = cls;
-    for (auto& c : cls_lower) c = (char)tolower(c);
+    for (auto& c : cls_lower) c = (char)std::tolower((unsigned char)c);
     std::string fld_lower = field;
-    for (auto& c : fld_lower) c = (char)tolower(c);
+    for (auto& c : fld_lower) c = (char)std::tolower((unsigned char)c);
     std::string key = cls_lower + "/" + fld_lower;
     auto it = cache_.find(key);
     if (it != cache_.end()) {
