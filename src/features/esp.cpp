@@ -125,16 +125,18 @@ static ImU32 u32_alpha(ImU32 c, float a)
 static ImU32 health_color(float ratio)
 {
     ratio = ImClamp(ratio, 0.f, 1.f);
-    // green → yellow → red
+    // red → yellow → green as health increases
     if (ratio > 0.5f)
     {
         float t = (ratio - 0.5f) * 2.f;
+        // yellow (240,192,80) → green (61,224,160)
         return IM_COL32(
-            (int)(61 + (61) * t),
-            (int)(224 + (-32) * t),
-            (int)(160 + (-80) * t), 255);
+            (int)(240 + (-179) * t),
+            (int)(192 + (32) * t),
+            (int)(80 + (80) * t), 255);
     }
     float t = ratio * 2.f;
+    // red (224,60,70) → yellow (240,192,80)
     return IM_COL32(
         (int)(224 + (16) * t),
         (int)(60 + (132) * t),
