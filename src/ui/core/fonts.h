@@ -26,14 +26,14 @@ namespace font {
     // Typography scale (compact)
     // ========================================================================
     namespace size {
-        inline constexpr float display = 17.f;   // logo / product name
-        inline constexpr float label   = 12.f;   // card headers, section titles
-        inline constexpr float body    = 12.f;   // toggles, options
-        inline constexpr float mono    = 11.f;   // slider values, stats
-        inline constexpr float mono_sm = 9.f;    // chips, pills, version
-        inline constexpr float icon    = 13.f;   // FA6 icon size
-        inline constexpr float tab_icon = 16.f;  // sidebar tab icons
-        inline constexpr float uppercase = 8.f;  // section headers (uppercase)
+        inline constexpr float display = 14.f;   // logo / product name
+        inline constexpr float label   = 10.f;   // card headers, section titles
+        inline constexpr float body    = 10.f;   // toggles, options
+        inline constexpr float mono    = 9.f;    // slider values, stats
+        inline constexpr float mono_sm = 8.f;    // chips, pills, version
+        inline constexpr float icon    = 11.f;   // FA6 icon size
+        inline constexpr float tab_icon = 13.f;  // sidebar tab icons
+        inline constexpr float uppercase = 7.f;  // section headers (uppercase)
     }
 
     // ========================================================================

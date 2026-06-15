@@ -128,13 +128,13 @@ inline void init();
     namespace datamodel {
         inline uintptr_t CreatorId = 0x190;
         inline uintptr_t GameId = 0x198;
-        inline uintptr_t GameLoaded = 0x638;
+        inline uintptr_t GameLoaded = 0x670;
         inline uintptr_t JobId = 0x138;
-        inline uintptr_t PlaceId = 0x1a0;
+        inline uintptr_t PlaceId = 0x1A0;
         inline uintptr_t PlaceVersion = 0x1bc;
         inline uintptr_t PrimitiveCount = 0x480;
         inline uintptr_t scriptcontext = 0x440;
-        inline uintptr_t ServerIP = 0x620;
+        inline uintptr_t ServerIP = 0x658;
         inline uintptr_t ToRenderView1 = 0x1d8;
         inline uintptr_t ToRenderView2 = 0x8;
         inline uintptr_t ToRenderView3 = 0x28;
@@ -164,8 +164,8 @@ inline void init();
     }
 
     namespace fakemodel {
-        inline uintptr_t Pointer = 0x78ff228;
-        inline uintptr_t RealDataModel = 0x1d0;
+        inline uintptr_t Pointer = 0x7A39AD8;
+        inline uintptr_t RealDataModel = 0x1D8;
     }
 
     namespace gui2d {
@@ -176,7 +176,7 @@ inline void init();
 
     namespace gui {
         inline uintptr_t BackgroundColor3 = 0x540;
-        inline uintptr_t BackgroundTransparency = 0x54c;
+        inline uintptr_t BackgroundTransparency = 0x564;
         inline uintptr_t BorderColor3 = 0x54c;
         inline uintptr_t Image = 0x988;
         inline uintptr_t LayoutOrder = 0x580;
@@ -192,44 +192,44 @@ inline void init();
     }
 
     namespace humanoid {
-        inline uintptr_t AutoJumpEnabled = 0x1e0;
-        inline uintptr_t AutoRotate = 0x1e1;
-        inline uintptr_t AutomaticScalingEnabled = 0xde;
-        inline uintptr_t BreakJointsOnDeath = 0x1e3;
+        inline uintptr_t AutoJumpEnabled = 0x1E0;
+        inline uintptr_t AutoRotate = 0x1E1;
+        inline uintptr_t AutomaticScalingEnabled = 0x1E2;
+        inline uintptr_t BreakJointsOnDeath = 0x1E3;
         inline uintptr_t CameraOffset = 0x140;
-        inline uintptr_t DisplayDistanceType = 0x18c;
-        inline uintptr_t DisplayName = 0xd0;
-        inline uintptr_t EvaluateStateMachine = 0x1e4;
+        inline uintptr_t DisplayDistanceType = 0x18C;
+        inline uintptr_t DisplayName = 0xD0;
+        inline uintptr_t EvaluateStateMachine = 0x1E4;
         inline uintptr_t FloorMaterial = 0x190;
         inline uintptr_t Health = 0x194;
         inline uintptr_t HealthDisplayDistance = 0x198;
-        inline uintptr_t HealthDisplayType = 0x19c;
-        inline uintptr_t HipHeight = 0x1a0;
+        inline uintptr_t HealthDisplayType = 0x19C;
+        inline uintptr_t HipHeight = 0x1A0;
         inline uintptr_t HumanoidRootPart = 0x480;
-        inline uintptr_t HumanoidState = 0x8a0;
-        inline uintptr_t HumanoidStateID = 0x20;
+        inline uintptr_t HumanoidState = 0x830;
+        inline uintptr_t HumanoidStateID = 0x0;
         inline uintptr_t IsWalking = 0x91f;
-        inline uintptr_t Jump = 0x1e6;
-        inline uintptr_t JumpHeight = 0x1ac;
-        inline uintptr_t JumpPower = 0x1b0;
-        inline uintptr_t MaxHealth = 0x1b4;
-        inline uintptr_t MaxSlopeAngle = 0x1b8;
+        inline uintptr_t Jump = 0x1E6;
+        inline uintptr_t JumpHeight = 0x1AC;
+        inline uintptr_t JumpPower = 0x1B0;
+        inline uintptr_t MaxHealth = 0x1B4;
+        inline uintptr_t MaxSlopeAngle = 0x1B8;
         inline uintptr_t MoveDirection = 0x158;
         inline uintptr_t MoveToPart = 0x130;
-        inline uintptr_t MoveToPoint = 0x17c;
-        inline uintptr_t NameDisplayDistance = 0x1bc;
-        inline uintptr_t NameOcclusion = 0x1c0;
-        inline uintptr_t PlatformStand = 0x1e8;
+        inline uintptr_t MoveToPoint = 0x17C;
+        inline uintptr_t NameDisplayDistance = 0x1BC;
+        inline uintptr_t NameOcclusion = 0x1C0;
+        inline uintptr_t PlatformStand = 0x1E8;
         inline uintptr_t PlatformStatePointer = 0x262CF636;
-        inline uintptr_t RequiresNeck = 0x1e9;
-        inline uintptr_t RigType = 0x1cc;
+        inline uintptr_t RequiresNeck = 0x1E9;
+        inline uintptr_t RigType = 0x1CC;
         inline uintptr_t SeatPart = 0x120;
-        inline uintptr_t Sit = 0x1e9;
+        inline uintptr_t Sit = 0x1EA;
         inline uintptr_t TargetPoint = 0x164;
-        inline uintptr_t UseJumpPower = 0x1ec;
+        inline uintptr_t UseJumpPower = 0x1EC;
         inline uintptr_t WalkTimer = 0x410;
-        inline uintptr_t walkspeed = 0x1dc;
-        inline uintptr_t WalkspeedCheck = 0x3c4;
+        inline uintptr_t walkspeed = 0x1DC;
+        inline uintptr_t WalkspeedCheck = 0x3C4;
     }
 
     namespace instance {
@@ -318,8 +318,8 @@ inline void init();
     }
 
     namespace meshpart {
-        inline uintptr_t MeshId = 0x300;
-        inline uintptr_t Texture = 0x330;
+        inline uintptr_t MeshId = 0x2F8;
+        inline uintptr_t Texture = 0x328;
     }
 
     namespace misc {
@@ -367,20 +367,20 @@ inline void init();
     }
 
     namespace player {
-        inline uintptr_t AccountAge = 0x32c;
+        inline uintptr_t AccountAge = 0x34C;
         inline uintptr_t CameraMode = 0x338;
-        inline uintptr_t DisplayName = 0x130;
-        inline uintptr_t HealthDisplayDistance = 0x358;
+        inline uintptr_t DisplayName = 0x150;
+        inline uintptr_t HealthDisplayDistance = 0x378;
         inline uintptr_t LocalPlayer = 0x138;
-        inline uintptr_t LocaleId = 0x110;
+        inline uintptr_t LocaleId = 0x720;
         inline uintptr_t MaxZoomDistance = 0x330;
         inline uintptr_t MinZoomDistance = 0x334;
-        inline uintptr_t ModelInstance = 0x3a8;
+        inline uintptr_t ModelInstance = 0x3C8;
         inline uintptr_t mouse = 0x1180;
-        inline uintptr_t NameDisplayDistance = 0x368;
-        inline uintptr_t team = 0x2b0;
-        inline uintptr_t TeamColor = 0x374;
-        inline uintptr_t UserId = 0x2d8;
+        inline uintptr_t NameDisplayDistance = 0x388;
+        inline uintptr_t team = 0x2D0;
+        inline uintptr_t TeamColor = 0x394;
+        inline uintptr_t UserId = 0x2F8;
     }
 
     namespace playerconfig {
@@ -430,8 +430,8 @@ inline void init();
 
     namespace view {
         inline uintptr_t DeviceD3D11 = 0x8;
-        inline uintptr_t LightingValid = 0x150;
-        inline uintptr_t SkyValid = 0x28d;
+        inline uintptr_t LightingValid = 0x170;
+        inline uintptr_t SkyValid = 0x28D;
         inline uintptr_t render = 0x10;
     }
 
@@ -451,21 +451,21 @@ inline void init();
     }
 
     namespace seat {
-        inline uintptr_t Occupant = 0x220;
+        inline uintptr_t Occupant = 0x218;
     }
 
     namespace sky {
-        inline uintptr_t MoonAngularSize = 0x25c;
-        inline uintptr_t MoonTextureId = 0xe0;
+        inline uintptr_t MoonAngularSize = 0x25C;
+        inline uintptr_t MoonTextureId = 0xE0;
         inline uintptr_t SkyboxBk = 0x110;
         inline uintptr_t SkyboxDn = 0x140;
         inline uintptr_t SkyboxFt = 0x170;
-        inline uintptr_t SkyboxLf = 0x1a0;
+        inline uintptr_t SkyboxLf = 0x1A0;
         inline uintptr_t SkyboxOrientation = 0x250;
-        inline uintptr_t SkyboxRt = 0x1d0;
+        inline uintptr_t SkyboxRt = 0x1D0;
         inline uintptr_t SkyboxUp = 0x200;
         inline uintptr_t StarCount = 0x260;
-        inline uintptr_t SunAngularSize = 0x254;
+        inline uintptr_t SunAngularSize = 0x264;
         inline uintptr_t SunTextureId = 0x230;
     }
 
@@ -520,7 +520,7 @@ inline void init();
         inline uintptr_t JobName = 0x18;
         inline uintptr_t JobStart = 0xc8;
         inline uintptr_t MaxFPS = 0xb0;
-        inline uintptr_t Pointer = 0x7e90548;
+        inline uintptr_t Pointer = 0x7FCB088;
     }
 
     namespace team {
@@ -528,13 +528,13 @@ inline void init();
     }
 
     namespace terrain {
-        inline uintptr_t GrassLength = 0x1f8;
-        inline uintptr_t material = 0x2a8;
-        inline uintptr_t WaterColor = 0x1e8;
-        inline uintptr_t WaterReflectance = 0x200;
-        inline uintptr_t WaterTransparency = 0x204;
-        inline uintptr_t WaterWaveSize = 0x208;
-        inline uintptr_t WaterWaveSpeed = 0x20c;
+        inline uintptr_t GrassLength = 0x1F0;
+        inline uintptr_t material = 0x2A8;
+        inline uintptr_t WaterColor = 0x1E0;
+        inline uintptr_t WaterReflectance = 0x1F8;
+        inline uintptr_t WaterTransparency = 0x1FC;
+        inline uintptr_t WaterWaveSize = 0x200;
+        inline uintptr_t WaterWaveSpeed = 0x204;
     }
 
     namespace texture {
@@ -543,11 +543,11 @@ inline void init();
     }
 
     namespace tool {
-        inline uintptr_t CanBeDropped = 0x4c8;
-        inline uintptr_t Enabled = 0x4c9;
-        inline uintptr_t Grip = 0x4bc;
-        inline uintptr_t ManualActivationOnly = 0x4ca;
-        inline uintptr_t RequiresHandle = 0x4cb;
+        inline uintptr_t CanBeDropped = 0x4C8;
+        inline uintptr_t Enabled = 0x4C9;
+        inline uintptr_t Grip = 0x498;
+        inline uintptr_t ManualActivationOnly = 0x4CA;
+        inline uintptr_t RequiresHandle = 0x4CB;
         inline uintptr_t TextureId = 0x370;
         inline uintptr_t Tooltip = 0x478;
     }
@@ -561,11 +561,11 @@ inline void init();
     }
 
     namespace vehicle {
-        inline uintptr_t MaxSpeed = 0x238;
-        inline uintptr_t SteerFloat = 0x240;
-        inline uintptr_t ThrottleFloat = 0x248;
-        inline uintptr_t Torque = 0x24c;
-        inline uintptr_t TurnSpeed = 0x250;
+        inline uintptr_t MaxSpeed = 0x230;
+        inline uintptr_t SteerFloat = 0x238;
+        inline uintptr_t ThrottleFloat = 0x240;
+        inline uintptr_t Torque = 0x244;
+        inline uintptr_t TurnSpeed = 0x248;
     }
 
     namespace inputstate {
@@ -590,10 +590,10 @@ inline void init();
     }
 
     namespace render {
-        inline uintptr_t Dimensions = 0xab0;
-        inline uintptr_t fakemodel = 0xa90;
-        inline uintptr_t Pointer = 0x801dfb0;
-        inline uintptr_t view = 0xbb0;
+        inline uintptr_t Dimensions = 0xAB0;
+        inline uintptr_t fakemodel = 0xA90;
+        inline uintptr_t Pointer = 0x8158B80;
+        inline uintptr_t view = 0xBB0;
         inline uintptr_t ViewMatrix = 0x150;
     }
 
@@ -644,7 +644,7 @@ inline void init() {
     // ===== RenderView (C++: view) =====
     MAP(RenderView, DeviceD3D11, view, DeviceD3D11);
     MAP(RenderView, LightingValid, view, LightingValid);
-    MAP(RenderView, SkyValid, view, SkyValid);
+    MAP(RenderView, SkyboxValid, view, SkyValid);
     MAP(RenderView, VisualEngine, view, render);
 
     // ===== RenderJob (C++: job) =====
@@ -1015,7 +1015,7 @@ inline void init() {
     TRY(player, LocaleId);
     TRY(player, MaxZoomDistance);
     TRY(player, MinZoomDistance);
-    TRY(player, ModelInstance);
+    MAP(Player, Character, player, ModelInstance);
     TRY(player, mouse);
     TRY(player, NameDisplayDistance);
     TRY(player, team);

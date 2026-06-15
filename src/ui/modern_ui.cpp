@@ -323,7 +323,7 @@ void ModernUI::RenderMenu() {
     }
     lastOpen = m_open;
 
-    if (!m_open && menuT <= .01f) return;
+    if (!m_open && menuT <= .001f) return;
 
     static PageTransition pageTrans;
     static int section = 0;
@@ -863,14 +863,14 @@ void ModernUI::RenderESP() {
     cursor();
     notify::render();
 
-    bool movable = m_open;
+    bool movable = !m_open;
     if (global::overlay::AimWarning)
         hud::aimwarning(ImGui::GetBackgroundDrawList());
-    if (global::overlay::watermark)
+    if (global::overlay::watermark && !m_open)
         hud::panel("##miserable_watermark", global::overlay::Watermark_Pos,
             ImVec2(258.f, 42.f), movable,
             [](ImDrawList* dl, ImVec2 p, ImVec2 s, bool h, bool a) { hud::watermark(dl, p, s, h, a); });
-    if (global::overlay::radar) {
+    if (global::overlay::radar && !m_open) {
         float radarSize = ImClamp(global::overlay::Radar_Size, 130.f, 280.f);
         hud::panel("##miserable_radar", global::overlay::Radar_Pos,
             ImVec2(radarSize, radarSize), movable,
