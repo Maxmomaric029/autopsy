@@ -99,8 +99,8 @@ bool ModernUI::Create(HWND window, ID3D11Device* device, ID3D11DeviceContext* co
     // ---- Load embedded logos ----
     load_logos(device);
 
-    // ---- Init sound system ----
-    sound::init();
+    // ---- Init sound system (disabled for crash debugging) ----
+    //sound::init();
 
     // ---- Init avatar (async download from Roblox) ----
     avatar::init(device);
