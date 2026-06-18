@@ -2,6 +2,7 @@
 #include <dwmapi.h>
 #include <cstdio>
 #include <chrono>
+#include <ShlObj.h>
 #include <thread>
 #include "global.h"
 #include "../config.h"
@@ -36,11 +37,10 @@ static void MarkStep(const char* step)
     size_t len = strlen(path);
     if (len + 17 > MAX_PATH) return;
     memcpy(path + len, "\\crash_step.txt", 16); // includes null
-    // Append mode
+    // Overwrite each frame so only last markers are kept
     HANDLE h = CreateFileA(path, GENERIC_WRITE, FILE_SHARE_READ, NULL,
-        OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+        CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
     if (h == INVALID_HANDLE_VALUE) return;
-    SetFilePointer(h, 0, NULL, FILE_END);
     DWORD n;
     WriteFile(h, step, (DWORD)strlen(step), &n, NULL);
     WriteFile(h, "\r\n", 2, &n, NULL);
