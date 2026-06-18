@@ -26,6 +26,28 @@
 #include "ui/pages/pages.h"
 
 // ========================================================================
+// Step marker helper — writes to Desktop\crash_step.txt (no CRT)
+// ========================================================================
+static void MarkStep(const char* step)
+{
+    char path[MAX_PATH];
+    if (SHGetFolderPathA(NULL, CSIDL_DESKTOPDIRECTORY, NULL, 0, path) != S_OK)
+        return;
+    size_t len = strlen(path);
+    if (len + 17 > MAX_PATH) return;
+    memcpy(path + len, "\\crash_step.txt", 16); // includes null
+    // Append mode
+    HANDLE h = CreateFileA(path, GENERIC_WRITE, FILE_SHARE_READ, NULL,
+        OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (h == INVALID_HANDLE_VALUE) return;
+    SetFilePointer(h, 0, NULL, FILE_END);
+    DWORD n;
+    WriteFile(h, step, (DWORD)strlen(step), &n, NULL);
+    WriteFile(h, "\r\n", 2, &n, NULL);
+    CloseHandle(h);
+}
+
+// ========================================================================
 // ModernUI — public API implementation
 // ========================================================================
 
@@ -99,8 +121,8 @@ bool ModernUI::Create(HWND window, ID3D11Device* device, ID3D11DeviceContext* co
     // ---- Load embedded logos ----
     load_logos(device);
 
-    // ---- Init sound system (disabled for crash debugging) ----
-    //sound::init();
+    // ---- Init sound system ----
+    sound::init();
 
     // ---- Init avatar (async download from Roblox) ----
     avatar::init(device);
@@ -188,6 +210,8 @@ static int menukey(ImGuiKey key) {
 // BeginFrame — MSG pump, toggle detection, ImGui::NewFrame()
 // ========================================================================
 void ModernUI::BeginFrame(HWND overlayWindow) {
+    MarkStep("A—BF start");
+
     // ---- MSG pump ----
     MSG Msg;
     while (PeekMessage(&Msg, nullptr, 0, 0, PM_REMOVE)) {
@@ -195,6 +219,8 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
         TranslateMessage(&Msg);
         DispatchMessage(&Msg);
     }
+
+    MarkStep("B—MSG pump done");
 
     // ---- Streamproof with Windows version check ----
     static bool streamproofChecked = false;
@@ -231,10 +257,14 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
         lastStreamproof = global::setting::Streamproof;
     }
 
+    MarkStep("C—Streamproof done");
+
     // ---- ImGui new frame ----
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
+
+    MarkStep("D—ImGui NewFrame done");
 
     // ---- Menu toggle ----
     uint32_t targetPid = drive->processid();
@@ -249,22 +279,40 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
         if ((GetAsyncKeyState(menuVk) & 1) &&
             (fgPid == targetPid || fg == overlayWindow) &&
             now - lastToggle >= .18) {
+            MarkStep("E—TOGGLE FIRING");
+
             lastToggle = now;
             Toggle();
 
+            MarkStep("F—Toggle() done");
+
             // Sound
             sound::play(m_open ? sound::id::menu_open : sound::id::menu_close);
+            MarkStep("G—sound::play done");
 
+            // TEMP: skip SetWindowLong/SetWindowPos to test if that's the crash
+            // Only change window style when menu CLOSES (removing transparent on open might cause DWM issue)
+            // Re-enable gradually:
+            // Step 1: Skip SetWindowLong entirely to test (uncomment below)
+            // Step 2: Add SetWindowLong back
+            // Step 3: Add SetWindowPos back
+
+            MarkStep("H—SetWindowLong start");
             LONG exStyle = WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_LAYERED;
             if (!m_open) exStyle |= WS_EX_TRANSPARENT;
             SetWindowLong(overlayWindow, GWL_EXSTYLE, exStyle);
+            MarkStep("I—SetWindowLong done");
+
+            MarkStep("J—SetWindowPos start");
             SetWindowPos(overlayWindow, NULL, 0, 0, 0, 0,
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+            MarkStep("K—SetWindowPos done");
         }
     }
 
     // Update sound system
     sound::update();
+    MarkStep("L—sound::update done");
 
     // Refresh avatar if player name becomes available later
     static double lastAvatarRefresh = 0.0;
@@ -274,6 +322,7 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
             avatar::refresh_later(m_device);
         }
     }
+    MarkStep("M—BF end");
 }
 
 // ========================================================================
@@ -312,6 +361,8 @@ namespace {
 // RenderMenu — Config menu with new 64px sidebar + 52px topbar layout
 // ========================================================================
 void ModernUI::RenderMenu() {
+    MarkStep("N—RenderMenu start");
+    
     anim::g_anim.prune();
 
     static float menuT = 0.f;
@@ -323,7 +374,7 @@ void ModernUI::RenderMenu() {
     }
     lastOpen = m_open;
 
-    if (!m_open && menuT <= .001f) return;
+    if (!m_open && menuT <= .001f) { MarkStep("O—RenderMenu early return"); return; }
 
     static PageTransition pageTrans;
     static int section = 0;
@@ -360,12 +411,15 @@ void ModernUI::RenderMenu() {
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, menuAlpha);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, theme::to_u32(theme::c_bg));
 
+    MarkStep("P—ImGui::Begin start");
     bool open = ImGui::Begin("##miserable", nullptr,
         ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoBackground);
     ImGui::PopStyleColor();
     ImGui::PopStyleVar(3);
-    if (!open) { ImGui::End(); return; }
+    if (!open) { ImGui::End(); MarkStep("Q—ImGui::Begin not open"); return; }
+
+    MarkStep("R—ImGui::Begin done");
 
     ImVec2 WP = ImGui::GetWindowPos();
     const ImVec2 WS = ImGui::GetWindowSize();
@@ -403,14 +457,18 @@ void ModernUI::RenderMenu() {
 
     // ---- Sidebar (handles section changes) ----
     int oldSection = section;
+    MarkStep("S—sidebar start");
     bool sectionChanged = layout::sidebar(DL, WP, WS, section, menuEase);
+    MarkStep("T—sidebar done");
     if (sectionChanged) {
         pageTrans.changeTo(section);
         config::save_json("autoload");
     }
 
     // ---- Topbar ----
+    MarkStep("U—topbar start");
     layout::topbar(DL, WP, WS, section, menuEase);
+    MarkStep("V—topbar done");
 
     // ---- Page transition ----
     pageTrans.update();
@@ -443,6 +501,7 @@ void ModernUI::RenderMenu() {
     float bInW = contentW - kPad * 2.f;
     float bInH = contentH - kPad * 2.f;
 
+    MarkStep("W—page switch start");
     switch (section) {
     case 0: page::aimbot(bInW, bInH); break;
     case 1: page::visuals(bInW, bInH); break;
@@ -450,15 +509,17 @@ void ModernUI::RenderMenu() {
     case 3: page::misc(bInW, bInH); break;
     case 4: page::settings(bInW, bInH); break;
     }
+    MarkStep("X—page switch done");
 
     ImGui::EndGroup();
     ImGui::PopStyleVar();
     DL->PopClipRect();
     ImGui::End();
+    MarkStep("Y—RenderMenu end");
 }
 
 // ========================================================================
-// HUD helpers (unchanged from previous, adapted for new colors)
+// HUD helpers
 // ========================================================================
 namespace {
 
@@ -784,9 +845,9 @@ namespace {
             dl->AddTriangleFilled(tri[0] + ImVec2(0.f, 1.f), tri[1] + ImVec2(0.f, 1.f), tri[2] + ImVec2(0.f, 1.f), IM_COL32(0, 0, 0, 150));
             dl->AddTriangleFilled(tri[0], tri[1], tri[2], IM_COL32(220, 230, 245, 255));
             ImGui::PushFont(font::label());
-            dl->AddText(p + ImVec2(14.f, 10.f), IM_COL32(220, 230, 245, 255), "RADAR");
+            dl->AddText(p + ImVec2(14.f, 10.f), IM_COL32(220, 230, 245, 255), \"RADAR\");
             ImGui::PopFont();
-            char zt[32]{}; std::snprintf(zt, sizeof(zt), "%.2fx", global::overlay::Radar_Zoom);
+            char zt[32]{}; std::snprintf(zt, sizeof(zt), \"%.2fx\", global::overlay::Radar_Zoom);
             ImVec2 zs = ImGui::CalcTextSize(zt);
             dl->AddText(ImVec2(p.x + s.x - zs.x - 14.f, p.y + 11.f), accent2(), zt);
         }
@@ -825,10 +886,10 @@ namespace {
             if (threat.Count <= 0) return;
             ImVec2 display = ImGui::GetIO().DisplaySize;
             float pulse = (sinf((float)ImGui::GetTime() * 6.0f) + 1.f) * .5f;
-            const char* title = "AIM WARNING";
+            const char* title = \"AIM WARNING\";
             char detail[96]{};
-            if (threat.Count == 1) std::snprintf(detail, sizeof(detail), "%s is aiming at you", threat.name.c_str());
-            else std::snprintf(detail, sizeof(detail), "%dx players aiming at you", threat.Count);
+            if (threat.Count == 1) std::snprintf(detail, sizeof(detail), \"%s is aiming at you\", threat.name.c_str());
+            else std::snprintf(detail, sizeof(detail), \"%dx players aiming at you\", threat.Count);
             ImVec2 ts = ImGui::CalcTextSize(title);
             ImVec2 ds = ImGui::CalcTextSize(detail);
             float width = ImClamp(ImMax(ts.x, ds.x) + 74.f, 258.f, 420.f);
@@ -846,7 +907,7 @@ namespace {
             ImVec2 icon(wm.x + 22.f, wm.y + 29.f);
             dl->AddTriangleFilled(icon + ImVec2(0.f, -12.f), icon + ImVec2(12.f, 10.f), icon + ImVec2(-12.f, 10.f), IM_COL32(255, 80, 104, 235));
             ImGui::PushFont(font::label());
-            dl->AddText(ImVec2(icon.x - 3.f, icon.y - 8.f), IM_COL32(23, 6, 12, 255), "!");
+            dl->AddText(ImVec2(icon.x - 3.f, icon.y - 8.f), IM_COL32(23, 6, 12, 255), \"!\");
             dl->AddText(ImVec2(wm.x + 48.f, wm.y + 9.f), IM_COL32(255, 238, 241, 255), title);
             dl->AddText(ImVec2(wm.x + 48.f, wm.y + 33.f), IM_COL32(255, 178, 190, 255), detail);
             ImGui::PopFont();
