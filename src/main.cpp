@@ -21,69 +21,96 @@
 #include <ShlObj.h>
 #pragma comment(lib, "Shell32.lib")
 
-// ========================================================================
-// SEH crash handler — logs exception details to crash_log.txt
-// ========================================================================
-static int CrashFilter(DWORD code, LPEXCEPTION_POINTERS ep)
-{
-    FILE* f = fopen("crash_log.txt", "w");
-    if (f) {
-        fprintf(f, "🚨 CRASH\n");
-        fprintf(f, "Exception code: 0x%08X\n", code);
-        if (ep && ep->ExceptionRecord) {
-            fprintf(f, "Exception address: 0x%p\n", ep->ExceptionRecord->ExceptionAddress);
-            fprintf(f, "Exception flags: 0x%X\n", ep->ExceptionRecord->ExceptionFlags);
-            if (ep->ExceptionRecord->NumberParameters > 0) {
-                fprintf(f, "Parameters: ");
-                for (DWORD i = 0; i < ep->ExceptionRecord->NumberParameters; i++)
-                    fprintf(f, "0x%p ", (void*)ep->ExceptionRecord->ExceptionInformation[i]);
-                fprintf(f, "\n");
-            }
-        }
-        fprintf(f, "\nCheck the address in the disassembly to find the crashing line.\n");
-        fclose(f);
-    }
-    OutputDebugStringA("[CRASH] Exception caught. Written to crash_log.txt\n");
-    return EXCEPTION_EXECUTE_HANDLER;
-}
-
 // Forward declaration from graphic.cpp
 extern bool g_frameHadContent;
 
 // ========================================================================
-// Render loop with SEH crash handler — separate function so SEH doesn't
-// conflict with C++ try/catch in main() or require object unwinding.
+// Vectored Exception Handler — catches crashes on ALL threads.
+// Uses Win32 API directly (CreateFile/WriteFile) to avoid CRT heap
+// dependency in case heap is corrupted.
+// ========================================================================
+static LONG WINAPI VectoredHandler(PEXCEPTION_POINTERS ep)
+{
+    if (!ep || !ep->ExceptionRecord)
+        return EXCEPTION_CONTINUE_SEARCH;
+
+    // Only log actionable hardware exceptions
+    const DWORD code = ep->ExceptionRecord->ExceptionCode;
+    if (code != EXCEPTION_ACCESS_VIOLATION &&
+        code != EXCEPTION_ILLEGAL_INSTRUCTION &&
+        code != EXCEPTION_STACK_OVERFLOW &&
+        code != EXCEPTION_INT_DIVIDE_BY_ZERO &&
+        code != EXCEPTION_BREAKPOINT)
+        return EXCEPTION_CONTINUE_SEARCH;
+
+    // Build crash log path in the exe directory
+    char exeDir[MAX_PATH];
+    DWORD exeLen = GetModuleFileNameA(NULL, exeDir, MAX_PATH);
+    if (exeLen == 0 || exeLen >= MAX_PATH)
+        return EXCEPTION_CONTINUE_SEARCH;
+
+    // Find last backslash and replace with "crash_log.txt"
+    char* sep = strrchr(exeDir, '\\');
+    if (!sep) return EXCEPTION_CONTINUE_SEARCH;
+    strcpy_s(sep + 1, MAX_PATH - (sep - exeDir + 1), "crash_log.txt");
+
+    HANDLE hFile = CreateFileA(exeDir, GENERIC_WRITE, 0, NULL,
+        CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hFile == INVALID_HANDLE_VALUE)
+        return EXCEPTION_CONTINUE_SEARCH;
+
+    char buf[1024];
+    int off = 0;
+    off += sprintf_s(buf + off, sizeof(buf) - off,
+        "[CRASH] Vectored Exception Handler\r\n"
+        "Exception code: 0x%08lX\r\n"
+        "Exception address: 0x%p\r\n"
+        "Exception flags: 0x%lX\r\n",
+        code, ep->ExceptionRecord->ExceptionAddress,
+        ep->ExceptionRecord->ExceptionFlags);
+
+    if (code == EXCEPTION_ACCESS_VIOLATION && ep->ExceptionRecord->NumberParameters >= 2)
+    {
+        off += sprintf_s(buf + off, sizeof(buf) - off,
+            "Access type: %s\r\n"
+            "Target address: 0x%p\r\n",
+            ep->ExceptionRecord->ExceptionInformation[0] ? "WRITE" : "READ",
+            (void*)ep->ExceptionRecord->ExceptionInformation[1]);
+    }
+
+    off += sprintf_s(buf + off, sizeof(buf) - off,
+        "\r\nDisassemble the exception address to find the crashing source line.\r\n");
+
+    DWORD written = 0;
+    WriteFile(hFile, buf, off, &written, NULL);
+    CloseHandle(hFile);
+
+    OutputDebugStringA("[VEH] Crash logged to crash_log.txt\n");
+
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
+// ========================================================================
+// Render loop with step markers (no SEH — VEH handles all threads)
 // ========================================================================
 static void renderLoop()
 {
-    // Console auto-refresh timer (every 2 seconds to show updated offsets)
     double lastConsoleRefresh = 0.0;
 
     for (;;)
     {
-        __try
-        {
-            OutputDebugStringA("[RENDER] begin\n");
-            screen->begin();
+        OutputDebugStringA("[RENDER] begin\n");
+        screen->begin();
 
-            OutputDebugStringA("[RENDER] visual\n");
-            screen->visual();
+        OutputDebugStringA("[RENDER] visual\n");
+        screen->visual();
 
-            OutputDebugStringA("[RENDER] menu\n");
-            screen->menu();
+        OutputDebugStringA("[RENDER] menu\n");
+        screen->menu();
 
-            OutputDebugStringA("[RENDER] end\n");
-            screen->end();
-        }
-        __except (CrashFilter(GetExceptionCode(), GetExceptionInformation()))
-        {
-            // CrashFilter already wrote detail to crash_log.txt
-            // Small sleep to let debug output flush
-            Sleep(1000);
-            ExitProcess(1);
-        }
+        OutputDebugStringA("[RENDER] end\n");
+        screen->end();
 
-        // Refresh console offsets display every 2 seconds
         double now = ImGui::GetTime();
         if (now - lastConsoleRefresh >= 2.0) {
             lastConsoleRefresh = now;
@@ -308,6 +335,9 @@ std::int32_t main(std::int32_t argc, char** argv[])
     {
         return 1;
     }
+    // Register VEH early — catches crashes on ALL threads (including cache/aim/etc.)
+    AddVectoredExceptionHandler(1, VectoredHandler);
+    OutputDebugStringA("[VEH] Registered VectoredExceptionHandler\n");
 
     renderLoop();
     return 0;
