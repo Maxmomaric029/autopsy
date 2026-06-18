@@ -25,68 +25,85 @@
 extern bool g_frameHadContent;
 
 // ========================================================================
-// Vectored Exception Handler — catches crashes on ALL threads.
-// Uses Win32 API directly (CreateFile/WriteFile) to avoid CRT heap
-// dependency in case heap is corrupted.
+// Vectored Exception Handler — log to DESKTOP so file is always writable.
+// Uses only Win32 API (no CRT) for maximum safety in corrupted state.
+// Also shows a MessageBox as visible confirmation.
 // ========================================================================
 static LONG WINAPI VectoredHandler(PEXCEPTION_POINTERS ep)
 {
     if (!ep || !ep->ExceptionRecord)
         return EXCEPTION_CONTINUE_SEARCH;
 
-    // Only log actionable hardware exceptions
-    const DWORD code = ep->ExceptionRecord->ExceptionCode;
-    if (code != EXCEPTION_ACCESS_VIOLATION &&
-        code != EXCEPTION_ILLEGAL_INSTRUCTION &&
-        code != EXCEPTION_STACK_OVERFLOW &&
-        code != EXCEPTION_INT_DIVIDE_BY_ZERO &&
-        code != EXCEPTION_BREAKPOINT)
-        return EXCEPTION_CONTINUE_SEARCH;
-
-    // Build crash log path in the exe directory
-    char exeDir[MAX_PATH];
-    DWORD exeLen = GetModuleFileNameA(NULL, exeDir, MAX_PATH);
-    if (exeLen == 0 || exeLen >= MAX_PATH)
-        return EXCEPTION_CONTINUE_SEARCH;
-
-    // Find last backslash and replace with "crash_log.txt"
-    char* sep = strrchr(exeDir, '\\');
-    if (!sep) return EXCEPTION_CONTINUE_SEARCH;
-    strcpy_s(sep + 1, MAX_PATH - (sep - exeDir + 1), "crash_log.txt");
-
-    HANDLE hFile = CreateFileA(exeDir, GENERIC_WRITE, 0, NULL,
-        CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (hFile == INVALID_HANDLE_VALUE)
-        return EXCEPTION_CONTINUE_SEARCH;
-
-    char buf[1024];
-    int off = 0;
-    off += sprintf_s(buf + off, sizeof(buf) - off,
-        "[CRASH] Vectored Exception Handler\r\n"
-        "Exception code: 0x%08lX\r\n"
-        "Exception address: 0x%p\r\n"
-        "Exception flags: 0x%lX\r\n",
-        code, ep->ExceptionRecord->ExceptionAddress,
-        ep->ExceptionRecord->ExceptionFlags);
-
-    if (code == EXCEPTION_ACCESS_VIOLATION && ep->ExceptionRecord->NumberParameters >= 2)
+    // Get desktop path (always writable)
+    char path[MAX_PATH];
+    if (SHGetFolderPathA(NULL, CSIDL_DESKTOPDIRECTORY, NULL, 0, path) == S_OK)
     {
-        off += sprintf_s(buf + off, sizeof(buf) - off,
-            "Access type: %s\r\n"
-            "Target address: 0x%p\r\n",
-            ep->ExceptionRecord->ExceptionInformation[0] ? "WRITE" : "READ",
-            (void*)ep->ExceptionRecord->ExceptionInformation[1]);
+        // Append "\crash_log.txt" via memcpy (compiler intrinsic, safe)
+        size_t baseLen = strlen(path);
+        if (baseLen + 15 <= MAX_PATH)
+        {
+            memcpy(path + baseLen, "\\crash_log.txt", 15); // includes null
+
+            HANDLE hFile = CreateFileA(path, GENERIC_WRITE, 0, NULL,
+                CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+            if (hFile != INVALID_HANDLE_VALUE)
+            {
+                DWORD n;
+                auto W = [&](const void* d, DWORD len) { WriteFile(hFile, d, len, &n, NULL); };
+
+                // Manual hex formatting — no CRT printf
+                auto hex32 = [](char* out, DWORD v) {
+                    for (int i = 7; i >= 0; i--) {
+                        int nib = (v >> (i * 4)) & 0xF;
+                        out[7 - i] = nib < 10 ? '0' + (char)nib : 'A' + (char)(nib - 10);
+                    }
+                    out[8] = 0;
+                };
+                auto hex64 = [](char* out, ULONG64 v) {
+                    for (int i = 15; i >= 0; i--) {
+                        int nib = (int)((v >> (i * 4)) & 0xF);
+                        out[15 - i] = nib < 10 ? '0' + (char)nib : 'A' + (char)(nib - 10);
+                    }
+                    out[16] = 0;
+                };
+
+                DWORD code = ep->ExceptionRecord->ExceptionCode;
+                ULONG64 addr = (ULONG64)(uintptr_t)ep->ExceptionRecord->ExceptionAddress;
+                DWORD flags = ep->ExceptionRecord->ExceptionFlags;
+
+                W("CRASH\r\nCode: 0x", 12);
+                char tmp[17];
+                hex32(tmp, code); W(tmp, 8);
+
+                W("\r\nAddr: 0x", 10);
+                hex64(tmp, addr); W(tmp, 16);
+
+                W("\r\nFlag: 0x", 10);
+                hex32(tmp, flags); W(tmp, 8);
+
+                if (code == EXCEPTION_ACCESS_VIOLATION && ep->ExceptionRecord->NumberParameters >= 2)
+                {
+                    ULONG64 target = ep->ExceptionRecord->ExceptionInformation[1];
+                    W("\r\nAccs: ", 7);
+                    W(ep->ExceptionRecord->ExceptionInformation[0] ? "WRITE" : "READ", 4);
+                    W("\r\nTrgt: 0x", 10);
+                    hex64(tmp, target); W(tmp, 16);
+                }
+
+                W("\r\n", 2);
+                CloseHandle(hFile);
+            }
+        }
     }
 
-    off += sprintf_s(buf + off, sizeof(buf) - off,
-        "\r\nDisassemble the exception address to find the crashing source line.\r\n");
+    // MessageBox as visible confirmation
+    char msg[128];
+    wsprintfA(msg, "Crash! Code: 0x%08lX\nAddr: %p",
+        ep->ExceptionRecord->ExceptionCode,
+        ep->ExceptionRecord->ExceptionAddress);
+    MessageBoxA(NULL, msg, "miserable.exe - Crash Handler", MB_OK | MB_ICONERROR);
 
-    DWORD written = 0;
-    WriteFile(hFile, buf, off, &written, NULL);
-    CloseHandle(hFile);
-
-    OutputDebugStringA("[VEH] Crash logged to crash_log.txt\n");
-
+    OutputDebugStringA("[VEH] Caught crash, wrote to Desktop\\crash_log.txt\n");
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
@@ -336,8 +353,12 @@ std::int32_t main(std::int32_t argc, char** argv[])
         return 1;
     }
     // Register VEH early — catches crashes on ALL threads (including cache/aim/etc.)
-    AddVectoredExceptionHandler(1, VectoredHandler);
-    OutputDebugStringA("[VEH] Registered VectoredExceptionHandler\n");
+    PVOID vehHandle = AddVectoredExceptionHandler(1, VectoredHandler);
+    if (vehHandle) {
+        OutputDebugStringA("[VEH] VEH registered successfully\n");
+    } else {
+        OutputDebugStringA("[VEH] VEH REGISTRATION FAILED!\n");
+    }
 
     renderLoop();
     return 0;
