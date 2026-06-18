@@ -50,6 +50,48 @@ static int CrashFilter(DWORD code, LPEXCEPTION_POINTERS ep)
 // Forward declaration from graphic.cpp
 extern bool g_frameHadContent;
 
+// ========================================================================
+// Render loop with SEH crash handler — separate function so SEH doesn't
+// conflict with C++ try/catch in main() or require object unwinding.
+// ========================================================================
+static void renderLoop()
+{
+    // Console auto-refresh timer (every 2 seconds to show updated offsets)
+    double lastConsoleRefresh = 0.0;
+
+    for (;;)
+    {
+        __try
+        {
+            OutputDebugStringA("[RENDER] begin\n");
+            screen->begin();
+
+            OutputDebugStringA("[RENDER] visual\n");
+            screen->visual();
+
+            OutputDebugStringA("[RENDER] menu\n");
+            screen->menu();
+
+            OutputDebugStringA("[RENDER] end\n");
+            screen->end();
+        }
+        __except (CrashFilter(GetExceptionCode(), GetExceptionInformation()))
+        {
+            // CrashFilter already wrote detail to crash_log.txt
+            // Small sleep to let debug output flush
+            Sleep(1000);
+            ExitProcess(1);
+        }
+
+        // Refresh console offsets display every 2 seconds
+        double now = ImGui::GetTime();
+        if (now - lastConsoleRefresh >= 2.0) {
+            lastConsoleRefresh = now;
+            console::refresh();
+        }
+    }
+}
+
 namespace
 {
     bool process(const char* processName)
@@ -267,40 +309,6 @@ std::int32_t main(std::int32_t argc, char** argv[])
         return 1;
     }
 
-    // Console auto-refresh timer (every 2 seconds to show updated offsets)
-    double lastConsoleRefresh = 0.0;
-
-    for (;;)
-    {
-        __try
-        {
-            OutputDebugStringA("[RENDER] begin\n");
-            screen->begin();
-
-            OutputDebugStringA("[RENDER] visual\n");
-            screen->visual();
-
-            OutputDebugStringA("[RENDER] menu\n");
-            screen->menu();
-
-            OutputDebugStringA("[RENDER] end\n");
-            screen->end();
-        }
-        __except (CrashFilter(GetExceptionCode(), GetExceptionInformation()))
-        {
-            // CrashFilter already wrote detail to crash_log.txt
-            // Small sleep to let debug output flush
-            Sleep(1000);
-            ExitProcess(1);
-        }
-
-        // Refresh console offsets display every 2 seconds
-        double now = ImGui::GetTime();
-        if (now - lastConsoleRefresh >= 2.0) {
-            lastConsoleRefresh = now;
-            console::refresh();
-        }
-    }
-
+    renderLoop();
     return 0;
 }
