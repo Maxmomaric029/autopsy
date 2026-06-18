@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include <TlHelp32.h>
 #include <string>
+#include <cstdio>
 #include "config.h"
 
 #include "core/memory.h"
@@ -19,6 +20,32 @@
 #include "features/silent.h"
 #include <ShlObj.h>
 #pragma comment(lib, "Shell32.lib")
+
+// ========================================================================
+// SEH crash handler — logs exception details to crash_log.txt
+// ========================================================================
+static int CrashFilter(DWORD code, LPEXCEPTION_POINTERS ep)
+{
+    FILE* f = fopen("crash_log.txt", "w");
+    if (f) {
+        fprintf(f, "🚨 CRASH\n");
+        fprintf(f, "Exception code: 0x%08X\n", code);
+        if (ep && ep->ExceptionRecord) {
+            fprintf(f, "Exception address: 0x%p\n", ep->ExceptionRecord->ExceptionAddress);
+            fprintf(f, "Exception flags: 0x%X\n", ep->ExceptionRecord->ExceptionFlags);
+            if (ep->ExceptionRecord->NumberParameters > 0) {
+                fprintf(f, "Parameters: ");
+                for (DWORD i = 0; i < ep->ExceptionRecord->NumberParameters; i++)
+                    fprintf(f, "0x%p ", (void*)ep->ExceptionRecord->ExceptionInformation[i]);
+                fprintf(f, "\n");
+            }
+        }
+        fprintf(f, "\nCheck the address in the disassembly to find the crashing line.\n");
+        fclose(f);
+    }
+    OutputDebugStringA("[CRASH] Exception caught. Written to crash_log.txt\n");
+    return EXCEPTION_EXECUTE_HANDLER;
+}
 
 // Forward declaration from graphic.cpp
 extern bool g_frameHadContent;
@@ -245,10 +272,27 @@ std::int32_t main(std::int32_t argc, char** argv[])
 
     for (;;)
     {
-        screen->begin();
-        screen->visual();
-        screen->menu();
-        screen->end();
+        __try
+        {
+            OutputDebugStringA("[RENDER] begin\n");
+            screen->begin();
+
+            OutputDebugStringA("[RENDER] visual\n");
+            screen->visual();
+
+            OutputDebugStringA("[RENDER] menu\n");
+            screen->menu();
+
+            OutputDebugStringA("[RENDER] end\n");
+            screen->end();
+        }
+        __except (CrashFilter(GetExceptionCode(), GetExceptionInformation()))
+        {
+            // CrashFilter already wrote detail to crash_log.txt
+            // Small sleep to let debug output flush
+            Sleep(1000);
+            ExitProcess(1);
+        }
 
         // Refresh console offsets display every 2 seconds
         double now = ImGui::GetTime();
