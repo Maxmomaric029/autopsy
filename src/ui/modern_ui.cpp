@@ -845,9 +845,9 @@ namespace {
             dl->AddTriangleFilled(tri[0] + ImVec2(0.f, 1.f), tri[1] + ImVec2(0.f, 1.f), tri[2] + ImVec2(0.f, 1.f), IM_COL32(0, 0, 0, 150));
             dl->AddTriangleFilled(tri[0], tri[1], tri[2], IM_COL32(220, 230, 245, 255));
             ImGui::PushFont(font::label());
-            dl->AddText(p + ImVec2(14.f, 10.f), IM_COL32(220, 230, 245, 255), \"RADAR\");
+            dl->AddText(p + ImVec2(14.f, 10.f), IM_COL32(220, 230, 245, 255), "RADAR");
             ImGui::PopFont();
-            char zt[32]{}; std::snprintf(zt, sizeof(zt), \"%.2fx\", global::overlay::Radar_Zoom);
+            char zt[32]{}; std::snprintf(zt, sizeof(zt), "%.2fx", global::overlay::Radar_Zoom);
             ImVec2 zs = ImGui::CalcTextSize(zt);
             dl->AddText(ImVec2(p.x + s.x - zs.x - 14.f, p.y + 11.f), accent2(), zt);
         }
@@ -886,10 +886,10 @@ namespace {
             if (threat.Count <= 0) return;
             ImVec2 display = ImGui::GetIO().DisplaySize;
             float pulse = (sinf((float)ImGui::GetTime() * 6.0f) + 1.f) * .5f;
-            const char* title = \"AIM WARNING\";
+            const char* title = "AIM WARNING";
             char detail[96]{};
-            if (threat.Count == 1) std::snprintf(detail, sizeof(detail), \"%s is aiming at you\", threat.name.c_str());
-            else std::snprintf(detail, sizeof(detail), \"%dx players aiming at you\", threat.Count);
+            if (threat.Count == 1) std::snprintf(detail, sizeof(detail), "%s is aiming at you", threat.name.c_str());
+            else std::snprintf(detail, sizeof(detail), "%dx players aiming at you", threat.Count);
             ImVec2 ts = ImGui::CalcTextSize(title);
             ImVec2 ds = ImGui::CalcTextSize(detail);
             float width = ImClamp(ImMax(ts.x, ds.x) + 74.f, 258.f, 420.f);
@@ -907,7 +907,7 @@ namespace {
             ImVec2 icon(wm.x + 22.f, wm.y + 29.f);
             dl->AddTriangleFilled(icon + ImVec2(0.f, -12.f), icon + ImVec2(12.f, 10.f), icon + ImVec2(-12.f, 10.f), IM_COL32(255, 80, 104, 235));
             ImGui::PushFont(font::label());
-            dl->AddText(ImVec2(icon.x - 3.f, icon.y - 8.f), IM_COL32(23, 6, 12, 255), \"!\");
+            dl->AddText(ImVec2(icon.x - 3.f, icon.y - 8.f), IM_COL32(23, 6, 12, 255), "!");
             dl->AddText(ImVec2(wm.x + 48.f, wm.y + 9.f), IM_COL32(255, 238, 241, 255), title);
             dl->AddText(ImVec2(wm.x + 48.f, wm.y + 33.f), IM_COL32(255, 178, 190, 255), detail);
             ImGui::PopFont();
