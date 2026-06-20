@@ -124,16 +124,6 @@ namespace page {
             if (global::aim::FovSpin)
                 w::sliderint("Spin Speed", &global::aim::FovSpinSpeed, 1, 5);
 
-            w::gap(theme::space::md);
-            w::labelsection("STATS");
-            // Stats display as a table
-            const float statW = (theme::kRightPanelW - 42.f) * 0.5f;
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Scanned");
-            ImGui::SameLine(statW + 10.f);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "1,247");
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Hit Rate");
-            ImGui::SameLine(statW + 10.f);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "98.2%%");
         }
         w::card::end();
     }
@@ -218,21 +208,6 @@ namespace page {
             ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Trails");
             w::color4("##trail_col", global::esp::color::Trails);
 
-            w::gap(theme::space::sm);
-            w::labelsection("SESSION");
-            const float statW = (halfLeft * 0.5f);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Players");
-            ImGui::SameLine(statW + 10.f);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "247");
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "FPS");
-            ImGui::SameLine(statW + 10.f);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "143");
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Latency");
-            ImGui::SameLine(statW + 10.f);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "12ms");
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Uptime");
-            ImGui::SameLine(statW + 10.f);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "99%%");
         }
         w::card::end();
 
@@ -254,21 +229,6 @@ namespace page {
             ImGui::SameLine(ImGui::GetContentRegionMax().x - 22.f);
             w::color4("##trc", global::esp::color::Trails);
 
-            w::gap(theme::space::md);
-            w::labelsection("SESSION");
-            const float statW2 = (theme::kRightPanelW - 42.f) * 0.5f;
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Players");
-            ImGui::SameLine(statW2 + 10.f);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "247");
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "FPS");
-            ImGui::SameLine(statW2 + 10.f);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "143");
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Latency");
-            ImGui::SameLine(statW2 + 10.f);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "12ms");
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Uptime");
-            ImGui::SameLine(statW2 + 10.f);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "99%%");
         }
         w::card::end();
     }
