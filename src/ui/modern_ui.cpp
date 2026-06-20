@@ -298,9 +298,11 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
             // Step 3: Add SetWindowPos back
 
             MarkStep("H—SetWindowLong start");
-            // Siempre WS_EX_TRANSPARENT para que clicks pasen al juego detrás
-            SetWindowLong(overlayWindow, GWL_EXSTYLE,
-                WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT);
+            // WS_EX_TRANSPARENT solo cuando el menú está cerrado (modo HUD)
+            // para que clicks pasen al juego. Al abrir menú, se quita para poder clickear la UI.
+            LONG exStyle = WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_LAYERED;
+            if (!m_open) exStyle |= WS_EX_TRANSPARENT;
+            SetWindowLong(overlayWindow, GWL_EXSTYLE, exStyle);
             MarkStep("I—SetWindowLong done");
 
             MarkStep("J—SetWindowPos start");
