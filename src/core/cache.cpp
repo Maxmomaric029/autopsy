@@ -123,7 +123,9 @@ namespace cache {
         while (true) {
             if (post_change_delay > 0) { --post_change_delay; std::this_thread::sleep_for(std::chrono::milliseconds(100)); continue; }
             try {
-                global::model.Address = sdk::resolve_datamodel();
+                // Solo re-resolver si la dirección actual es inválida
+                if (global::model.Address == 0)
+                    global::model.Address = sdk::resolve_datamodel();
 
                 if (global::model.Address != 0) {
                     std::uint64_t GameID = drive->read<uint64_t>(global::model.Address + offset::datamodel::PlaceId);

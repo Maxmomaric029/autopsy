@@ -2,6 +2,7 @@
 #include "global.h"
 #include <cstring>
 #include <cstdarg>
+#include <cstdio>
 
 namespace sdk {
 
@@ -19,7 +20,7 @@ namespace sdk {
             return 0;
         }
 
-        FILE* log = fopen("datamodel_debug.txt", "a");
+        FILE* log = fopen("datamodel_debug.txt", "w");
         auto L = [log](const char* fmt, auto... args) {
             if (!log) return;
             fprintf(log, fmt, args...);
