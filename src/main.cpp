@@ -318,15 +318,28 @@ std::int32_t main(std::int32_t argc, char** argv[])
     drive->module(BINARY_NAME);
     console::success("Driver acoplado con exito. ModuloBase: 0x%llX", (unsigned long long)drive->modulebase());
 
-    auto fakemodel = drive->read<std::uint64_t>(drive->modulebase() + offset::fakemodel::Pointer);
-    global::model.Address = drive->read<std::uint64_t>(fakemodel + offset::fakemodel::RealDataModel);
     global::render.Address = drive->read<std::uint64_t>(drive->modulebase() + offset::render::Pointer);
-    global::actor.Address = global::model.childclass("Players").Address;
-    global::workspace.Address = global::model.childclass("Workspace").Address;
-    global::camera.Address = global::workspace.childclass("Camera").Address;
-    auto Lightin = global::model.childclass("Lighting");
-    global::light = sdk::light(Lightin.Address);
-    console::success("DataModel obtenido: 0x%llX", (unsigned long long)global::model.Address);
+
+    // Resolver DataModel con reintentos — 3 rutas (Directa, VisualEngine, RenderJob)
+    global::model.Address = sdk::resolve_datamodel();
+    int dmRetries = 0;
+    while (!global::model.Address && dmRetries < 20) {
+        console::warn("Reintentando DataModel (%d/20)...", dmRetries + 1);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+        global::model.Address = sdk::resolve_datamodel();
+        dmRetries++;
+    }
+
+    if (global::model.Address) {
+        global::actor.Address = global::model.childclass("Players").Address;
+        global::workspace.Address = global::model.childclass("Workspace").Address;
+        global::camera.Address = global::workspace.childclass("Camera").Address;
+        auto Lightin = global::model.childclass("Lighting");
+        global::light = sdk::light(Lightin.Address);
+        console::success("DataModel obtenido: 0x%llX", (unsigned long long)global::model.Address);
+    } else {
+        console::error("NO SE PUDO RESOLVER EL DATAMODEL (ver datamodel_debug.txt)");
+    }
 
     // ---- Background update threads ----
     // cache, aim, silent, ball each have their own timing and data requirements.

@@ -123,8 +123,7 @@ namespace cache {
         while (true) {
             if (post_change_delay > 0) { --post_change_delay; std::this_thread::sleep_for(std::chrono::milliseconds(100)); continue; }
             try {
-                auto fakemodel = drive->read<std::uint64_t>(drive->modulebase() + offset::fakemodel::Pointer);
-                global::model.Address = drive->read<std::uint64_t>(fakemodel + offset::fakemodel::RealDataModel);
+                global::model.Address = sdk::resolve_datamodel();
 
                 if (global::model.Address != 0) {
                     std::uint64_t GameID = drive->read<uint64_t>(global::model.Address + offset::datamodel::PlaceId);

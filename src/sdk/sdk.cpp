@@ -1,7 +1,155 @@
 #include "sdk.h"
 #include "global.h"
+#include <cstring>
+#include <cstdarg>
 
 namespace sdk {
+
+    // ------------------------------------------------------------------
+    // DataModel resolver — tries 3 paths, validates every pointer.
+    // Writes to datamodel_debug.txt so we can trace failures.
+    // ------------------------------------------------------------------
+    static bool dm_is_valid(uint64_t addr) {
+        return addr != 0 && addr != 0xFFFFFFFFFFFFFFFF;
+    }
+
+    uint64_t resolve_datamodel() {
+        uint64_t base = drive->modulebase();
+        if (!dm_is_valid(base)) {
+            return 0;
+        }
+
+        FILE* log = fopen("datamodel_debug.txt", "a");
+        auto L = [log](const char* fmt, auto... args) {
+            if (!log) return;
+            fprintf(log, fmt, args...);
+            fflush(log);
+        };
+
+        L("=== resolve_datamodel() modulebase=0x%llX ===\n", (unsigned long long)base);
+
+        // ==================================================================
+        // Path A: Direct FakeDataModel (current approach)
+        //   modulebase + fakemodel::Pointer -> FakeDataModel
+        //   FakeDataModel + RealDataModel -> DataModel
+        // ==================================================================
+        {
+            uint64_t fmAddr = base + offset::fakemodel::Pointer;
+            uint64_t fm = drive->read<uint64_t>(fmAddr);
+            L("[A] [base+0x%llX] = 0x%llX\n",
+                (unsigned long long)offset::fakemodel::Pointer, (unsigned long long)fm);
+
+            if (dm_is_valid(fm)) {
+                uint64_t dm = drive->read<uint64_t>(fm + offset::fakemodel::RealDataModel);
+                L("[A] [0x%llX+0x%llX] = 0x%llX\n",
+                    (unsigned long long)fm, (unsigned long long)offset::fakemodel::RealDataModel,
+                    (unsigned long long)dm);
+                if (dm_is_valid(dm)) {
+                    L("[A] SUCCESS: DataModel = 0x%llX\n", (unsigned long long)dm);
+                    fclose(log);
+                    return dm;
+                }
+                L("[A] RealDataModel invalid\n");
+            } else {
+                L("[A] FakeDataModel invalid\n");
+            }
+        }
+
+        // ==================================================================
+        // Path B: Via VisualEngine -> FakeDataModel -> RealDataModel
+        //   modulebase + render::Pointer -> VisualEngine
+        //   VisualEngine + render::fakemodel -> FakeDataModel
+        //   FakeDataModel + fakemodel::RealDataModel -> DataModel
+        // ==================================================================
+        {
+            uint64_t ve = drive->read<uint64_t>(base + offset::render::Pointer);
+            L("[B] VisualEngine = 0x%llX\n", (unsigned long long)ve);
+
+            if (dm_is_valid(ve)) {
+                uint64_t fm = drive->read<uint64_t>(ve + offset::render::fakemodel);
+                L("[B] [VE+0x%llX] = 0x%llX\n",
+                    (unsigned long long)offset::render::fakemodel, (unsigned long long)fm);
+
+                if (dm_is_valid(fm)) {
+                    uint64_t dm = drive->read<uint64_t>(fm + offset::fakemodel::RealDataModel);
+                    L("[B] [FM+0x%llX] = 0x%llX\n",
+                        (unsigned long long)offset::fakemodel::RealDataModel, (unsigned long long)dm);
+                    if (dm_is_valid(dm)) {
+                        L("[B] SUCCESS: DataModel = 0x%llX\n", (unsigned long long)dm);
+                        fclose(log);
+                        return dm;
+                    }
+                }
+            }
+        }
+
+        // ==================================================================
+        // Path C: Via TaskScheduler -> RenderJob -> RealDataModel
+        //   modulebase + task::Pointer -> TaskScheduler
+        //   TaskScheduler + JobStart/JobEnd -> iterate jobs
+        //   Find "RenderJob" -> job + job::RealDataModel -> DataModel
+        //   Fallback: job + job::fakemodel -> fakemodel::RealDataModel
+        // ==================================================================
+        {
+            uint64_t ts = drive->read<uint64_t>(base + offset::task::Pointer);
+            L("[C] TaskScheduler = 0x%llX\n", (unsigned long long)ts);
+
+            if (dm_is_valid(ts)) {
+                uint64_t jobStart = drive->read<uint64_t>(ts + offset::task::JobStart);
+                uint64_t jobEnd   = drive->read<uint64_t>(ts + offset::task::JobEnd);
+                L("[C] JobStart=0x%llX JobEnd=0x%llX\n",
+                    (unsigned long long)jobStart, (unsigned long long)jobEnd);
+
+                if (dm_is_valid(jobStart) && dm_is_valid(jobEnd) && jobEnd > jobStart) {
+                    uint64_t maxBytes = jobEnd - jobStart;
+                    if (maxBytes > 5000 * 8) maxBytes = 5000 * 8;
+
+                    for (uint64_t p = jobStart; p < jobStart + maxBytes; p += 8) {
+                        uint64_t job = drive->read<uint64_t>(p);
+                        if (!dm_is_valid(job)) continue;
+
+                        // Read job name as Roblox string
+                        std::string jn = drive->readstring(job + offset::task::JobName);
+                        if (jn.empty() || jn == "?") continue;
+
+                        if (jn == "RenderJob") {
+                            L("[C] Found RenderJob at 0x%llX\n", (unsigned long long)job);
+
+                            // Try job::RealDataModel first
+                            uint64_t dm = drive->read<uint64_t>(job + offset::job::RealDataModel);
+                            L("[C] [Job+0x%llX] = 0x%llX (job::RealDataModel)\n",
+                                (unsigned long long)offset::job::RealDataModel, (unsigned long long)dm);
+                            if (dm_is_valid(dm)) {
+                                L("[C] SUCCESS via job::RealDataModel: 0x%llX\n", (unsigned long long)dm);
+                                fclose(log);
+                                return dm;
+                            }
+
+                            // Fallback: job::fakemodel -> fakemodel::RealDataModel
+                            uint64_t fm = drive->read<uint64_t>(job + offset::job::fakemodel);
+                            L("[C] [Job+0x%llX] = 0x%llX (job::fakemodel)\n",
+                                (unsigned long long)offset::job::fakemodel, (unsigned long long)fm);
+                            if (dm_is_valid(fm)) {
+                                dm = drive->read<uint64_t>(fm + offset::fakemodel::RealDataModel);
+                                L("[C] [FM+0x%llX] = 0x%llX\n",
+                                    (unsigned long long)offset::fakemodel::RealDataModel, (unsigned long long)dm);
+                                if (dm_is_valid(dm)) {
+                                    L("[C] SUCCESS via job->FM: 0x%llX\n", (unsigned long long)dm);
+                                    fclose(log);
+                                    return dm;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        L("[DM] ALL PATHS FAILED\n");
+        fclose(log);
+        return 0;
+    }
 
     // ---- instance ----
 

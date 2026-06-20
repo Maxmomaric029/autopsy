@@ -189,6 +189,10 @@ namespace sdk
         static void fov(uintptr_t CameraAddress, float Degrees);
     };
 
+    // Multi-path DataModel resolver with validation and fallbacks
+    // Tries: Direct FakeDataModel -> VisualEngine -> RenderJob/TaskScheduler
+    uint64_t resolve_datamodel();
+
     class player
     {
     public:
