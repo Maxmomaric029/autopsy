@@ -252,53 +252,46 @@ namespace w {
 
     // ========================================================================
     // Section header (labelsection)
-    // Left bar: 3px wide, gradient ACCENT → transparent
-    // Text: JetBrains Mono 9px uppercase, letter-spacing 0.14em, color MUTED
+    // Left bar: 2px wide, muted accent gradient
+    // Text: Inter Regular 11px sentence case, color MUTED
     // Separator: 1px line under text, fade horizontal
     // ========================================================================
     inline void labelsection(const char* text) {
         ImDrawList* dl = ImGui::GetWindowDrawList();
         const ImVec2 p  = ImGui::GetCursorScreenPos();
-        ImGui::PushFont(font::mono());
-        const float  fh = font::size::mono;
+        ImGui::PushFont(font::body());
+        const float  fh = font::size::body;
         ImGui::PopFont();
         const float contentWidth = ImGui::GetContentRegionAvail().x;
 
-        // Background tint (subtle accent gradient)
-        dl->AddRectFilledMultiColor(
-            p, p + ImVec2(contentWidth * 0.4f, fh + 4.f),
-            IM_COL32(200, 241, 53, 5), IM_COL32(0, 0, 0, 0),
-            IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 0));
-
-        // Left accent bar — 3px wide, vertical gradient
+        // Left accent bar — 2px wide, subtle
         const float barH = fh + 2.f;
-        dl->AddRectFilledMultiColor(
+        dl->AddRectFilled(
             { p.x, p.y },
-            { p.x + 3.f, p.y + barH },
-            theme::col_accent(),
-            theme::col_accent(),
-            theme::alpha(theme::col_accent(), 0.f),
-            theme::alpha(theme::col_accent(), 0.f));
+            { p.x + 2.f, p.y + barH },
+            theme::alpha(theme::col_accent(), 0.45f));
 
         // Text
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 10.f);
-        ImGui::PushFont(font::mono());
-        dl->AddText(p + ImVec2(10.f, 0.f),
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 9.f);
+        ImGui::PushFont(font::body());
+        dl->AddText(p + ImVec2(9.f, 0.f),
             theme::col_muted(), text);
         ImGui::PopFont();
 
         // Separator line under text — fade horizontal
         const ImVec2 lp = ImGui::GetCursorScreenPos();
-        float textEndX = p.x + 10.f + ImGui::CalcTextSize(text).x * (font::size::uppercase / 13.f);
+        float textEndX = p.x + 9.f + ImGui::CalcTextSize(text).x;
         const float lw = ImGui::GetContentRegionAvail().x;
         float sepStart = ImMax(lp.x, textEndX + 8.f);
         float sepW = lw - (sepStart - lp.x);
-        dl->AddRectFilledMultiColor(
-            { sepStart, lp.y + 4.f },
-            { sepStart + sepW * 0.7f, lp.y + 5.f },
-            IM_COL32(255, 255, 255, 11), IM_COL32(0, 0, 0, 0),
-            IM_COL32(0, 0, 0, 0), IM_COL32(255, 255, 255, 11));
-        ImGui::Dummy({ 0.f, 8.f });
+        if (sepW > 4.f) {
+            dl->AddRectFilledMultiColor(
+                { sepStart, lp.y + 4.f },
+                { sepStart + sepW * 0.5f, lp.y + 5.f },
+                IM_COL32(255, 255, 255, 8), IM_COL32(0, 0, 0, 0),
+                IM_COL32(0, 0, 0, 0), IM_COL32(255, 255, 255, 8));
+        }
+        ImGui::Dummy({ 0.f, 6.f });
     }
 
     // ========================================================================
@@ -376,10 +369,10 @@ namespace w {
         if (!kn || !*kn) kn = "NONE";
         const char* mn = (mode == ImKeyBindMode::Hold) ? "HOLD" : "TOGG";
         ImGui::PushFont(font::mono());
-        const float kw = ImMax(ImGui::CalcTextSize(kn).x + 14.f, 38.f);
-        const float mw = ImGui::CalcTextSize(mn).x + 10.f;
+        const float kw = ImMax(ImGui::CalcTextSize(kn).x + 16.f, 42.f);
+        const float mw = ImGui::CalcTextSize(mn).x + 14.f;
         ImGui::PopFont();
-        return kw + 3.f + mw;
+        return kw + 4.f + mw;
     }
 
     inline void bind(const char* id, ImGuiKey* key, ImKeyBindMode* mode) {
@@ -437,7 +430,7 @@ namespace w {
             keyTxt, keyText);
 
         // Mode chip
-        ImGui::SameLine(0.f, 3.f);
+        ImGui::SameLine(0.f, 4.f);
         const ImVec2 mp = ImGui::GetCursorScreenPos();
         ImGui::InvisibleButton("##m", { mw, h });
         const bool mhov = ImGui::IsItemHovered();
@@ -450,11 +443,15 @@ namespace w {
             ? IM_COL32(200, 241, 53, (int)(255 * 0.08f))
             : IM_COL32(23, 23, 27, 255);
         dl->AddRectFilled(mp, mp + ImVec2(mw, h), modeBg, 5.f);
-        dl->AddRect(mp, mp + ImVec2(mw, h), IM_COL32(255, 255, 255, 15), 5.f, 0, 1.f);
+        ImU32 modeBrd = mhov
+            ? IM_COL32(200, 241, 53, 80)
+            : IM_COL32(255, 255, 255, 15);
+        dl->AddRect(mp, mp + ImVec2(mw, h), modeBrd, 5.f, 0, 1.f);
 
         const float mtw = ImGui::CalcTextSize(mn).x;
+        ImU32 modeTxt = mhov ? theme::col_accent() : IM_COL32(120, 120, 128, 255);
         dl->AddText({ mp.x + (mw - mtw) * 0.5f, mp.y + (h - font::size::mono_sm) * 0.5f + 1.f },
-            IM_COL32(90, 90, 96, 255), mn);
+            modeTxt, mn);
         ImGui::PopFont();
 
         ImGui::PopID();

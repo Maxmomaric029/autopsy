@@ -202,7 +202,7 @@ namespace global {
 		inline float PredictionY{ 0.135f };
 		inline float PredictionZ{ 0.135f };
 		inline ImGuiKey Silent_Key = ImGuiKey_Q;
-		inline ImKeyBindMode Silent_Mode = ImKeyBindMode_Toggle;
+		inline ImKeyBindMode Silent_Mode = ImKeyBindMode_Hold;
 		inline int AimPart{ 0 };
 		inline float FovColor[4]{ 0.392f, 0.459f, 1.0f, 1.0f };
 		inline int FovSpinSpeed = 1;

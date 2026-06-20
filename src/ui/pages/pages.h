@@ -17,8 +17,7 @@ namespace page {
     // Tab 0 — AIMBOT
     // ========================================================================
     inline void aimbot(float contentW, float contentH) {
-        const float leftW = (contentW - theme::kRightPanelW - theme::space::md);
-        const float halfLeft = (leftW - theme::space::md) * 0.5f;
+        const float halfLeft = (contentW - theme::space::md) * 0.5f;
 
         // ---- Left card: AIMBOT ----
         if (w::card::begin("##ab_main", { halfLeft, contentH }, "AIMBOT")) {
@@ -29,7 +28,7 @@ namespace page {
 
             w::gap(theme::space::sm);
             w::labelsection("TARGETING");
-            w::pill_toolbar("##aim_type", {"Free Aim","Mouse Aim","Cam Lock"}, &global::aim::Aimbot_type);
+            w::pill_toolbar("##aim_type", {"Memory","Mouse","Camera"}, &global::aim::Aimbot_type);
             w::gap(theme::space::xs);
             w::pill_toolbar("##aim_prio", {"Crosshair","Distance"}, &global::aim::TargetPriority);
             w::gap(theme::space::xs);
@@ -75,6 +74,14 @@ namespace page {
                 w::sliderfloat("TB Radius", &global::aim::TriggerRadius, 1.f, 25.f);
                 w::sliderint("TB Delay ms", &global::aim::TriggerDelayMs, 0, 250);
             }
+
+            w::gap(theme::space::sm);
+            w::labelsection("FIELD OF VIEW");
+            w::togglecolor("Draw Aimbot FOV", &global::aim::DrawFov, "##ab_fovc", global::aim::FovColor);
+            w::sliderfloat("FOV Size", &global::aim::FovSize, 1.f, 500.f);
+            w::toggle("Spin FOV", &global::aim::FovSpin);
+            if (global::aim::FovSpin)
+                w::sliderint("Spin Speed", &global::aim::FovSpinSpeed, 1, 5);
         }
         w::card::end();
 
@@ -109,21 +116,10 @@ namespace page {
                     w::sliderfloat("Pred Z", &global::silent::PredictionZ, 0.f, 0.5f);
                 }
             }
-        }
-        w::card::end();
 
-        // ---- Right panel: FOV + STATS ----
-        ImGui::SameLine(0.f, theme::space::md);
-
-        if (w::card::begin("##fov_panel", { theme::kRightPanelW, contentH }, "FOV & STATS")) {
-            w::labelsection("FOV");
-            w::togglecolor("Draw Aimbot FOV", &global::aim::DrawFov, "##ab_fovc", global::aim::FovColor);
+            w::gap(theme::space::sm);
+            w::labelsection("FIELD OF VIEW");
             w::togglecolor("Draw Silent FOV", &global::silent::DrawFov, "##si_fovc", global::silent::FovColor);
-            w::sliderfloat("FOV Size", &global::aim::FovSize, 1.f, 500.f);
-            w::toggle("Spin FOV", &global::aim::FovSpin);
-            if (global::aim::FovSpin)
-                w::sliderint("Spin Speed", &global::aim::FovSpinSpeed, 1, 5);
-
         }
         w::card::end();
     }
