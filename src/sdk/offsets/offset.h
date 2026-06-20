@@ -1095,6 +1095,41 @@ inline void init() {
 
 #undef MAP
 #undef TRY
+
+    // ==================================================================
+    // Flat-name fallbacks for rbxoffsets.xyz format
+    // (offsets where PascalCase split doesn't produce expected class/field)
+    // Uses get_offset("offsets", "FullName") to look up flat keys.
+    // Only sets if value > 0 (to avoid overriding defaults with 0).
+    // ==================================================================
+    auto flat = [&](const char* fullName, uintptr_t& target) {
+        uintptr_t v = mgr.get_offset("offsets", fullName);
+        if (v) target = v;
+    };
+
+    // Critical pointer offsets (must match for DataModel resolution)
+    flat("FakeDataModelToDataModel", offset::fakemodel::RealDataModel);
+    flat("FakeDataModel",           offset::render::fakemodel);
+    flat("Job_Name",                offset::task::JobName);
+    flat("JobStart",                offset::task::JobStart);
+    flat("JobEnd",                  offset::task::JobEnd);
+
+    // Field/instance offsets that won't split correctly
+    flat("Name",                    offset::instance::name);
+    flat("NameSize",                offset::misc::StringLength);
+    flat("TextLabelText",           offset::gui::text);
+    flat("TextLabelVisible",        offset::gui::Visible);
+    flat("MousePosition",           offset::mouseservice::MousePosition);
+    flat("GuiPosition",             offset::gui::Position);
+    flat("GuiSize",                 offset::gui::Size);
+    flat("GuiRotation",             offset::gui::Rotation);
+
+    // Workspace/world offsets
+    flat("World",                   offset::workspace::world);
+    flat("PartSize",                offset::primitive::Size);
+    flat("Velocity",                offset::primitive::AssemblyLinearVelocity);
+    flat("Primitive",               offset::basepart::primitive);
+    flat("Children",                offset::instance::ChildrenStart);
 }
 
 }

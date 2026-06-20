@@ -20,7 +20,7 @@ OffsetsManager& OffsetsManager::instance() {
 }
 
 // ------------------------------------------------------------------
-// WinHTTP GET helper
+// WinHTTP GET helper (with custom header for rbxoffsets.xyz)
 // ------------------------------------------------------------------
 std::string OffsetsManager::http_get(const wchar_t* host, const wchar_t* path) {
     HINTERNET hSession = WinHttpOpen(
@@ -51,8 +51,10 @@ std::string OffsetsManager::http_get(const wchar_t* host, const wchar_t* path) {
     // Set timeouts: resolve=5s, connect=5s, send=5s, receive=5s
     WinHttpSetTimeouts(hRequest, 5000, 5000, 5000, 5000);
 
+    // Required auth header for rbxoffsets.xyz API
+    LPCWSTR headers = L"rbxoffsets.xyz: apiv1\r\n";
     BOOL ok = WinHttpSendRequest(
-        hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
+        hRequest, headers, (DWORD)wcslen(headers),
         WINHTTP_NO_REQUEST_DATA, 0, 0, 0);
     if (!ok || !WinHttpReceiveResponse(hRequest, nullptr)) {
         WinHttpCloseHandle(hRequest);
@@ -93,10 +95,17 @@ std::string OffsetsManager::http_get(const wchar_t* host, const wchar_t* path) {
 }
 
 // ------------------------------------------------------------------
-// fetch_hpp - Download the .hpp offsets file from GitHub
+// fetch_hpp - Download offsets from rbxoffsets.xyz API
 // ------------------------------------------------------------------
 std::string OffsetsManager::fetch_hpp() {
-    return http_get(HOST, PATH);
+    // Try latest first, then fallback to version-specific
+    try {
+        return http_get(HOST, PATH);
+    } catch (...) {
+        // If latest fails, try version-specific as fallback
+        // (PATH already points to /api/latest/raw)
+        throw;
+    }
 }
 
 // ------------------------------------------------------------------
@@ -118,16 +127,61 @@ void OffsetsManager::write_file(const std::string& path, const std::string& cont
 #include "log.h"
 
 // ------------------------------------------------------------------
-// parse_hpp - Parse C++ constexpr offsets from .hpp content
+// parse_hpp - Parse offsets from rbxoffsets.xyz flat format
 // ------------------------------------------------------------------
-// Format:
-//   namespace FakeDataModel {
-//       constexpr std::uintptr_t Pointer = 0x7A39AD8;
+// New format (rbxoffsets.xyz):
+//   namespace offsets {
+//       inline constexpr uintptr_t FakeDataModelPointer = 0x7bcf6a8;
+//       inline constexpr uintptr_t FakeDataModelToDataModel = 0x1d8;
 //   }
+//
+// We store keys as "namespace/field" so existing MAP/TRY macros work.
+// For flat names like "FakeDataModelPointer", we split by PascalCase:
+// "FakeDataModel" + "Pointer" -> key "fakedatamodel/pointer"
 // ------------------------------------------------------------------
 static void trim(std::string& s) {
     s.erase(0, s.find_first_not_of(" \t\r\n"));
     s.erase(s.find_last_not_of(" \t\r\n") + 1);
+}
+
+// Split a PascalCase name like "FakeDataModelPointer" into namespace + field
+// Tries to find the natural split point between words
+static bool split_pascal_case(const std::string& name, std::string& cls, std::string& field) {
+    if (name.empty()) return false;
+
+    // If name has underscore, split on first underscore
+    auto us = name.find('_');
+    if (us != std::string::npos && us > 0 && us < name.size() - 1) {
+        cls = name.substr(0, us);
+        field = name.substr(us + 1);
+        return true;
+    }
+
+    // Try to split by PascalCase transitions:
+    // Scan for uppercase letters after lowercase sequences
+    // The split point is where a new "word" starts after the class name ends
+    size_t split = 0;
+    for (size_t i = 1; i < name.size(); ++i) {
+        if (isupper(name[i]) && islower(name[i - 1])) {
+            // Transition: lowercase -> uppercase = word boundary
+            if (i > 1) {
+                split = i;
+            }
+        }
+    }
+
+    // If we found a split point, the class is everything before it
+    // and field is from split point onward
+    if (split > 0 && split < name.size()) {
+        cls = name.substr(0, split);
+        field = name.substr(split);
+        return true;
+    }
+
+    // Can't split — store as general/name
+    cls = "general";
+    field = name;
+    return false;
 }
 
 bool OffsetsManager::parse_hpp(const std::string& content) {
@@ -143,7 +197,6 @@ bool OffsetsManager::parse_hpp(const std::string& content) {
 
         // Detect namespace open: "namespace Name {"
         {
-            // Check for "namespace <name> {"
             const std::string nsPrefix = "namespace ";
             if (line.rfind(nsPrefix, 0) == 0) {
                 std::string rest = line.substr(nsPrefix.size());
@@ -162,10 +215,9 @@ bool OffsetsManager::parse_hpp(const std::string& content) {
             continue;
         }
 
-        // Detect constexpr line: "constexpr std::uintptr_t Name = 0xVALUE;"
         if (currentNamespace.empty()) continue;
 
-        // Must contain "constexpr" and "uintptr_t"
+        // Detect constexpr line: must contain "constexpr" and "uintptr_t"
         if (line.find("constexpr") == std::string::npos) continue;
         if (line.find("uintptr_t") == std::string::npos) continue;
 
@@ -190,7 +242,7 @@ bool OffsetsManager::parse_hpp(const std::string& content) {
         std::string valueStr = afterEquals.substr(0, semicolonPos);
         trim(valueStr);
 
-        // Parse hex value: "0x1A2B" or decimal
+        // Parse hex value
         uintptr_t val = 0;
         if (valueStr.size() > 2 && valueStr[0] == '0' && (valueStr[1] == 'x' || valueStr[1] == 'X')) {
             val = std::stoull(valueStr, nullptr, 16);
@@ -198,23 +250,49 @@ bool OffsetsManager::parse_hpp(const std::string& content) {
             val = std::stoull(valueStr, nullptr, 0);
         }
 
-        // Build cache key: "lowercase_namespace/lowercase_field"
+        // Build cache key: split flat names like "FakeDataModelPointer" -> "fakedatamodel/pointer"
+        std::string cls, field;
+        bool hasSplit = split_pascal_case(fieldName, cls, field);
+
+        // If the namespace is "offsets" and we have a split, use it
+        // Otherwise fallback to namespace/fieldname
         std::string ns_lower = currentNamespace;
         for (auto& c : ns_lower) c = (char)std::tolower((unsigned char)c);
 
         std::string field_lower = fieldName;
         for (auto& c : field_lower) c = (char)std::tolower((unsigned char)c);
 
-        std::string key = ns_lower + "/" + field_lower;
-        OffsetsEntry entry;
-        entry.value = val;
+        if (hasSplit && ns_lower == "offsets") {
+            std::string cls_lower = cls;
+            for (auto& c : cls_lower) c = (char)std::tolower((unsigned char)c);
+            std::string fld_lower = field;
+            for (auto& c : fld_lower) c = (char)std::tolower((unsigned char)c);
 
-        std::stringstream ss;
-        ss << "0x" << std::hex << val;
-        entry.hex = ss.str();
+            // Store primary key: "classname/fieldname" (for MAP/TRY)
+            std::string key = cls_lower + "/" + fld_lower;
+            OffsetsEntry entry;
+            entry.value = val;
+            std::stringstream ss;
+            ss << "0x" << std::hex << val;
+            entry.hex = ss.str();
+            cache_[key] = entry;
 
-        cache_[key] = entry;
-        parsed++;
+            // Also store flat key: "offsets/name" for direct lookup
+            std::string flatKey = ns_lower + "/" + field_lower;
+            cache_[flatKey] = entry;
+
+            parsed++;
+        } else {
+            // Traditional format: namespace/fieldname
+            std::string key = ns_lower + "/" + field_lower;
+            OffsetsEntry entry;
+            entry.value = val;
+            std::stringstream ss;
+            ss << "0x" << std::hex << val;
+            entry.hex = ss.str();
+            cache_[key] = entry;
+            parsed++;
+        }
     }
 
     total_offsets_ = parsed;

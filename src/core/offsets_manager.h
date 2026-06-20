@@ -9,13 +9,15 @@
 #include <windows.h>
 
 // ------------------------------------------------------------------
-// OffsetsManager - Auto-Updater via GitHub raw .hpp
+// OffsetsManager - Auto-Updater via rbxoffsets.xyz API
 // ------------------------------------------------------------------
-// Source: https://raw.githubusercontent.com/LadyDarknes/Roblox-Offsets/refs/heads/main/offsets.hpp
-//   1. GET /offsets.hpp -> C++ header with constexpr offsets
+// Source: https://rbxoffsets.xyz/api/latest/raw
+//   Header: rbxoffsets.xyz: apiv1
+//
+//   1. GET /api/latest/raw -> flat C++ header with inline constexpr offsets
 //   2. Compare with cached offsets.hpp on disk (by size)
 //   3. If different: save as offsets.hpp
-//   4. Parse namespaces and constexpr values into cache_
+//   4. Parse flat names (PascalCase) into class/field keys for MAP/TRY macros
 // ------------------------------------------------------------------
 
 struct OffsetsEntry {
@@ -60,7 +62,7 @@ private:
     int total_offsets_ = 0;
     bool loaded_ = false;
 
-    static constexpr const wchar_t* HOST = L"raw.githubusercontent.com";
-    static constexpr const wchar_t* PATH = L"/LadyDarknes/Roblox-Offsets/refs/heads/main/offsets.hpp";
+    static constexpr const wchar_t* HOST = L"rbxoffsets.xyz";
+    static constexpr const wchar_t* PATH = L"/api/latest/raw";
     static constexpr const char* HPP_CACHE_FILE = "offsets.hpp";
 };
