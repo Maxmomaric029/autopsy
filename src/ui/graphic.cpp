@@ -272,7 +272,7 @@ bool graphic::window() {
     RegisterClassExA(&Detail->WindowClass);
 
     Detail->Window = CreateWindowExA(
-        WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_LAYERED,
+        WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_LAYERED | WS_EX_NOACTIVATE,
         Detail->WindowClass.lpszClassName, "miserable.lol", WS_POPUP,
         0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN),
         0, 0, Detail->WindowClass.hInstance, 0);

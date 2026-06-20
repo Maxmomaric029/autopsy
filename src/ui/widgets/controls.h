@@ -299,6 +299,101 @@ namespace w {
     // Container: bg SURFACE2, border BORDER, border-radius 5px
     // Font: JetBrains Mono 10px
     // ========================================================================
+    // ========================================================================
+    // VK → ImGuiKey conversion (reverse of menukey in modern_ui.cpp)
+    // ========================================================================
+    static ImGuiKey vk_to_key(int vk) {
+        if (vk >= '0' && vk <= '9') return (ImGuiKey)(ImGuiKey_0 + (vk - '0'));
+        if (vk >= 'A' && vk <= 'Z') return (ImGuiKey)(ImGuiKey_A + (vk - 'A'));
+        if (vk >= VK_F1 && vk <= VK_F24) return (ImGuiKey)(ImGuiKey_F1 + (vk - VK_F1));
+        if (vk >= VK_NUMPAD0 && vk <= VK_NUMPAD9) return (ImGuiKey)(ImGuiKey_Keypad0 + (vk - VK_NUMPAD0));
+        switch (vk) {
+        case VK_TAB: return ImGuiKey_Tab;
+        case VK_LEFT: return ImGuiKey_LeftArrow;
+        case VK_RIGHT: return ImGuiKey_RightArrow;
+        case VK_UP: return ImGuiKey_UpArrow;
+        case VK_DOWN: return ImGuiKey_DownArrow;
+        case VK_PRIOR: return ImGuiKey_PageUp;
+        case VK_NEXT: return ImGuiKey_PageDown;
+        case VK_HOME: return ImGuiKey_Home;
+        case VK_END: return ImGuiKey_End;
+        case VK_INSERT: return ImGuiKey_Insert;
+        case VK_DELETE: return ImGuiKey_Delete;
+        case VK_BACK: return ImGuiKey_Backspace;
+        case VK_SPACE: return ImGuiKey_Space;
+        case VK_RETURN: return ImGuiKey_Enter;
+        case VK_ESCAPE: return ImGuiKey_Escape;
+        case VK_LCONTROL: return ImGuiKey_LeftCtrl;
+        case VK_LSHIFT: return ImGuiKey_LeftShift;
+        case VK_LMENU: return ImGuiKey_LeftAlt;
+        case VK_RCONTROL: return ImGuiKey_RightCtrl;
+        case VK_RSHIFT: return ImGuiKey_RightShift;
+        case VK_RMENU: return ImGuiKey_RightAlt;
+        case VK_APPS: return ImGuiKey_Menu;
+        case VK_OEM_7: return ImGuiKey_Apostrophe;
+        case VK_OEM_COMMA: return ImGuiKey_Comma;
+        case VK_OEM_MINUS: return ImGuiKey_Minus;
+        case VK_OEM_PERIOD: return ImGuiKey_Period;
+        case VK_OEM_2: return ImGuiKey_Slash;
+        case VK_OEM_1: return ImGuiKey_Semicolon;
+        case VK_OEM_PLUS: return ImGuiKey_Equal;
+        case VK_OEM_4: return ImGuiKey_LeftBracket;
+        case VK_OEM_5: return ImGuiKey_Backslash;
+        case VK_OEM_6: return ImGuiKey_RightBracket;
+        case VK_OEM_3: return ImGuiKey_GraveAccent;
+        case VK_CAPITAL: return ImGuiKey_CapsLock;
+        case VK_SCROLL: return ImGuiKey_ScrollLock;
+        case VK_NUMLOCK: return ImGuiKey_NumLock;
+        case VK_SNAPSHOT: return ImGuiKey_PrintScreen;
+        case VK_PAUSE: return ImGuiKey_Pause;
+        case VK_DECIMAL: return ImGuiKey_KeypadDecimal;
+        case VK_DIVIDE: return ImGuiKey_KeypadDivide;
+        case VK_MULTIPLY: return ImGuiKey_KeypadMultiply;
+        case VK_SUBTRACT: return ImGuiKey_KeypadSubtract;
+        case VK_ADD: return ImGuiKey_KeypadAdd;
+        default: return ImGuiKey_None;
+        }
+    }
+
+    // ========================================================================
+    // Poll GetAsyncKeyState as fallback for key detection (needed with WS_EX_NOACTIVATE)
+    // ========================================================================
+    static bool poll_global_key(ImGuiKey& out) {
+        // Check letter keys first (most common for binds)
+        for (int vk = 'A'; vk <= 'Z'; vk++) {
+            if (GetAsyncKeyState(vk) & 1) {
+                out = vk_to_key(vk);
+                return out != ImGuiKey_None;
+            }
+        }
+        // Number keys
+        for (int vk = '0'; vk <= '9'; vk++) {
+            if (GetAsyncKeyState(vk) & 1) {
+                out = vk_to_key(vk);
+                return out != ImGuiKey_None;
+            }
+        }
+        // Function keys
+        for (int vk = VK_F1; vk <= VK_F24; vk++) {
+            if (GetAsyncKeyState(vk) & 1) {
+                out = vk_to_key(vk);
+                return out != ImGuiKey_None;
+            }
+        }
+        // Special keys
+        int spec[] = { VK_TAB, VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN,
+            VK_PRIOR, VK_NEXT, VK_HOME, VK_END, VK_INSERT, VK_DELETE,
+            VK_BACK, VK_SPACE, VK_RETURN, VK_ESCAPE,
+            VK_LCONTROL, VK_LSHIFT, VK_LMENU, VK_RCONTROL, VK_RSHIFT, VK_RMENU };
+        for (int vk : spec) {
+            if (GetAsyncKeyState(vk) & 1) {
+                out = vk_to_key(vk);
+                return out != ImGuiKey_None;
+            }
+        }
+        return false;
+    }
+
     struct ListenState { bool listening = false; ImGuiID ownerId = 0; };
     inline ListenState& g_listen() { static ListenState s; return s; }
 
@@ -325,14 +420,22 @@ namespace w {
             // hover sound handled by external caller with cooldown
         }
         if (listening) {
+            bool found = false;
             for (int k = ImGuiKey_Tab; k < ImGuiKey_COUNT; k++) {
                 if (ImGui::IsKeyPressed((ImGuiKey)k, false)) {
                     *key = (ImGuiKey)k;
-                    if (*key == ImGuiKey_Escape) *key = ImGuiKey_None;
-                    gs.listening = false;
-                    sound::play(sound::id::bind_set);
+                    found = true;
                     break;
                 }
+            }
+            if (!found) {
+                // Fallback: global key state (funciona sin focus de ventana)
+                found = poll_global_key(*key);
+            }
+            if (found) {
+                if (*key == ImGuiKey_Escape) *key = ImGuiKey_None;
+                gs.listening = false;
+                sound::play(sound::id::bind_set);
             }
         }
 
@@ -401,14 +504,21 @@ namespace w {
             sound::play(sound::id::bind_start);
         }
         if (listening) {
+            bool found = false;
             for (int k = ImGuiKey_Tab; k < ImGuiKey_COUNT; k++) {
                 if (ImGui::IsKeyPressed((ImGuiKey)k, false)) {
                     *key = (ImGuiKey)k;
-                    if (*key == ImGuiKey_Escape) *key = ImGuiKey_None;
-                    gs.listening = false;
-                    sound::play(sound::id::bind_set);
+                    found = true;
                     break;
                 }
+            }
+            if (!found) {
+                found = poll_global_key(*key);
+            }
+            if (found) {
+                if (*key == ImGuiKey_Escape) *key = ImGuiKey_None;
+                gs.listening = false;
+                sound::play(sound::id::bind_set);
             }
         }
 

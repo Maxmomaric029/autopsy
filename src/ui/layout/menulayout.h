@@ -244,23 +244,7 @@ namespace layout {
             theme::col_accent(), badge);
         ImGui::PopFont();
 
-        // Status dot + "INJECTED" (right)
-        float dotR = 4.f;
-        float dotX = tbMax.x - 20.f - dotR;
-        float dotY = tbMin.y + kTopH * 0.5f;
-        dl->AddCircleFilled({ dotX, dotY }, dotR,
-            IM_COL32(200, 241, 53, 220), 12); // ACCENT pulse
-        // Pulse ring
-        float pulse = anim::pulse(3.f);
-        dl->AddCircle({ dotX, dotY }, dotR + 3.f + pulse * 4.f,
-            IM_COL32(200, 241, 53, (int)(60 * (1.f - pulse))), 12, 1.f);
 
-        // "INJECTED" text
-        ImGui::PushFont(font::mono());
-        dl->AddText(font::mono(), 11.f,
-            { dotX - 5.f - ImGui::CalcTextSize("INJECTED").x, dotY - 5.5f },
-            theme::col_accent(), "INJECTED");
-        ImGui::PopFont();
     }
 
     // ========================================================================
