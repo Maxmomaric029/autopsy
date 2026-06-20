@@ -34,6 +34,16 @@ static LONG WINAPI VectoredHandler(PEXCEPTION_POINTERS ep)
     if (!ep || !ep->ExceptionRecord)
         return EXCEPTION_CONTINUE_SEARCH;
 
+    DWORD code = ep->ExceptionRecord->ExceptionCode;
+
+    // Ignorar excepciones de debug output — no son crashes reales
+    if (code == 0x40010006 || code == 0x4001000A)
+        return EXCEPTION_CONTINUE_SEARCH;
+
+    // Solo manejar crashes reales (bit alto en 0 = informacional de sistema)
+    if (code < 0x80000000)
+        return EXCEPTION_CONTINUE_SEARCH;
+
     // Get desktop path (always writable)
     char path[MAX_PATH];
     if (SHGetFolderPathA(NULL, CSIDL_DESKTOPDIRECTORY, NULL, 0, path) == S_OK)
@@ -67,7 +77,6 @@ static LONG WINAPI VectoredHandler(PEXCEPTION_POINTERS ep)
                     out[16] = 0;
                 };
 
-                DWORD code = ep->ExceptionRecord->ExceptionCode;
                 ULONG64 addr = (ULONG64)(uintptr_t)ep->ExceptionRecord->ExceptionAddress;
                 DWORD flags = ep->ExceptionRecord->ExceptionFlags;
 
