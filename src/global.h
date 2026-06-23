@@ -97,6 +97,20 @@ namespace global {
 		inline constexpr std::uint64_t PlaceId = 17625359962ULL;
 	}
 
+	namespace pf {
+		inline constexpr std::uint64_t PlaceId = 292439477ULL;
+		inline bool Enabled = false;
+		inline bool SilentAim = false;
+		inline bool Esp = false;
+		inline bool Box = true;
+		inline bool Skeleton = true;
+		inline bool HealthBar = true;
+		inline float BoxColor[4] = { 0.878f, 0.188f, 0.251f, 1.0f };
+		inline float SkeletonColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+		inline float HealthColor[4] = { 0.2f, 0.9f, 0.3f, 1.0f };
+		inline float DamageColor[4] = { 0.878f, 0.188f, 0.251f, 1.0f };
+	}
+
 	namespace world {
 
 		inline bool Skybox;

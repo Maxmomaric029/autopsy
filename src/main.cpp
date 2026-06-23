@@ -9,7 +9,6 @@
 #include "config.h"
 
 #include "core/memory.h"
-#include "core/apc_stealth.h"
 #include "loader/loader.h"
 #include "core/offsets_manager.h"
 #include "global.h"
@@ -22,6 +21,7 @@
 #include "features/ball.h"
 #include "features/aimbot.h"
 #include "features/silent.h"
+#include "features/pf.h"
 #include <ShlObj.h>
 #pragma comment(lib, "Shell32.lib")
 
@@ -345,87 +345,10 @@ std::int32_t main(std::int32_t argc, char** argv[])
         console::error("NO SE PUDO RESOLVER EL DATAMODEL (ver datamodel_debug.txt)");
     }
 
-    // ================================================================
-    // BYOVD Loader — Cargar amdgpio3.sys para operaciones Ring-0
-    // Después de cargar StealthDrv, descargamos amdgpio3 para
-    // minimizar superficie de detección.
-    // ================================================================
-    {
-        auto& byovd = ByovdLoader::Instance();
-        
-        // amdgpio3.sys debe estar en el mismo directorio que el cheat
-        wchar_t amdPath[MAX_PATH];
-        GetModuleFileNameW(NULL, amdPath, MAX_PATH);
-        wchar_t* lastSlash = wcsrchr(amdPath, L'\\');
-        if (lastSlash) *lastSlash = 0;
-        wcscat_s(amdPath, L"\\amdgpio3.sys");
-        
-        if (GetFileAttributesW(amdPath) != INVALID_FILE_ATTRIBUTES) {
-            console::info("[BYOVD] amdgpio3.sys encontrado, cargando...");
-            
-            if (byovd.LoadDriver(amdPath)) {
-                // Buscar StealthDrv.sys en el mismo directorio
-                wchar_t drvPath[MAX_PATH];
-                wcscpy_s(drvPath, amdPath);
-                lastSlash = wcsrchr(drvPath, L'\\');
-                if (lastSlash) {
-                    *(lastSlash + 1) = 0;
-                    wcscat_s(drvPath, L"StealthDrv.sys");
-                }
-                
-                if (GetFileAttributesW(drvPath) != INVALID_FILE_ATTRIBUTES) {
-                    console::info("[BYOVD] StealthDrv.sys encontrado, intentando cargar...");
-                    byovd.MapTargetDriver(drvPath);
-                } else {
-                    console::info("[BYOVD] StealthDrv.sys no encontrado — necesita compilarse");
-                    console::info("[BYOVD]   Compilar con: msbuild driver/driver.vcxproj /p:Config=Release /p:Platform=x64");
-                }
-                
-                // Descargar amdgpio3.sys — ya no lo necesitamos
-                // (minimiza superficie de detección)
-                console::info("[BYOVD] Descargando amdgpio3.sys...");
-                byovd.Unload();
-            }
-        } else {
-            console::info("[BYOVD] amdgpio3.sys no encontrado, saltando BYOVD...");
-            console::info("[BYOVD]   El cheat usará thread hijacking + syscalls directos");
-        }
-    }
 
-    // ================================================================
-    // Stealth layer initialization
-    // After memory driver is attached, initialize the stealth layer.
-    // Priority chain: Kernel Driver (Ring-0) → Thread Hijack → Syscall
-    //
-    // Once initialized, ALL driver::read/write calls go through the
-    // stealth layer transparently via the g_useApcStealth toggle.
-    // ================================================================
-    {
-        auto& apc = ApcStealth::Instance();
-        if (apc.Initialize(drive->processhandle(), drive->modulebase())) {
-            g_useApcStealth.store(true, std::memory_order_release);
-            console::success("[STEALTH] Modo: %s — operaciones de memoria invisibles",
-                apc.ModeName());
-
-            if (apc.GetMode() == StealthMode::Driver) {
-                console::info("[STEALTH] Usando kernel driver Ring-0 (MmCopyVirtualMemory)");
-            } else if (apc.GetMode() == StealthMode::ThreadHijack) {
-                console::info("[STEALTH] Shellcode inyectado en proceso target, threads hijackeados");
-            } else {
-                console::info("[STEALTH] Usando syscalls directos via ASM (modo legacy)");
-            }
-        } else {
-            console::warn("[STEALTH] No se pudo inicializar — usando syscalls directos (menos seguro)");
-            g_useApcStealth.store(false, std::memory_order_release);
-        }
-    }
 
     // ---- Background threads ----
-    // Threads still exist for feature responsiveness, but ALL memory
-    // operations (driver::read/write) now go through APC stealth
-    // transparently via the g_useApcStealth toggle in memory.h.
-    // This means reads/writes execute INSIDE RobloxPlayerBeta.exe,
-    // not from our external process.
+    // Threads still exist for feature responsiveness.
     std::thread(cache::run).detach();
     std::thread([]() {
         world::run();  // spawns skybox, atmosphere, fog, brightness, exposure, fov

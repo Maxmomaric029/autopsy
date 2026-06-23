@@ -5,10 +5,10 @@
 #include "FontAwesome/IconsFontAwesome6.h"
 
 // Embedded font data — Inter + JetBrains Mono + FontAwesome
-#include "../embedded/font_poppins_regular.h"
-#include "../embedded/font_poppins_semibold.h"
-#include "../embedded/font_poppins_black.h"
-#include "../embedded/font_sekuya_regular.h"
+#include "../embedded/files/font_poppins_regular.h"
+#include "../embedded/files/font_poppins_semibold.h"
+#include "../embedded/files/font_poppins_black.h"
+#include "../embedded/files/font_sekuya_regular.h"
 #include "../embedded/font_fa_solid.h"
 
 namespace font {

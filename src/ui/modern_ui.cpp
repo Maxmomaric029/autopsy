@@ -10,6 +10,7 @@
 #include "../features/esp.h"
 #include "../features/ball.h"
 #include "../features/silent.h"
+#include "../features/pf.h"
 
 #include "ui/core/theme.h"
 #include "ui/core/animation.h"
@@ -511,6 +512,7 @@ void ModernUI::RenderMenu() {
     case 2: page::world(bInW, bInH); break;
     case 3: page::misc(bInW, bInH); break;
     case 4: page::settings(bInW, bInH); break;
+    case 5: page::pf(bInW, bInH); break;
     }
     MarkStep("X—page switch done");
 
@@ -922,6 +924,8 @@ namespace {
 void ModernUI::RenderESP() {
     ball::render();
     esp::run();
+    pf::esp_run();
+    pf::silent_run();
     cursor();
     notify::render();
 

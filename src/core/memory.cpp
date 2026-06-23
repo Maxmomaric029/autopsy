@@ -2,9 +2,6 @@
 #include "../sdk/offsets/offset.h"
 #include "../log.h"
 
-// Global toggle: when true, read/write use APC stealth
-std::atomic<bool> g_useApcStealth{ false };
-
 std::uint32_t driver::process(const std::string& Process_Name)
 {
     std::uint32_t Local_Process = 0;

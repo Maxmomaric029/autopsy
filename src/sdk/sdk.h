@@ -241,5 +241,12 @@ namespace sdk
 
         sdk::instance LeftLeg;
         sdk::instance RightLeg;
+
+        // Phantom Forces specific limbs (gun/arms/legs)
+        sdk::instance pfLimbs1;
+        sdk::instance pfLimbs2;
+        sdk::instance pfLimbs3;
+        sdk::instance pfLimbs4;
+        sdk::instance pfLimbs5;
     };
 }

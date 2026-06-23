@@ -210,6 +210,7 @@ private:
     HANDLE   m_serviceHandle;
     WCHAR    m_serviceName[64];
     bool     m_stealthDrvLoaded;
+    bool     m_dseDisabled = false;
 
     // Known kernel base for offset calculations
     DWORD64  m_kernelBase;

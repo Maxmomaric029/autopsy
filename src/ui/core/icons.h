@@ -16,25 +16,27 @@ namespace icon {
     // Tab 2 — World:    ICON_FA_SKULL
     // Tab 3 — Misc:     ICON_FA_BOLT
     // Tab 4 — Settings: ICON_FA_GEAR
+    // Tab 5 — PF:       ICON_FA_GUN (FA6 uses ICON_FA_CROSSHAIRS as fallback)
 
     inline constexpr const char* tabIconChars[] = {
         ICON_FA_CROSSHAIRS,   // Aimbot
         ICON_FA_BINOCULARS,   // Visuals
         ICON_FA_SKULL,        // World
         ICON_FA_BOLT,         // Misc
-        ICON_FA_GEAR          // Settings
+        ICON_FA_GEAR,         // Settings
+        ICON_FA_CROSSHAIRS    // PF
     };
 
     inline constexpr const char* tabLabels[] = {
-        "Aimbot", "Visuals", "World", "Misc", "Settings"
+        "Aimbot", "Visuals", "World", "Misc", "Settings", "PF"
     };
 
     // Badge tag for topbar context
     inline constexpr const char* tabBadges[] = {
-        "Aim", "Esp", "Wrld", "Misc", "Cfg"
+        "Aim", "Esp", "Wrld", "Misc", "Cfg", "PF"
     };
 
-    inline constexpr int kTabCount = 5;
+    inline constexpr int kTabCount = 6;
 
     // ========================================================================
     // Draw a FontAwesome icon at a position

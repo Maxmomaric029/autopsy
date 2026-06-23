@@ -452,4 +452,45 @@ namespace page {
         w::card::end();
     }
 
+    // ========================================================================
+    // Tab 5 — PF (Phantom Forces)
+    // ========================================================================
+    inline void pf(float contentW, float contentH) {
+        const float leftW = (contentW - theme::space::md) * 0.5f;
+
+        // ---- Left: SILENT AIM ----
+        if (w::card::begin("##pf_silent", { leftW, contentH }, "Silent Aim")) {
+            w::toggle("Enable PF Mode", &global::pf::Enabled);
+            w::gap(theme::space::sm);
+            w::labelsection("Silent Aim");
+            w::toggle("Silent Aim", &global::pf::SilentAim);
+            w::gap(theme::space::xs);
+            ImGui::TextWrapped("Auto-aims at closest target on left-click.");
+            ImGui::TextWrapped("Camera returns to original position on release.");
+        }
+        w::card::end();
+
+        ImGui::SameLine(0.f, theme::space::md);
+
+        // ---- Right: ESP ----
+        if (w::card::begin("##pf_esp", { leftW, contentH }, "ESP")) {
+            w::toggle("ESP", &global::pf::Esp);
+            w::gap(theme::space::sm);
+
+            w::labelsection("Render");
+            w::toggle("Bounding Box", &global::pf::Box);
+            w::gap(theme::space::xs);
+            w::toggle("Skeleton", &global::pf::Skeleton);
+            w::gap(theme::space::xs);
+            w::toggle("Health Bar", &global::pf::HealthBar);
+
+            w::gap(theme::space::sm);
+            w::labelsection("Colors");
+            w::color4("##pf_box_col", global::pf::BoxColor);
+            w::color4("##pf_skel_col", global::pf::SkeletonColor);
+            w::color4("##pf_heal_col", global::pf::HealthColor);
+        }
+        w::card::end();
+    }
+
 } // namespace page

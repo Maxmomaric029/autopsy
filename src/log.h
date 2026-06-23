@@ -18,6 +18,7 @@ namespace console {
 
     inline int playerCount = 0;
     inline bool connected  = false;
+    inline uintptr_t cameraAddress = 0;
 
     // ========================================================================
     // ANSI helpers
