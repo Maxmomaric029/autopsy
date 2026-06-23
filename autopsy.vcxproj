@@ -329,6 +329,8 @@
     <ClCompile Include="src\features\esp.cpp" />
     <ClCompile Include="src\features\wallcheck.cpp" />
     <ClCompile Include="src\features\world.cpp" />
+    <ClCompile Include="src\features\pf.cpp" />
+
     <ClCompile Include="src\ui\widgets\controls.cpp" />
     <ClCompile Include="src\ui\modern_ui.cpp" />
     <ClCompile Include="src\ui\graphic.cpp" />
