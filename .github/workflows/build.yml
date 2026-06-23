@@ -1,9 +1,21 @@
-name: Build
+name: Build & Release
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Create a GitHub Release'
+        type: boolean
+        default: false
+      release_tag:
+        description: 'Release tag (only if create_release is true)'
+        type: string
+        required: false
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -16,14 +28,15 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Setup DirectX SDK
-        shell: powershell
+      - name: Install DirectX SDK (via NuGet)
+        shell: pwsh
         run: |
-          $url = "https://download.microsoft.com/download/A/E/7/AE743F1F-632B-4809-87A9-AA1BB3458E31/DXSDK_Jun10.exe"
-          $out = "$env:TEMP\DXSDK_Jun10.exe"
-          Invoke-WebRequest $url -OutFile $out
-          Start-Process $out -ArgumentList "/U" -Wait
-          echo "DXSDK_DIR=C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\" >> $env:GITHUB_ENV
+          # d3dcompiler.lib may not be in the Windows SDK on all runners.
+          # Install Microsoft.DXSDK.D3DX via NuGet to guarantee all DirectX libs.
+          nuget install Microsoft.DXSDK.D3DX -Version 9.29.952.8 -OutputDirectory "$env:RUNNER_TEMP\dxsdk" -ExcludeVersion
+          $dxPath = Resolve-Path "$env:RUNNER_TEMP\dxsdk\Microsoft.DXSDK.D3DX\Lib\x64"
+          echo "DIRECTX_LIB_PATH=$dxPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "✅ DirectX SDK libraries at: $dxPath"
 
       - name: Build Release x64
         shell: cmd
@@ -32,8 +45,21 @@ jobs:
             /p:Configuration=Release ^
             /p:Platform=x64 ^
             /p:PlatformToolset=v143 ^
+            /p:WindowsTargetPlatformVersion=10.0 ^
+            /p:AdditionalLibraryDirectories="%DIRECTX_LIB_PATH%" ^
             /m ^
             /nologo
+
+      - name: Verify build output
+        shell: pwsh
+        run: |
+          if (Test-Path "Build/miserable.exe") {
+            $size = (Get-Item "Build/miserable.exe").Length
+            Write-Host "✅ Build succeeded: miserable.exe ($([math]::Round($size/1KB)) KB)"
+          } else {
+            Write-Host "❌ Build output not found!"
+            exit 1
+          }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -41,3 +67,95 @@ jobs:
           name: miserable-${{ github.sha }}
           path: Build/miserable.exe
           if-no-files-found: error
+
+      # ── GitHub Release ──────────────────────────────────────────────
+      # Creates a release either on every push, or only when manually
+      # triggered with create_release=true.
+      - name: Determine if release should be created
+        id: should_release
+        shell: pwsh
+        run: |
+          $manual = "${{ github.event.inputs.create_release }}" -eq "true"
+          $onPush = "${{ github.ref_name }}" -eq "main" -and "${{ github.event_name }}" -eq "push"
+          if ($manual -or $onPush) {
+            echo "create=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          } else {
+            echo "create=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          }
+
+      - name: Create GitHub Release
+        if: steps.should_release.outputs.create == 'true'
+        id: create_release
+        shell: pwsh
+        run: |
+          # Tag: use manual tag if provided, otherwise auto-generate
+          $manualTag = "${{ github.event.inputs.release_tag }}"
+          if ($manualTag) {
+            $tag = $manualTag
+          } else {
+            $tag = "build-$($env:GITHUB_SHA.Substring(0,7))"
+          }
+          
+          $releaseName = "Build $((Get-Date).ToString('yyyy-MM-dd HH:mm'))"
+          $shortSha = $env:GITHUB_SHA.Substring(0, 7)
+          
+          $body = @{
+            tag_name         = $tag
+            target_commitish = $env:GITHUB_SHA
+            name             = $releaseName
+            body             = "Automated build for commit **$shortSha**`n`n| Component | Info |`n|---|---|`n| Commit | $shortSha |`n| Date | $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC') |`n| Artifacts | See below |"
+            draft            = $false
+            prerelease       = $false
+          } | ConvertTo-Json
+          
+          $headers = @{
+            Authorization = "Bearer $env:GITHUB_TOKEN"
+            Accept        = "application/vnd.github+json"
+          }
+          
+          $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases" `
+            -Method Post -Headers $headers -Body $body -ContentType "application/json"
+          
+          # Store outputs
+          echo "upload_url=$($response.upload_url -replace '\{.*\}')" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          echo "release_id=$($response.id)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          echo "release_url=$($response.html_url)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          
+          Write-Host "✅ Release created: $($response.html_url)"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload EXE to Release
+        if: steps.should_release.outputs.create == 'true'
+        shell: pwsh
+        run: |
+          $uploadUrl = "${{ steps.create_release.outputs.upload_url }}"
+          
+          # Upload miserable.exe
+          $exeUrl = "$uploadUrl`?name=miserable.exe"
+          Invoke-RestMethod -Uri $exeUrl -Method Post `
+            -Headers @{
+              Authorization = "Bearer $env:GITHUB_TOKEN"
+              "Content-Type" = "application/octet-stream"
+            } `
+            -InFile "Build/miserable.exe"
+          Write-Host "✅ miserable.exe attached to release"
+          
+          # Upload fonts as separate zip if the folder exists
+          if (Test-Path "Build/fonts") {
+            $fontsZip = "$env:RUNNER_TEMP\fonts.zip"
+            Compress-Archive -Path "Build/fonts\*" -DestinationPath $fontsZip -Force
+            $fontsUrl = "$uploadUrl`?name=fonts.zip"
+            Invoke-RestMethod -Uri $fontsUrl -Method Post `
+              -Headers @{
+                Authorization = "Bearer $env:GITHUB_TOKEN"
+                "Content-Type" = "application/octet-stream"
+              } `
+              -InFile $fontsZip
+            Write-Host "✅ fonts.zip attached to release"
+          }
+          
+          # Show release URL
+          Write-Host "🔗 ${{ steps.create_release.outputs.release_url }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
