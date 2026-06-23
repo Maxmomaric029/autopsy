@@ -28,16 +28,10 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Install DirectX SDK (via NuGet)
-        shell: pwsh
-        run: |
-          # d3dcompiler.lib may not be in the Windows SDK on all runners.
-          # Install Microsoft.DXSDK.D3DX via NuGet to guarantee all DirectX libs.
-          nuget install Microsoft.DXSDK.D3DX -Version 9.29.952.8 -OutputDirectory "$env:RUNNER_TEMP\dxsdk" -ExcludeVersion
-          $dxPath = Resolve-Path "$env:RUNNER_TEMP\dxsdk\Microsoft.DXSDK.D3DX\Lib\x64"
-          echo "DIRECTX_LIB_PATH=$dxPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          Write-Host "✅ DirectX SDK libraries at: $dxPath"
-
+      # d3d11.lib, d3dcompiler.lib and dxgi.lib are included in the
+      # Windows 10/11 SDK which is pre-installed on windows-latest runners.
+      # The $(LibraryPath) in the vcxproj already resolves to the Windows SDK
+      # lib paths, so no extra DirectX SDK installation is needed.
       - name: Build Release x64
         shell: cmd
         run: |
@@ -46,7 +40,6 @@ jobs:
             /p:Platform=x64 ^
             /p:PlatformToolset=v143 ^
             /p:WindowsTargetPlatformVersion=10.0 ^
-            /p:AdditionalLibraryDirectories="%DIRECTX_LIB_PATH%" ^
             /m ^
             /nologo
 
@@ -95,10 +88,10 @@ jobs:
           } else {
             $tag = "build-$($env:GITHUB_SHA.Substring(0,7))"
           }
-          
+
           $releaseName = "Build $((Get-Date).ToString('yyyy-MM-dd HH:mm'))"
           $shortSha = $env:GITHUB_SHA.Substring(0, 7)
-          
+
           $body = @{
             tag_name         = $tag
             target_commitish = $env:GITHUB_SHA
@@ -107,20 +100,20 @@ jobs:
             draft            = $false
             prerelease       = $false
           } | ConvertTo-Json
-          
+
           $headers = @{
             Authorization = "Bearer $env:GITHUB_TOKEN"
             Accept        = "application/vnd.github+json"
           }
-          
+
           $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases" `
             -Method Post -Headers $headers -Body $body -ContentType "application/json"
-          
+
           # Store outputs
           echo "upload_url=$($response.upload_url -replace '\{.*\}')" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           echo "release_id=$($response.id)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           echo "release_url=$($response.html_url)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          
+
           Write-Host "✅ Release created: $($response.html_url)"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -130,7 +123,7 @@ jobs:
         shell: pwsh
         run: |
           $uploadUrl = "${{ steps.create_release.outputs.upload_url }}"
-          
+
           # Upload miserable.exe
           $exeUrl = "$uploadUrl`?name=miserable.exe"
           Invoke-RestMethod -Uri $exeUrl -Method Post `
@@ -140,7 +133,7 @@ jobs:
             } `
             -InFile "Build/miserable.exe"
           Write-Host "✅ miserable.exe attached to release"
-          
+
           # Upload fonts as separate zip if the folder exists
           if (Test-Path "Build/fonts") {
             $fontsZip = "$env:RUNNER_TEMP\fonts.zip"
@@ -154,7 +147,7 @@ jobs:
               -InFile $fontsZip
             Write-Host "✅ fonts.zip attached to release"
           }
-          
+
           # Show release URL
           Write-Host "🔗 ${{ steps.create_release.outputs.release_url }}"
         env:
