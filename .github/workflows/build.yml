@@ -2,146 +2,42 @@ name: Build
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:  # Allow manual trigger
-
-env:
-  SOLUTION_FILE: external-base.sln
-  PLATFORM: x64
-  CONFIGURATION: Release
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  build-usermode:
+  build:
     runs-on: windows-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v2
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
 
-    - name: Build usermode cheat (x64 Release)
-      run: |
-        msbuild "$env:SOLUTION_FILE" /p:Configuration=$env:CONFIGURATION /p:Platform=$env:PLATFORM /p:WindowsTargetPlatformVersion=10.0 /t:Rebuild
-      working-directory: ${{ github.workspace }}
+      - name: Setup DirectX SDK
+        shell: powershell
+        run: |
+          $url = "https://download.microsoft.com/download/A/E/7/AE743F1F-632B-4809-87A9-AA1BB3458E31/DXSDK_Jun10.exe"
+          $out = "$env:TEMP\DXSDK_Jun10.exe"
+          Invoke-WebRequest $url -OutFile $out
+          Start-Process $out -ArgumentList "/U" -Wait
+          echo "DXSDK_DIR=C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\" >> $env:GITHUB_ENV
 
-    - name: Upload usermode build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: cheat-usermode-${{ github.sha }}
-        path: |
-          **/x64/Release/*.exe
-          **/Release/*.exe
-          !**/obj/**
-        if-no-files-found: warn
+      - name: Build Release x64
+        shell: cmd
+        run: |
+          msbuild autopsy.vcxproj ^
+            /p:Configuration=Release ^
+            /p:Platform=x64 ^
+            /p:PlatformToolset=v143 ^
+            /m ^
+            /nologo
 
-  build-driver:
-    runs-on: windows-latest
-    continue-on-error: true  # Driver build may fail if WDK not available
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v2
-
-    - name: Install WDK (Windows Driver Kit)
-      shell: pwsh
-      run: |
-        # Try to find WDK. If not installed via the runner image,
-        # download and install it.
-        $wdkPath = "${env:ProgramFiles(x86)}\\Windows Kits\\10\\bin\\10.0.26100.0\\x64\\msbuild"
-        if (-not (Test-Path $wdkPath)) {
-          Write-Host "WDK not found, installing..."
-          # Download WDK
-          $url = "https://go.microsoft.com/fwlink/?linkid=2266445"
-          $installer = "$env:TEMP\\wdk.exe"
-          Invoke-WebRequest -Uri $url -OutFile $installer
-          Start-Process -Wait -FilePath $installer -ArgumentList "/quiet", "/norestart"
-        } else {
-          Write-Host "WDK found at $wdkPath"
-        }
-
-    - name: Check if driver source exists
-      id: check_driver
-      shell: pwsh
-      run: |
-        if (Test-Path "driver/driver.c") {
-          echo "driver_exists=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-        } else {
-          echo "driver_exists=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-        }
-
-    - name: Build kernel driver
-      if: steps.check_driver.outputs.driver_exists == 'true'
-      run: |
-        # Look for WDK msbuild
-        $msbuildPaths = @(
-          "${env:ProgramFiles(x86)}\\Windows Kits\\10\\bin\\10.0.26100.0\\x64\\msbuild.exe",
-          "${env:ProgramFiles(x86)}\\Windows Kits\\10\\bin\\10.0.22621.0\\x64\\msbuild.exe",
-          "${env:ProgramFiles(x86)}\\Windows Kits\\10\\bin\\10.0.22000.0\\x64\\msbuild.exe",
-          "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe"
-        )
-        $msbuild = $null
-        foreach ($p in $msbuildPaths) {
-          if (Test-Path $p) { $msbuild = $p; break }
-        }
-        if ($msbuild) {
-          Write-Host "Using MSBuild: $msbuild"
-          & $msbuild driver/driver.vcxproj /p:Configuration=Release /p:Platform=x64
-        } else {
-          Write-Host "WDK MSBuild not found - creating placeholder driver.sys"
-          New-Item -ItemType Directory -Force -Path driver\\x64\\Release
-          # Create a small placeholder (we'll use the pre-compiled driver from the repo)
-        }
-      shell: pwsh
-
-    - name: Upload driver artifacts
-      if: steps.check_driver.outputs.driver_exists == 'true'
-      uses: actions/upload-artifact@v4
-      with:
-        name: stealth-driver-${{ github.sha }}
-        path: |
-          driver/**/*.sys
-          driver/**/*.pdb
-        if-no-files-found: warn
-
-  package:
-    runs-on: ubuntu-latest
-    needs: [build-usermode, build-driver]
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-
-    steps:
-    - name: Download usermode artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: cheat-usermode-${{ github.sha }}
-        path: artifacts/usermode
-
-    - name: Download driver artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: stealth-driver-${{ github.sha }}
-        path: artifacts/driver
-
-    - name: Package release
-      run: |
-        mkdir -p release
-        cp -r artifacts/usermode/* release/ 2>/dev/null || true
-        cp -r artifacts/driver/* release/ 2>/dev/null || true
-        # Include the vulnerable driver for BYOVD
-        cp driver/amdgpio3.sys release/ 2>/dev/null || true
-        echo "Release packaged"
-        ls -la release/
-
-    - name: Upload final release package
-      uses: actions/upload-artifact@v4
-      with:
-        name: full-package-${{ github.sha }}
-        path: release/
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: miserable-${{ github.sha }}
+          path: Build/miserable.exe
+          if-no-files-found: error
