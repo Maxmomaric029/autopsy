@@ -11,31 +11,30 @@
 namespace theme {
 
     // ========================================================================
-    // Industrial-minimal palette — black base, lime-green accent
+    // Red + Milk White palette
     // ========================================================================
-    // BG:        #0A0A0B
-    // SURFACE:   #111114
-    // SURFACE2:  #17171B
-    // ACCENT:    #C8F135  (lime green)
-    // ACCENT_DIM: rgba(200,241,53, 0.12)
-    // TEXT:      #F0F0EE
-    // MUTED:     #5A5A60
-    // DANGER:    #FF4757
+    // BG:          #0D0A0A
+    // SURFACE:     #140E0E
+    // SURFACE2:    #1A1111
+    // ACCENT:      #E03040  (red)
+    // TEXT:        #F5F0EB  (milk white)
+    // MUTED:       #6A5A5A
+    // DANGER:      #FF2233
     // ========================================================================
 
-    inline ImVec4 c_bg       = ImVec4(0.0392f, 0.0392f, 0.0431f, 1.f); // #0A0A0B
-    inline ImVec4 c_surface  = ImVec4(0.0667f, 0.0667f, 0.0784f, 1.f); // #111114
-    inline ImVec4 c_surface2 = ImVec4(0.0902f, 0.0902f, 0.1059f, 1.f); // #17171B
-    inline ImVec4 c_border   = ImVec4(1.0f, 1.0f, 1.0f, 0.06f);       // rgba(255,255,255,0.06)
-    inline ImVec4 c_border_hv= ImVec4(1.0f, 1.0f, 1.0f, 0.12f);       // rgba(255,255,255,0.12)
+    inline ImVec4 c_bg       = ImVec4(0.0510f, 0.0392f, 0.0392f, 1.f); // #0D0A0A
+    inline ImVec4 c_surface  = ImVec4(0.0784f, 0.0549f, 0.0549f, 1.f); // #140E0E
+    inline ImVec4 c_surface2 = ImVec4(0.1020f, 0.0667f, 0.0667f, 1.f); // #1A1111
+    inline ImVec4 c_border   = ImVec4(1.0f, 1.0f, 1.0f, 0.06f);
+    inline ImVec4 c_border_hv= ImVec4(1.0f, 1.0f, 1.0f, 0.12f);
 
-    inline ImVec4 c_accent   = ImVec4(0.7843f, 0.9451f, 0.2078f, 1.f); // #C8F135
-    inline ImU32  c_accent_u32 = IM_COL32(200, 241, 53, 255);
+    inline ImVec4 c_accent   = ImVec4(0.8784f, 0.1882f, 0.2510f, 1.f); // #E03040
+    inline ImU32  c_accent_u32 = IM_COL32(224, 48, 64, 255);
 
-    inline ImVec4 c_text     = ImVec4(0.9412f, 0.9412f, 0.9333f, 1.f); // #F0F0EE
-    inline ImVec4 c_muted    = ImVec4(0.3529f, 0.3529f, 0.3765f, 1.f); // #5A5A60
-    inline ImVec4 c_muted2   = ImVec4(0.2275f, 0.2275f, 0.2510f, 1.f); // #3A3A40
-    inline ImVec4 c_danger   = ImVec4(1.0000f, 0.2706f, 0.3412f, 1.f); // #FF4757
+    inline ImVec4 c_text     = ImVec4(0.9608f, 0.9412f, 0.9216f, 1.f); // #F5F0EB  milk white
+    inline ImVec4 c_muted    = ImVec4(0.4157f, 0.3529f, 0.3529f, 1.f); // #6A5A5A
+    inline ImVec4 c_muted2   = ImVec4(0.2510f, 0.2000f, 0.2000f, 1.f); // #403333
+    inline ImVec4 c_danger   = ImVec4(1.0000f, 0.1333f, 0.2000f, 1.f); // #FF2233
 
     // ========================================================================
     // 8pt spacing system
@@ -105,15 +104,15 @@ namespace theme {
     // Accent helpers
     // ========================================================================
     inline ImU32 accent_dim() {
-        return IM_COL32(200, 241, 53, (int)(255 * 0.12f));
+        return IM_COL32(224, 48, 64, (int)(255 * 0.12f));
     }
 
     inline ImU32 accent_border() {
-        return IM_COL32(200, 241, 53, (int)(255 * 0.40f));
+        return IM_COL32(224, 48, 64, (int)(255 * 0.40f));
     }
 
     inline ImU32 accent_glow(float t = 1.f) {
-        return IM_COL32(200, 241, 53, (int)(255 * 0.25f * t));
+        return IM_COL32(224, 48, 64, (int)(255 * 0.25f * t));
     }
 
     // ========================================================================
@@ -128,10 +127,10 @@ namespace theme {
         dl->AddRectFilled(mn + ImVec2(0.f, 3.f) - ImVec2(4.f, 4.f),
             mx + ImVec2(4.f, 4.f),
             IM_COL32(0, 0, 0, 65), rounding + 8.f);
-        // Layer 2: offset (0,2) size +6px, rgba(180,40,50,12), r=13 — tint depth
+        // Layer 2: offset (0,2) size +6px, rgba(224,48,64,14) — tint depth
         dl->AddRectFilled(mn + ImVec2(0.f, 2.f) - ImVec2(3.f, 3.f),
             mx + ImVec2(3.f, 3.f),
-            IM_COL32(180, 40, 50, 12), rounding + 6.f);
+            IM_COL32(224, 48, 64, 14), rounding + 6.f);
     }
 
 } // namespace theme

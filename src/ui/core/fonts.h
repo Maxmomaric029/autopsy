@@ -5,11 +5,10 @@
 #include "FontAwesome/IconsFontAwesome6.h"
 
 // Embedded font data — Inter + JetBrains Mono + FontAwesome
-#include "../embedded/font_inter_regular.h"
-#include "../embedded/font_inter_bold.h"
-#include "../embedded/font_inter_semibold.h"
-#include "../embedded/font_inter_black.h"
-#include "../embedded/font_jetbrains_mono_regular.h"
+#include "../embedded/font_poppins_regular.h"
+#include "../embedded/font_poppins_semibold.h"
+#include "../embedded/font_poppins_black.h"
+#include "../embedded/font_sekuya_regular.h"
 #include "../embedded/font_fa_solid.h"
 
 namespace font {
@@ -17,11 +16,11 @@ namespace font {
     // ========================================================================
     // Font pointers — Inter for UI, JetBrains Mono for values
     // ========================================================================
-    inline ImFont* g_display  = nullptr; // Inter Black 16px — logo
-    inline ImFont* g_label    = nullptr; // Inter SemiBold 11px — card headers
-    inline ImFont* g_body     = nullptr; // Inter Regular 11px — toggles/options
-    inline ImFont* g_mono     = nullptr; // JetBrains Mono Regular 10px — values
-    inline ImFont* g_mono_sm  = nullptr; // JetBrains Mono Regular 8px — chips/pills
+    inline ImFont* g_display  = nullptr; // Poppins Black 16px — logo
+    inline ImFont* g_label    = nullptr; // Poppins SemiBold 11px — card headers
+    inline ImFont* g_body     = nullptr; // Poppins Regular 11px — toggles/options
+    inline ImFont* g_mono     = nullptr; // Sekuya Regular 10px — values
+    inline ImFont* g_mono_sm  = nullptr; // Sekuya Regular 8px — chips/pills
 
     // ========================================================================
     // Typography scale (compact, readable)
@@ -78,31 +77,31 @@ namespace font {
         };
 
         // ========================================================================
-        // Inter — UI display fonts
+        // Poppins — UI display fonts
         // ========================================================================
 
-        // g_display: Inter Black 18px — logo (no FA merge)
-        loadFont(font_inter_black, font_inter_black_size,
+        // g_display: Poppins Black 18px — logo (no FA merge)
+        loadFont(font_poppins_black, font_poppins_black_size,
             size::display, &g_display, false);
 
-        // g_label: Inter SemiBold 12px — card headers (with FA merge)
-        loadFont(font_inter_semibold, font_inter_semibold_size,
+        // g_label: Poppins SemiBold 12px — card headers (with FA merge)
+        loadFont(font_poppins_semibold, font_poppins_semibold_size,
             size::label, &g_label, true);
 
-        // g_body: Inter Regular 12px — body text (with FA merge)
-        loadFont(font_inter_regular, font_inter_regular_size,
+        // g_body: Poppins Regular 12px — body text (with FA merge)
+        loadFont(font_poppins_regular, font_poppins_regular_size,
             size::body, &g_body, true);
 
         // ========================================================================
-        // JetBrains Mono — monospace values
+        // Sekuya — display/accent values
         // ========================================================================
 
-        // g_mono: JetBrains Mono Regular 11px — slider values, stats
-        loadFont(font_jetbrains_mono_regular, font_jetbrains_mono_regular_size,
+        // g_mono: Sekuya Regular 11px — slider values, stats
+        loadFont(font_sekuya_regular, font_sekuya_regular_size,
             size::mono, &g_mono, false);
 
-        // g_mono_sm: JetBrains Mono Regular 9px — chips, pills, version
-        loadFont(font_jetbrains_mono_regular, font_jetbrains_mono_regular_size,
+        // g_mono_sm: Sekuya Regular 9px — chips, pills, version
+        loadFont(font_sekuya_regular, font_sekuya_regular_size,
             size::mono_sm, &g_mono_sm, false);
 
         // Fallbacks

@@ -44,7 +44,7 @@ namespace layout {
 
         // ---- Sidebar background: SURFACE, border-right 1px BORDER ----
         dl->AddRectFilled(sbMin, sbMax,
-            IM_COL32(17, 17, 20, 255), 0.f); // SURFACE
+            IM_COL32(17, 17, 20, 255), 0.f); // Surface
 
         // Right border
         dl->AddRectFilled(sbMax - ImVec2(1.f, 0.f), sbMax,
@@ -55,35 +55,49 @@ namespace layout {
             IM_COL32(255, 255, 255, 22), IM_COL32(255, 255, 255, 6),
             IM_COL32(255, 255, 255, 6), IM_COL32(255, 255, 255, 22));
 
-        // ---- Logo mark: square 36px, border-radius 8px, background ACCENT ----
+        // Logo: cuervo image si está cargado, fallback skull icon
         const float logoY = sbMin.y + 20.f;
         const float logoX = sbMin.x + (kSideW - theme::kLogoSize) * 0.5f;
-        dl->AddRectFilled(
-            { logoX, logoY },
-            { logoX + theme::kLogoSize, logoY + theme::kLogoSize },
-            theme::col_accent(), 8.f);
 
-        // Logo letter "A" inside (fallback text logo)
-        ImGui::PushFont(font::display());
-        const char* logoChar = "A";
-        float logoFontSize = 18.f;
-        ImVec2 logoTextSize = font::display()->CalcTextSizeA(logoFontSize, FLT_MAX, 0.f, logoChar);
-        dl->AddText(font::display(), logoFontSize,
-            { logoX + (theme::kLogoSize - logoTextSize.x) * 0.5f,
-              logoY + (theme::kLogoSize - logoTextSize.y) * 0.5f },
-            IM_COL32(0, 0, 0, 255), logoChar);
-        ImGui::PopFont();
+        if (g_sidebar_logo) {
+            dl->AddRectFilled(
+                { logoX, logoY },
+                { logoX + theme::kLogoSize, logoY + theme::kLogoSize },
+                theme::col_accent(0.10f), 8.f);
+            dl->AddImageRounded(g_sidebar_logo,
+                { logoX + 2.f, logoY + 2.f },
+                { logoX + theme::kLogoSize - 2.f, logoY + theme::kLogoSize - 2.f },
+                ImVec2(0, 0), ImVec2(1, 1),
+                IM_COL32(255, 255, 255, 215), 6.f);
+        } else {
+            dl->AddRectFilled(
+                { logoX, logoY },
+                { logoX + theme::kLogoSize, logoY + theme::kLogoSize },
+                theme::col_accent(), 8.f);
+            ImGui::PushFont(font::label());
+            const char* sk = ICON_FA_SKULL;
+            ImVec2 skSz = font::label()->CalcTextSizeA(15.f, FLT_MAX, 0.f, sk);
+            dl->AddText(font::label(), 15.f,
+                { logoX + (theme::kLogoSize - skSz.x) * 0.5f,
+                  logoY + (theme::kLogoSize - skSz.y) * 0.5f },
+                IM_COL32(0, 0, 0, 220), sk);
+            ImGui::PopFont();
+        }
 
         // ---- Animated tab indicator ----
         static float indicatorY = logoY + theme::kLogoSize + 20.f;
         float targetY = (logoY + theme::kLogoSize + 20.f) + section * (kTabH + kTabGap);
         indicatorY = anim::damp(indicatorY, targetY, anim::speed::sidebar_tab);
 
-        // Active indicator: rect 2px wide x 20px tall, left edge, ACCENT, rounded right
+        // Active indicator: 3px wide, glow layer behind, ACCENT
         dl->AddRectFilled(
             sbMin + ImVec2(0.f, indicatorY),
-            sbMin + ImVec2(2.f, indicatorY + kTabH),
-            theme::col_accent(), 1.f);
+            sbMin + ImVec2(8.f, indicatorY + kTabH),
+            IM_COL32(224, 48, 64, 28)); // glow spread
+        dl->AddRectFilled(
+            sbMin + ImVec2(0.f, indicatorY + 4.f),
+            sbMin + ImVec2(3.f, indicatorY + kTabH - 4.f),
+            theme::col_accent(), 2.f);
 
         // ---- Tab buttons ----
         float tabY = logoY + theme::kLogoSize + 20.f;
@@ -120,7 +134,7 @@ namespace layout {
             if (active) {
                 // Active: ACCENT_DIM background
                 dl->AddRectFilled(tMin, tMax,
-                    IM_COL32(200, 241, 53, (int)(255 * 0.12f)), 8.f);
+                    IM_COL32(224, 48, 64, (int)(255 * 0.12f)), 8.f);
             } else if (hov) {
                 // Hover: SURFACE2 background
                 int ha = (int)(10 + ht * 8);
@@ -132,15 +146,15 @@ namespace layout {
             if (ht > 0.05f || active) {
                 int brdAlpha = active ? 60 : (int)(ht * 30);
                 dl->AddRect(tMin, tMax,
-                    IM_COL32(200, 241, 53, brdAlpha), 8.f, 0, 1.f);
+                    IM_COL32(224, 48, 64, brdAlpha), 8.f, 0, 1.f);
             }
 
             // Icon — centered in the 64px sidebar
             ImFont* tabF = font::label();
             float iconS = font::size::tab_icon;
             ImU32 iconCol = active
-                ? IM_COL32(200, 241, 53, 255)        // ACCENT when active
-                : IM_COL32(90, 90, 96, (int)(150 + ht * 80)); // MUTED → lighter on hover
+                ? IM_COL32(224, 48, 64, 255)
+                : IM_COL32(90, 90, 96, (int)(150 + ht * 80));
             dl->AddText(tabF, iconS,
                 tMin + ImVec2((kSideW - iconS) * 0.5f, (kTabH - iconS) * 0.5f + 1.f),
                 iconCol, iconChar);
@@ -150,12 +164,10 @@ namespace layout {
 
         // ---- Footer: separator + avatar pill ----
         float footerY = sbMax.y - 56.f;
-        // Hairline separator
         dl->AddRectFilled(sbMin + ImVec2(14.f, footerY),
             sbMax + ImVec2(-14.f, footerY + 1.f),
             IM_COL32(255, 255, 255, 10));
 
-        // Avatar pill: small circle 28px
         float avatarY = footerY + 14.f;
         float avatarX = sbMin.x + (kSideW - 28.f) * 0.5f;
 
@@ -168,26 +180,25 @@ namespace layout {
                 ImVec2(0, 0), ImVec2(1, 1),
                 IM_COL32(255, 255, 255, 255), 14.f);
             dl->AddCircle({ avatarX + 14.f, avatarY + 14.f },
-                14.f, IM_COL32(255, 255, 255, 15), 24, 1.f);
-        } else {
-            // Circle placeholder with initials fallback
-            dl->AddCircleFilled({ avatarX + 14.f, avatarY + 14.f },
+            14.f, IM_COL32(255, 255, 255, 15), 24, 1.f);
+                } else {
+                dl->AddCircleFilled({ avatarX + 14.f, avatarY + 14.f },
                 14.f, IM_COL32(23, 23, 27, 255), 24);
             dl->AddCircle({ avatarX + 14.f, avatarY + 14.f },
                 14.f, IM_COL32(255, 255, 255, 15), 24, 1.f);
 
-            static const char* username = []() {
-                static char buf[128];
+                static const char* username = []() {
+                    static char buf[128];
                 DWORD len = GetEnvironmentVariableA("USERNAME", buf, sizeof(buf));
                 return (len && len < sizeof(buf)) ? buf : "U";
             }();
-            char initial[2] = { username[0], '\0' };
-            ImVec2 initSize = ImGui::CalcTextSize(initial);
-            dl->AddText(font::body(), 12.f,
-                { avatarX + 14.f - initSize.x * 0.5f,
+                char initial[2] = { username[0], '\0' };
+                ImVec2 initSize = ImGui::CalcTextSize(initial);
+                dl->AddText(font::body(), 12.f,
+                    { avatarX + 14.f - initSize.x * 0.5f,
                   avatarY + 14.f - initSize.y * 0.5f },
-                theme::col_accent(), initial);
-        }
+              theme::col_accent(), initial);
+            }
 
         // Status dot
         float dotY = avatarY + 20.f;
@@ -218,7 +229,7 @@ namespace layout {
         dl->AddRectFilled(tbMin + ImVec2(0.f, kTopH - 1.f), tbMax,
             IM_COL32(255, 255, 255, 15), 0.f);
 
-        // Section name (left) — Syne Bold 13px uppercase
+        // Section name
         ImGui::PushFont(font::label());
         const float labelSize = 13.f;
         const char* sectionName = icon::tabLabels[section];
@@ -227,16 +238,16 @@ namespace layout {
             theme::col_text(), sectionName);
         ImGui::PopFont();
 
-        // Badge pill next to section name
+        // Badge pill
         const char* badge = icon::tabBadges[section];
         float badgeW = ImGui::CalcTextSize(badge).x + 12.f;
         float badgeH = 18.f;
         float badgeX = tbMin.x + 20.f + ImGui::CalcTextSize(sectionName).x + 10.f;
         float badgeY = tbMin.y + (kTopH - badgeH) * 0.5f;
         dl->AddRectFilled({ badgeX, badgeY }, { badgeX + badgeW, badgeY + badgeH },
-            IM_COL32(200, 241, 53, (int)(255 * 0.14f)), 5.f); // ACCENT_DIM
+            IM_COL32(224, 48, 64, (int)(255 * 0.14f)), 5.f);
         dl->AddRect({ badgeX, badgeY }, { badgeX + badgeW, badgeY + badgeH },
-            IM_COL32(200, 241, 53, (int)(255 * 0.20f)), 5.f, 0, 1.f);
+            IM_COL32(224, 48, 64, (int)(255 * 0.20f)), 5.f, 0, 1.f);
         ImGui::PushFont(font::mono());
         dl->AddText(font::mono(), 10.f,
             { badgeX + (badgeW - ImGui::CalcTextSize(badge).x) * 0.5f,
@@ -244,7 +255,26 @@ namespace layout {
             theme::col_accent(), badge);
         ImGui::PopFont();
 
-
+        // FPS pill (right side) — cached, no duplicate calc
+        {
+            static double lastT = 0.0; static int fc = 0; static float fps = 0.f;
+            double now2 = ImGui::GetTime(); ++fc;
+            if (now2 - lastT >= 0.5) { fps = (float)(fc / (now2 - lastT)); fc = 0; lastT = now2; }
+            char fpsBuf[16]; std::snprintf(fpsBuf, sizeof(fpsBuf), "%.0f fps", fps);
+            float fpsTW = ImGui::CalcTextSize(fpsBuf).x;
+            float fpsPW = fpsTW + 14.f, fpsPH = 18.f;
+            float fpsPX = tbMax.x - fpsPW - 16.f;
+            float fpsPY = tbMin.y + (kTopH - fpsPH) * 0.5f;
+            dl->AddRectFilled({ fpsPX, fpsPY }, { fpsPX + fpsPW, fpsPY + fpsPH },
+                IM_COL32(20, 8, 8, 180), 5.f);
+            dl->AddRect({ fpsPX, fpsPY }, { fpsPX + fpsPW, fpsPY + fpsPH },
+                IM_COL32(224, 48, 64, 40), 5.f, 0, 1.f);
+            ImGui::PushFont(font::mono());
+            dl->AddText(font::mono(), 10.f,
+                { fpsPX + (fpsPW - fpsTW) * 0.5f, fpsPY + (fpsPH - 10.f) * 0.5f },
+                IM_COL32(160, 140, 140, 200), fpsBuf);
+            ImGui::PopFont();
+        }
     }
 
     // ========================================================================

@@ -440,7 +440,51 @@ namespace esp {
                 draw_text_shadowed(dl, ImGui::GetFont(), ImGui::GetFontSize(), tp, col4_to_u32(global::esp::color::tool), tool.c_str());
             }
 
-            // ── Rig type ───────────────────────────────────────────────
+            // Box Fill
+            if (global::esp::Box && global::esp::Box_Fill)
+            {
+                ImU32 topCol = col4_to_u32(global::esp::color::BoxFill_Top);
+                ImU32 botCol = col4_to_u32(global::esp::color::BoxFill_Bottom);
+                if (global::esp::Box_Fill_Gradient)
+                    dl->AddRectFilledMultiColor(boxMin, boxMax, topCol, topCol, botCol, botCol);
+                else
+                    dl->AddRectFilled(boxMin, boxMax, topCol);
+            }
+
+            // Aim line
+            if (global::esp::aimline)
+            {
+                ImVec2 screenBottom(ImGui::GetIO().DisplaySize.x * 0.5f, ImGui::GetIO().DisplaySize.y);
+                dl->AddLine(screenBottom, ImVec2(HeadScreen.x, HeadScreen.y),
+                    col4_to_u32(global::esp::color::aimline), 1.f);
+            }
+
+            // Trails
+            if (global::esp::Trails)
+            {
+                struct TrailPt { ImVec2 pt; double t; };
+                static std::unordered_map<uintptr_t, std::vector<TrailPt>> trailMap;
+                double nowT = ImGui::GetTime();
+                uintptr_t key = player.character.Address;
+                ImVec2 footPt((boxMin.x + boxMax.x) * 0.5f, boxMax.y);
+                auto& trail = trailMap[key];
+                trail.push_back({ footPt, nowT });
+                trail.erase(std::remove_if(trail.begin(), trail.end(),
+                    [&](const TrailPt& p) { return nowT - p.t > 1.5; }), trail.end());
+                for (int ti = 1; ti < (int)trail.size(); ++ti) {
+                    float a = (float)(1.0 - (nowT - trail[ti].t) / 1.5);
+                    dl->AddLine(trail[ti-1].pt, trail[ti].pt,
+                        u32_alpha(col4_to_u32(global::esp::color::Trails), a * 0.85f), 1.5f);
+                }
+                static int pruneCounter = 0;
+                if (++pruneCounter > 300) {
+                    pruneCounter = 0;
+                    for (auto it = trailMap.begin(); it != trailMap.end(); )
+                        it = (it->second.empty() || nowT - it->second.back().t > 3.0)
+                            ? trailMap.erase(it) : ++it;
+                }
+            }
+
             if (global::esp::Rig_Type)
             {
                 const char* rig = (player.Rig_Type == 1) ? "R15" : (player.Rig_Type == 0) ? "R6" : nullptr;

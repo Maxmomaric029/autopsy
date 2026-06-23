@@ -184,9 +184,12 @@ namespace page {
             w::gap(theme::space::sm);
             w::labelsection("Rendering");
             w::sliderfloat("Render Distance", &global::esp::Render_Distance, 0.f, 1000.f);
+            w::toggle("Visible Check", &global::esp::VisibleCheck);
 
             w::gap(theme::space::sm);
             w::labelsection("Colors");
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Box");
+            w::color4("##box_col", global::esp::color::Box);
             ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Visible");
             w::color4("##vis_col", global::esp::color::Visible);
             ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Not Visible");
@@ -195,28 +198,12 @@ namespace page {
             w::color4("##skel_col", global::esp::color::Skeleton);
             ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Trails");
             w::color4("##trail_col", global::esp::color::Trails);
-
-        }
-        w::card::end();
-
-        // ---- Right panel (240px): color swatches + session ----
-        ImGui::SameLine(0.f, theme::space::md);
-
-        if (w::card::begin("##vis_right", { theme::kRightPanelW, contentH }, "Visual Config")) {
-            w::labelsection("Player Colors");
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Visible");
-            ImGui::SameLine(ImGui::GetContentRegionMax().x - 22.f);
-            w::color4("##visc", global::esp::color::Visible);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Not Visible");
-            ImGui::SameLine(ImGui::GetContentRegionMax().x - 22.f);
-            w::color4("##nvc", global::esp::color::NotVisible);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Skeleton");
-            ImGui::SameLine(ImGui::GetContentRegionMax().x - 22.f);
-            w::color4("##skc", global::esp::color::Skeleton);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Trails");
-            ImGui::SameLine(ImGui::GetContentRegionMax().x - 22.f);
-            w::color4("##trc", global::esp::color::Trails);
-
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Aim Line");
+            w::color4("##aimline_col", global::esp::color::aimline);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Name");
+            w::color4("##name_col", global::esp::color::name);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Distance");
+            w::color4("##dist_col", global::esp::color::Distance);
         }
         w::card::end();
     }
@@ -380,6 +367,7 @@ namespace page {
                 w::toggle("  Aimbot", &global::overlay::Hotkey_Aimbot);
                 w::toggle("  Silent", &global::overlay::Hotkey_Silent);
                 w::toggle("  Fly", &global::overlay::Hotkey_Fly);
+                w::toggle("  Blade Spam", &global::overlay::Hotkey_BladeBallSpam);
                 w::toggle("  Walkspeed", &global::overlay::Hotkey_Walkspeed);
                 w::toggle("  Hitbox", &global::overlay::Hotkey_HitboxExpander);
             }
@@ -398,122 +386,68 @@ namespace page {
 
         ImGui::SameLine(0.f, theme::space::md);
 
-        // ---- Right: ACCOUNT & ABOUT ----
-        if (w::card::begin("##s_about", { leftW, contentH }, "Account & About")) {
+        // ---- Right: ACCOUNT ----
+        if (w::card::begin("##s_about", { leftW, contentH }, "Account")) {
             w::labelsection("User");
 
-            // User pill container
             ImDrawList* dl = ImGui::GetWindowDrawList();
             const ImVec2 pillPos = ImGui::GetCursorScreenPos();
             float pillW = ImGui::GetContentRegionAvail().x;
             float pillH = 64.f;
-            // Check hover
-            bool pillHovered = ImGui::IsMouseHoveringRect(pillPos, pillPos + ImVec2(pillW, pillH));
 
-            // Pill background: SURFACE2, border BORDER, border-radius 16px
             dl->AddRectFilled(pillPos, pillPos + ImVec2(pillW, pillH),
-                IM_COL32(23, 23, 27, 255), 16.f); // SURFACE2
+                IM_COL32(20, 10, 10, 255), 12.f);
             dl->AddRect(pillPos, pillPos + ImVec2(pillW, pillH),
-                pillHovered ? IM_COL32(200, 241, 53, 55) : IM_COL32(255, 255, 255, 15),
-                16.f, 0, 1.f);
+                IM_COL32(224, 48, 64, 25), 12.f, 0, 1.f);
 
-            // Avatar (real image if loaded, otherwise initials fallback)
             float avatarR = 22.f;
             ImVec2 avCenter = pillPos + ImVec2(12.f + avatarR, pillH * 0.5f);
 
-            // AddImageRounded trick: draw the image into a circle clip
             ID3D11ShaderResourceView* avatarSrv = avatar::get_srv();
             if (avatarSrv && avatar::is_loaded()) {
-                // Circle clip via AddImageRounded with radius = 24 (full circle)
                 dl->AddImageRounded(avatarSrv,
                     pillPos + ImVec2(12.f, 10.f),
                     pillPos + ImVec2(60.f, 58.f),
                     ImVec2(0, 0), ImVec2(1, 1),
                     IM_COL32(255, 255, 255, 255), 24.f);
-                // Border ring
                 dl->AddCircle(avCenter, avatarR + 1.f,
-                    IM_COL32(200, 241, 53, 40), 32, 1.5f);
+                    IM_COL32(224, 48, 64, 50), 32, 1.5f);
             } else {
-                // Circle placeholder with initials fallback
-                dl->AddCircleFilled(avCenter, avatarR,
-                    IM_COL32(23, 23, 27, 255), 32);
-                dl->AddCircle(avCenter, avatarR,
-                    IM_COL32(200, 241, 53, 40), 32, 1.5f);
-
-                static const char* username = []() {
+                dl->AddCircleFilled(avCenter, avatarR, IM_COL32(30, 12, 12, 255), 32);
+                dl->AddCircle(avCenter, avatarR, IM_COL32(224, 48, 64, 50), 32, 1.5f);
+                static const char* uname = []() {
                     static char buf[128];
                     DWORD len = GetEnvironmentVariableA("USERNAME", buf, sizeof(buf));
-                    return (len && len < sizeof(buf)) ? buf : "user";
+                    return (len && len < sizeof(buf)) ? buf : "?";
                 }();
-                char initial[2] = { username[0] >= 'a' ? (char)(username[0] - 32) : username[0], '\0' };
-                ImVec2 initSize = ImGui::CalcTextSize(initial);
+                char init[2] = { (char)toupper(uname[0]), '\0' };
+                ImVec2 initSz = ImGui::CalcTextSize(init);
                 dl->AddText(font::label(), 14.f,
-                    { avCenter.x - initSize.x * 0.5f, avCenter.y - initSize.y * 0.5f },
-                    theme::col_accent(), initial);
+                    { avCenter.x - initSz.x * 0.5f, avCenter.y - initSz.y * 0.5f },
+                    theme::col_accent(), init);
             }
 
-            // Username
             static std::string username_str = avatar::get_username();
-            const char* username = username_str.c_str();
-            dl->AddText(font::label(), 14.f,
+            dl->AddText(font::label(), 13.f,
                 pillPos + ImVec2(70.f, 14.f),
-                IM_COL32(240, 240, 238, 255), username);
+                theme::col_text(), username_str.c_str());
 
-            // Invisible button for hover detection
-            ImGui::SetCursorScreenPos(pillPos);
-            ImGui::InvisibleButton("##pill_click", { pillW, pillH });
+            ImGui::SetCursorScreenPos(pillPos + ImVec2(0.f, pillH + 8.f));
 
             w::gap(theme::space::sm);
-
-            // ---- HOTKEYS RÁPIDOS ----
-            w::labelsection("Hotkeys");
-            // Grid 2 columns
-            struct QuickKey { const char* label; ImGuiKey* key; };
-            QuickKey quickKeys[] = {
-                {"Aimbot",    &global::aim::Aimbot_Key},
-                {"Silent",    &global::silent::Silent_Key},
-                {"Fly",       &global::misc::Fly_Key},
-                {"Walkspeed", nullptr},
-                {"Hitbox",    nullptr},
-                {"Menu",      &global::setting::Menu_Key},
-            };
-            float chipW = (ImGui::GetContentRegionAvail().x - 8.f) * 0.5f;
-            for (int i = 0; i < 6; i += 2) {
-                // Row 1
-                if (i < 6) {
-                    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
-                        "%s", quickKeys[i].label);
-                    ImGui::SameLine(chipW + 8.f);
-                    if (quickKeys[i].key) {
-                        ImGui::SetCursorPosX(chipW + 8.f + 10.f);
-                        w::keyselect(quickKeys[i].label, quickKeys[i].key);
-                    }
-                }
-                ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4.f);
-                // Row 2
-                if (i + 1 < 6) {
-                    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
-                        "%s", quickKeys[i + 1].label);
-                    ImGui::SameLine(chipW + 8.f);
-                    if (quickKeys[i + 1].key) {
-                        ImGui::SetCursorPosX(chipW + 8.f + 10.f);
-                        w::keyselect(quickKeys[i + 1].label, quickKeys[i + 1].key);
-                    }
-                }
-                w::gap(theme::space::xs);
-            }
-
-            w::gap(theme::space::sm);
-            w::labelsection("About");
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Version");
-            ImGui::SameLine(ImGui::GetContentRegionMax().x - 50.f);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "1.0.0");
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Build");
+            w::labelsection("Keybinds");
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Aimbot");
             ImGui::SameLine(ImGui::GetContentRegionMax().x - 80.f);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "2025.06.12");
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Status");
-            ImGui::SameLine(ImGui::GetContentRegionMax().x - 70.f);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_accent()), "Premium");
+            w::keyselect("##qk_aim", &global::aim::Aimbot_Key);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Silent");
+            ImGui::SameLine(ImGui::GetContentRegionMax().x - 80.f);
+            w::keyselect("##qk_sil", &global::silent::Silent_Key);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Fly");
+            ImGui::SameLine(ImGui::GetContentRegionMax().x - 80.f);
+            w::keyselect("##qk_fly", &global::misc::Fly_Key);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Menu");
+            ImGui::SameLine(ImGui::GetContentRegionMax().x - 80.f);
+            w::keyselect("##qk_menu", &global::setting::Menu_Key);
         }
         w::card::end();
     }

@@ -60,33 +60,37 @@ namespace w {
 
         // Track background
         ImU32 trackBg = theme::lerp_u32(
-            IM_COL32(23, 23, 27, 255),                      // SURFACE2 off
-            IM_COL32(200, 241, 53, (int)(255 * 0.18f)),      // ACCENT_DIM on
+            IM_COL32(23, 23, 27, 255),
+            IM_COL32(224, 48, 64, (int)(255 * 0.18f)),
             t);
         dl->AddRectFilled(p, p + ImVec2(kTW, kTH), trackBg, kTH * 0.5f);
 
-        // Track border
         ImU32 trackBr = theme::lerp_u32(
-            IM_COL32(255, 255, 255, 15),                     // BORDER off
-            IM_COL32(200, 241, 53, (int)(255 * 0.40f)),      // ACCENT border on
+            IM_COL32(255, 255, 255, 15),
+            IM_COL32(224, 48, 64, (int)(255 * 0.40f)),
             t);
         dl->AddRect(p, p + ImVec2(kTW, kTH), trackBr, kTH * 0.5f, 0, 1.f);
 
-        // Thumb position: left=2px (OFF) → left=20px (ON)
         const float thumbX = p.x + 2.f + t * (kTW - kTH);
         const float thumbY = p.y + kTH * 0.5f;
 
-        // Thumb shadow
         dl->AddCircleFilled({ thumbX + kThumbR, thumbY + 0.5f },
             kThumbR + 0.5f, IM_COL32(0, 0, 0, 60), 24);
 
-        // Thumb
         ImU32 thumbCol = theme::lerp_u32(
-            IM_COL32(90, 90, 96, 255),                       // MUTED off
-            IM_COL32(200, 241, 53, 255),                     // ACCENT on
+            IM_COL32(90, 90, 96, 255),
+            IM_COL32(224, 48, 64, 255),
             t);
+        // Thumb glow when ON
+        if (t > 0.05f) {
+            dl->AddCircleFilled({ thumbX + kThumbR, thumbY }, kThumbR + 4.f,
+                IM_COL32(224, 48, 64, (int)(40 * t)), 24);
+        }
         float thumbRad = kThumbR + (hov ? 0.5f : 0.f);
         dl->AddCircleFilled({ thumbX + kThumbR, thumbY }, thumbRad, thumbCol, 24);
+        // Inner shine
+        dl->AddCircleFilled({ thumbX + kThumbR - 1.f, thumbY - 1.5f }, thumbRad * 0.28f,
+            IM_COL32(255, 255, 255, (int)(90 * t + 40 * (1.f - t))), 12);
 
         // Label
         ImGui::SameLine(0.f, 10.f);
@@ -149,7 +153,7 @@ namespace w {
 
         // Track fill with gradient
         if (t > 0.001f) {
-            ImU32 fillStart = IM_COL32(200, 241, 53, (int)(255 * 0.6f));
+            ImU32 fillStart = IM_COL32(224, 48, 64, (int)(255 * 0.6f));
             ImU32 fillEnd   = theme::col_accent();
             dl->AddRectFilledMultiColor(
                 { p.x,           trackCenterY - kTrkH * 0.5f },
@@ -161,10 +165,14 @@ namespace w {
         const float hx = p.x + w * t;
         const float hr = active ? 7.f : (hov ? 6.f : 5.f);
 
-        // Handle glow
+        // Handle glow — always visible when value > 0
+        if (t > 0.001f) {
+            dl->AddCircleFilled({ hx, trackCenterY }, hr + 5.f,
+                IM_COL32(224, 48, 64, (int)(30 * t)), 24);
+        }
         if (active) {
             dl->AddCircleFilled({ hx, trackCenterY }, hr + 3.f,
-                IM_COL32(200, 241, 53, (int)(255 * 0.25f)), 24);
+                IM_COL32(224, 48, 64, (int)(255 * 0.25f)), 24);
         }
 
         // Main handle (outer circle)
@@ -226,10 +234,9 @@ namespace w {
             if (t > 0.01f) {
                 // Active pill background
                 dl->AddRectFilled(mn, mx,
-                    IM_COL32(200, 241, 53, (int)(255 * 0.14f)), 5.f); // ACCENT_DIM
-                // Active pill border
+                    IM_COL32(224, 48, 64, (int)(255 * 0.14f)), 5.f);
                 dl->AddRect(mn, mx,
-                    IM_COL32(200, 241, 53, (int)(255 * 0.20f)), 5.f, 0, 1.f);
+                    IM_COL32(224, 48, 64, (int)(255 * 0.20f)), 5.f, 0, 1.f);
             }
 
             // Label text
@@ -259,37 +266,33 @@ namespace w {
     inline void labelsection(const char* text) {
         ImDrawList* dl = ImGui::GetWindowDrawList();
         const ImVec2 p  = ImGui::GetCursorScreenPos();
-        ImGui::PushFont(font::body());
-        const float  fh = font::size::body;
-        ImGui::PopFont();
         const float contentWidth = ImGui::GetContentRegionAvail().x;
-
-        // Left accent bar — 2px wide, subtle
-        const float barH = fh + 2.f;
-        dl->AddRectFilled(
-            { p.x, p.y },
-            { p.x + 2.f, p.y + barH },
-            theme::alpha(theme::col_accent(), 0.45f));
-
-        // Text
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 9.f);
         ImGui::PushFont(font::body());
-        dl->AddText(p + ImVec2(9.f, 0.f),
-            theme::col_muted(), text);
+        const float fh = font::size::body;
+
+        // Left accent bar — 3px, glow layer behind
+        const float barH = fh + 2.f;
+        dl->AddRectFilled({ p.x, p.y }, { p.x + 6.f, p.y + barH },
+            IM_COL32(224, 48, 64, 18)); // soft glow
+        dl->AddRectFilled({ p.x, p.y }, { p.x + 3.f, p.y + barH },
+            theme::alpha(theme::col_accent(), 0.70f));
+
+        // Text — col_text at 58% instead of col_muted
+        dl->AddText(p + ImVec2(10.f, 0.f),
+            IM_COL32(245, 240, 235, 148), text);
         ImGui::PopFont();
 
-        // Separator line under text — fade horizontal
+        // Separator — red-tinted fade
         const ImVec2 lp = ImGui::GetCursorScreenPos();
-        float textEndX = p.x + 9.f + ImGui::CalcTextSize(text).x;
-        const float lw = ImGui::GetContentRegionAvail().x;
+        float textEndX = p.x + 10.f + ImGui::CalcTextSize(text).x;
+        const float lw = contentWidth;
         float sepStart = ImMax(lp.x, textEndX + 8.f);
         float sepW = lw - (sepStart - lp.x);
         if (sepW > 4.f) {
             dl->AddRectFilledMultiColor(
-                { sepStart, lp.y + 4.f },
-                { sepStart + sepW * 0.5f, lp.y + 5.f },
-                IM_COL32(255, 255, 255, 8), IM_COL32(0, 0, 0, 0),
-                IM_COL32(0, 0, 0, 0), IM_COL32(255, 255, 255, 8));
+                { sepStart, lp.y + 4.f }, { sepStart + sepW * 0.6f, lp.y + 5.f },
+                IM_COL32(224, 48, 64, 22), IM_COL32(0, 0, 0, 0),
+                IM_COL32(0, 0, 0, 0), IM_COL32(224, 48, 64, 22));
         }
         ImGui::Dummy({ 0.f, 6.f });
     }
@@ -359,33 +362,17 @@ namespace w {
     // Poll GetAsyncKeyState as fallback for key detection (needed with WS_EX_NOACTIVATE)
     // ========================================================================
     static bool poll_global_key(ImGuiKey& out) {
-        // Check letter keys first (most common for binds)
-        for (int vk = 'A'; vk <= 'Z'; vk++) {
-            if (GetAsyncKeyState(vk) & 1) {
-                out = vk_to_key(vk);
-                return out != ImGuiKey_None;
-            }
-        }
-        // Number keys
-        for (int vk = '0'; vk <= '9'; vk++) {
-            if (GetAsyncKeyState(vk) & 1) {
-                out = vk_to_key(vk);
-                return out != ImGuiKey_None;
-            }
-        }
-        // Function keys
-        for (int vk = VK_F1; vk <= VK_F24; vk++) {
-            if (GetAsyncKeyState(vk) & 1) {
-                out = vk_to_key(vk);
-                return out != ImGuiKey_None;
-            }
-        }
-        // Special keys
-        int spec[] = { VK_TAB, VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN,
-            VK_PRIOR, VK_NEXT, VK_HOME, VK_END, VK_INSERT, VK_DELETE,
-            VK_BACK, VK_SPACE, VK_RETURN, VK_ESCAPE,
-            VK_LCONTROL, VK_LSHIFT, VK_LMENU, VK_RCONTROL, VK_RSHIFT, VK_RMENU };
-        for (int vk : spec) {
+        // Solo iterar keys comunes — no F1-F24 completo cada frame
+        static const int vkList[] = {
+            'A','B','C','D','E','F','G','H','I','J','K','L','M',
+            'N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
+            '0','1','2','3','4','5','6','7','8','9',
+            VK_F1,VK_F2,VK_F3,VK_F4,VK_F5,VK_F6,
+            VK_F7,VK_F8,VK_F9,VK_F10,VK_F11,VK_F12,
+            VK_TAB,VK_SPACE,VK_RETURN,VK_ESCAPE,VK_INSERT,VK_DELETE,
+            VK_LCONTROL,VK_LSHIFT,VK_LMENU,VK_RCONTROL,VK_RSHIFT,VK_RMENU
+        };
+        for (int vk : vkList) {
             if (GetAsyncKeyState(vk) & 1) {
                 out = vk_to_key(vk);
                 return out != ImGuiKey_None;
@@ -441,11 +428,10 @@ namespace w {
 
         // Background
         ImU32 bg = listening
-            ? IM_COL32(200, 241, 53, (int)(255 * 0.14f))
+            ? IM_COL32(224, 48, 64, (int)(255 * 0.14f))
             : IM_COL32(23, 23, 27, 255);
         dl->AddRectFilled(p, p + ImVec2(kw, h), bg, 5.f);
 
-        // Border
         ImU32 brd = listening
             ? theme::col_accent()
             : IM_COL32(255, 255, 255, 15);
@@ -524,7 +510,7 @@ namespace w {
 
         // Key background
         ImU32 keyBg = listening
-            ? IM_COL32(200, 241, 53, (int)(255 * 0.14f))
+            ? IM_COL32(224, 48, 64, (int)(255 * 0.14f))
             : IM_COL32(23, 23, 27, 255);
         ImU32 keyBrd = listening
             ? theme::col_accent()
@@ -550,11 +536,11 @@ namespace w {
         }
 
         ImU32 modeBg = mhov
-            ? IM_COL32(200, 241, 53, (int)(255 * 0.08f))
+            ? IM_COL32(224, 48, 64, (int)(255 * 0.08f))
             : IM_COL32(23, 23, 27, 255);
         dl->AddRectFilled(mp, mp + ImVec2(mw, h), modeBg, 5.f);
         ImU32 modeBrd = mhov
-            ? IM_COL32(200, 241, 53, 80)
+            ? IM_COL32(224, 48, 64, 80)
             : IM_COL32(255, 255, 255, 15);
         dl->AddRect(mp, mp + ImVec2(mw, h), modeBrd, 5.f, 0, 1.f);
 
@@ -693,7 +679,7 @@ namespace w {
             IM_COL32(30, 30, 35, 255), ht);
         dl->AddRectFilled(p, p + ImVec2(w, h), fill, 6.f);
         dl->AddRect(p, p + ImVec2(w, h),
-            hov ? IM_COL32(200, 241, 53, (int)(255 * 0.35f)) : IM_COL32(255, 255, 255, 15),
+            hov ? IM_COL32(224, 48, 64, (int)(255 * 0.35f)) : IM_COL32(255, 255, 255, 15),
             6.f, 0, 1.f);
 
         const char* cur = (*idx >= 0 && *idx < (int)items.size()) ? items[*idx] : "---";
@@ -791,7 +777,7 @@ namespace w {
         dl->AddRectFilled(mn + ImVec2(0.f, 3.f), mx + ImVec2(0.f, 3.f),
             IM_COL32(0,0,0,80), h * 0.5f);
         dl->AddRectFilled(mn, mx, IM_COL32(10, 10, 11, 240), h * 0.5f);
-        dl->AddRect(mn, mx, IM_COL32(200, 241, 53, (int)(255 * 0.5f)), h * 0.5f, 0, 1.f);
+        dl->AddRect(mn, mx, IM_COL32(224, 48, 64, (int)(255 * 0.5f)), h * 0.5f, 0, 1.f);
         ImGui::PushFont(font::mono());
         dl->AddText(mn + ImVec2(padX, padY), IM_COL32(90, 90, 96, 255), text);
         ImGui::PopFont();

@@ -112,22 +112,27 @@ namespace notify {
                 accent = theme::col_accent();
                 break;
             }
-            bg = IM_COL32(6, 11, 20, (int)(235 * alpha));
-            border = IM_COL32(20, 40, 60, (int)(140 * alpha));
+            bg = IM_COL32(18, 6, 8, (int)(235 * alpha));
+            border = IM_COL32(60, 18, 22, (int)(140 * alpha));
 
             // Shadow
-            for (int s = 0; s < 4; s++) {
-                const float sp = 4.f + s * 4.f;
-                dl->AddRectFilled(mn - ImVec2(sp * .4f, sp * .2f) + ImVec2(0.f, 3.f + s),
-                    mx + ImVec2(sp * .45f, sp * .65f),
-                    IM_COL32(0, 0, 0, (int)((20.f - s * 3.5f) * alpha)), 10.f + sp);
+            for (int s = 0; s < 3; s++) {
+                const float sp = 3.f + s * 4.f;
+                dl->AddRectFilled(mn - ImVec2(sp * .3f, sp * .15f) + ImVec2(0.f, 2.f + s),
+                    mx + ImVec2(sp * .35f, sp * .55f),
+                    IM_COL32(0, 0, 0, (int)((18.f - s * 4.f) * alpha)), 10.f + sp);
             }
 
             // Background
             dl->AddRectFilled(mn, mx, bg, 10.f);
 
-            // Accent bar (left edge)
-            dl->AddRectFilled(mn + ImVec2(3.f, 5.f), mn + ImVec2(6.f, kItemH - 5.f), accent, 2.f);
+            // Accent glow behind bar
+            dl->AddRectFilled(mn + ImVec2(1.f, 3.f), mn + ImVec2(10.f, kItemH - 3.f),
+                theme::alpha(accent, 0.18f * alpha), 4.f);
+
+            // Accent bar
+            dl->AddRectFilled(mn + ImVec2(3.f, 5.f), mn + ImVec2(6.f, kItemH - 5.f),
+                theme::alpha(accent, alpha), 2.f);
 
             // Top border
             dl->AddRectFilledMultiColor(mn, ImVec2(mx.x, mn.y + 1.f),

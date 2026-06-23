@@ -43,10 +43,10 @@ namespace global {
 		inline float AimView_MaxLength = 250.f;
 
 		namespace color {
-			inline float Accent[4]{ 0.0f, 0.682f, 1.0f, 1.0f };
-			inline float Accent2[4]{ 0.392f, 0.459f, 1.0f, 1.0f };
-			inline float panel[4]{ 0.012f, 0.031f, 0.055f, 0.737f };
-			inline float text[4]{ 0.91f, 0.949f, 0.976f, 1.0f };
+			inline float Accent[4]{ 0.878f, 0.188f, 0.251f, 1.0f };
+			inline float Accent2[4]{ 1.0f, 0.392f, 0.451f, 1.0f };
+			inline float panel[4]{ 0.051f, 0.020f, 0.020f, 0.85f };
+			inline float text[4]{ 0.961f, 0.941f, 0.922f, 1.0f };
 		}
 	}
 
@@ -62,11 +62,11 @@ namespace global {
 		inline float Sound_Volume = 0.4f;
 
 		namespace color {
-			inline float Accent[4]{ 0.0f, 0.682f, 1.0f, 1.0f };
-			inline float Accent2[4]{ 0.392f, 0.459f, 1.0f, 1.0f };
-			inline float Window[4]{ 0.012f, 0.024f, 0.039f, 1.0f };
-			inline float card[4]{ 0.031f, 0.055f, 0.086f, 1.0f };
-			inline float text[4]{ 0.91f, 0.949f, 0.976f, 1.0f };
+			inline float Accent[4]{ 0.878f, 0.188f, 0.251f, 1.0f };
+			inline float Accent2[4]{ 1.0f, 0.392f, 0.451f, 1.0f };
+			inline float Window[4]{ 0.051f, 0.020f, 0.020f, 1.0f };
+			inline float card[4]{ 0.078f, 0.035f, 0.035f, 1.0f };
+			inline float text[4]{ 0.961f, 0.941f, 0.922f, 1.0f };
 		}
 	}
 
@@ -89,8 +89,8 @@ namespace global {
 		inline float MinBallSpeed = 12.f;
 		inline ImGuiKey SpamParry_Key = ImGuiKey_C;
 		inline ImKeyBindMode SpamParry_Mode = ImKeyBindMode_Hold;
-		inline float BallEspColor[4]{ 0.0f, 0.682f, 1.0f, 1.0f };
-		inline float ParryRangeColor[4]{ 0.392f, 0.459f, 1.0f, 0.75f };
+		inline float BallEspColor[4]{ 0.878f, 0.188f, 0.251f, 1.0f };
+		inline float ParryRangeColor[4]{ 1.0f, 0.392f, 0.451f, 0.75f };
 	}
 
 	namespace rivals {
@@ -117,8 +117,8 @@ namespace global {
 
 		namespace color {
 
-			inline float Ambience[4] = { 0.0f, 0.682f, 1.0f, 1.0f };
-			inline float Fog[4] = { 0.0f, 0.682f, 1.0f, 1.0f };
+			inline float Ambience[4] = { 0.878f, 0.188f, 0.251f, 1.0f };
+			inline float Fog[4] = { 0.878f, 0.188f, 0.251f, 0.6f };
 		}
 	}
 
@@ -158,7 +158,7 @@ namespace global {
 		inline int TriggerDelayMs = 80;
 		inline float TriggerRadius = 6.f;
 
-		inline float FovColor[4] = { 0.0f, 0.682f, 1.0f, 1.0f };
+		inline float FovColor[4] = { 0.878f, 0.188f, 0.251f, 0.8f };
 
 		inline int FovSpinSpeed = 1;
 
@@ -204,7 +204,7 @@ namespace global {
 		inline ImGuiKey Silent_Key = ImGuiKey_Q;
 		inline ImKeyBindMode Silent_Mode = ImKeyBindMode_Hold;
 		inline int AimPart{ 0 };
-		inline float FovColor[4]{ 0.392f, 0.459f, 1.0f, 1.0f };
+		inline float FovColor[4]{ 1.0f, 0.392f, 0.451f, 0.8f };
 		inline int FovSpinSpeed = 1;
 		inline bool FovSpin;
 		inline bool FillFov;
@@ -244,27 +244,27 @@ namespace global {
 
 		namespace color {
 
-			inline float Box[4] = { 0.0f, 0.682f, 1.0f, 1.0f };
-			inline float BoxFill_Top[4] = { 0.0f, 0.682f, 1.0f, 0.50f };
-			inline float BoxFill_Bottom[4] = { 0.f, 0.f, 0.f, 0.50f };
-			inline float Healthbar[4] = { 0.0f, 0.682f, 1.0f, 1.0f };
-			inline float name[4] = { 0.0f, 0.682f, 1.0f, 1.0f };
-			inline float Distance[4] = { 0.392f, 0.459f, 1.0f, 1.0f };
-			inline float Rig_Type[4] = { 0.392f, 0.459f, 1.0f, 1.0f };
-			inline float tool[4] = { 0.0f, 0.682f, 1.0f, 1.0f };
-			inline float Health[4] = { 0.0f, 0.682f, 1.0f, 1.0f };
-			inline float Skeleton[4] = { 0.392f, 0.459f, 1.0f, 1.0f };
-			inline float Chams[4] = { 0.392f, 0.459f, 1.0f, 1.0f };
+			inline float Box[4] = { 0.878f, 0.188f, 0.251f, 1.0f };
+			inline float BoxFill_Top[4] = { 0.878f, 0.188f, 0.251f, 0.35f };
+			inline float BoxFill_Bottom[4] = { 0.f, 0.f, 0.f, 0.35f };
+			inline float Healthbar[4] = { 0.878f, 0.188f, 0.251f, 1.0f };
+			inline float name[4] = { 0.961f, 0.941f, 0.922f, 1.0f };
+			inline float Distance[4] = { 0.961f, 0.941f, 0.922f, 0.6f };
+			inline float Rig_Type[4] = { 0.961f, 0.941f, 0.922f, 0.5f };
+			inline float tool[4] = { 0.961f, 0.941f, 0.922f, 0.75f };
+			inline float Health[4] = { 0.961f, 0.941f, 0.922f, 1.0f };
+			inline float Skeleton[4] = { 0.878f, 0.188f, 0.251f, 0.75f };
+			inline float Chams[4] = { 0.878f, 0.188f, 0.251f, 0.5f };
 			inline float ChamsOutline[4] = { 0.f, 0.f, 0.f, 1.0f };
-			inline float Trails[4] = { 0.0f, 0.682f, 1.0f, 1.0f };
-			inline float hat[4] = { 0.392f, 0.459f, 1.0f, 1.0f };
-			inline float aimline[4] = { 1.0f, 0.313f, 0.407f, 1.0f };
-			inline float Visible[4] = { 0.0f, 0.682f, 1.0f, 1.0f };
-			inline float NotVisible[4] = { 1.0f, 0.313f, 0.407f, 1.0f };
+			inline float Trails[4] = { 0.878f, 0.188f, 0.251f, 0.85f };
+			inline float hat[4] = { 0.961f, 0.941f, 0.922f, 0.7f };
+			inline float aimline[4] = { 0.878f, 0.188f, 0.251f, 0.85f };
+			inline float Visible[4] = { 0.878f, 0.188f, 0.251f, 1.0f };
+			inline float NotVisible[4] = { 0.961f, 0.941f, 0.922f, 0.5f };
 
-			inline float Healthbar_Top[4] = { 0.0f, 1.0f, 0.0f, 1.0f };
-			inline float Healthbar_Middle[4] = { 1.0f, 1.0f, 0.0f, 1.0f };
-			inline float Healthbar_Bottom[4] = { 1.0f, 0.0f, 0.0f, 1.0f };
+			inline float Healthbar_Top[4] = { 0.2f, 0.9f, 0.3f, 1.0f };
+			inline float Healthbar_Middle[4] = { 1.0f, 0.85f, 0.2f, 1.0f };
+			inline float Healthbar_Bottom[4] = { 0.878f, 0.188f, 0.251f, 1.0f };
 		}
 	}
 

@@ -394,14 +394,14 @@ namespace sdk {
     }
 
     vector3 part::movedir() const {
-        return drive->read<vector3>(Address + offset::player::CameraMode);
+        return drive->read<vector3>(Address + offset::humanoid::MoveDirection);
     }
 
     vector3 part::velocity() const {
         if (!Address) return {};
         uintptr_t primitive = drive->read<uintptr_t>(Address + offset::basepart::primitive);
         if (!primitive) return {};
-        return drive->read<vector3>(primitive + offset::primitive::AssemblyAngularVelocity);
+        return drive->read<vector3>(primitive + offset::primitive::AssemblyLinearVelocity);
     }
 
     bool part::anchored() const {

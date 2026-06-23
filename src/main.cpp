@@ -375,7 +375,7 @@ std::int32_t main(std::int32_t argc, char** argv[])
                 
                 if (GetFileAttributesW(drvPath) != INVALID_FILE_ATTRIBUTES) {
                     console::info("[BYOVD] StealthDrv.sys encontrado, intentando cargar...");
-                    byovd.LoadTargetDriver(drvPath);
+                    byovd.MapTargetDriver(drvPath);
                 } else {
                     console::info("[BYOVD] StealthDrv.sys no encontrado — necesita compilarse");
                     console::info("[BYOVD]   Compilar con: msbuild driver/driver.vcxproj /p:Config=Release /p:Platform=x64");
@@ -436,7 +436,9 @@ std::int32_t main(std::int32_t argc, char** argv[])
     std::thread(ball::run).detach();
 
     auto workspacetoworld = drive->read<uintptr_t>(global::workspace.Address + offset::workspace::world);
-    drive->write<float>(workspacetoworld + offset::world::GravityOverride, 200 * 4.f);
+    static float originalGravity = drive->read<float>(workspacetoworld + offset::world::Gravity);
+    if (originalGravity <= 0.f || originalGravity > 9999.f) originalGravity = 196.2f;
+    drive->write<float>(workspacetoworld + offset::world::GravityOverride, originalGravity * 4.f);
 
     if (!screen->window())
     {

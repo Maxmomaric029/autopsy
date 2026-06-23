@@ -11,18 +11,18 @@
 
 namespace icon {
 
-    // Tab 0 — Aimbot:   ICON_FA_LOCATION_CROSSHAIRS
-    // Tab 1 — Visuals:  ICON_FA_EYE
-    // Tab 2 — World:    ICON_FA_GLOBE
-    // Tab 3 — Misc:     ICON_FA_BORDER_ALL (grid)
-    // Tab 4 — Settings: ICON_FA_SLIDERS
+    // Tab 0 — Aimbot:   ICON_FA_CROSSHAIRS
+    // Tab 1 — Visuals:  ICON_FA_BINOCULARS
+    // Tab 2 — World:    ICON_FA_SKULL
+    // Tab 3 — Misc:     ICON_FA_BOLT
+    // Tab 4 — Settings: ICON_FA_GEAR
 
     inline constexpr const char* tabIconChars[] = {
-        ICON_FA_LOCATION_CROSSHAIRS,  // Aimbot
-        ICON_FA_EYE,                  // Visuals
-        ICON_FA_GLOBE,                // World
-        ICON_FA_BORDER_ALL,           // Misc
-        ICON_FA_SLIDERS               // Settings
+        ICON_FA_CROSSHAIRS,   // Aimbot
+        ICON_FA_BINOCULARS,   // Visuals
+        ICON_FA_SKULL,        // World
+        ICON_FA_BOLT,         // Misc
+        ICON_FA_GEAR          // Settings
     };
 
     inline constexpr const char* tabLabels[] = {
@@ -31,7 +31,7 @@ namespace icon {
 
     // Badge tag for topbar context
     inline constexpr const char* tabBadges[] = {
-        "AIM", "ESP", "WRLD", "MISC", "CFG"
+        "Aim", "Esp", "Wrld", "Misc", "Cfg"
     };
 
     inline constexpr int kTabCount = 5;
