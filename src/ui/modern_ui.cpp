@@ -274,12 +274,14 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
     GetWindowThreadProcessId(fg, &fgPid);
 
     static double lastToggle = -1.0;
+    static bool lastMenuKeyDown = false;
     double now = ImGui::GetTime();
     int menuVk = menukey(global::setting::Menu_Key);
     if (menuVk != 0) {
-        if ((GetAsyncKeyState(menuVk) & 1) &&
-            (fgPid == targetPid || fg == overlayWindow) &&
-            now - lastToggle >= .18) {
+        bool menuKeyDown = (GetAsyncKeyState(menuVk) & 0x8000) != 0;
+        bool menuKeyEdge = menuKeyDown && !lastMenuKeyDown;
+        lastMenuKeyDown = menuKeyDown;
+        if (menuKeyEdge && now - lastToggle >= .18) {
             MarkStep("E—TOGGLE FIRING");
 
             lastToggle = now;

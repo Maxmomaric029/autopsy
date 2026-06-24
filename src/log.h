@@ -2,302 +2,175 @@
 #include <windows.h>
 #include <cstdio>
 #include <string>
+#include <vector>
+#include <mutex>
 #include "global.h"
 
 // ============================================================================
-// MISERABLE Console — styled terminal monitor
+// MISERABLE Console — boot sequence display, static (no auto-refresh)
+// Shows ASCII art, logs durante init, offsets al final, luego inicia UI sola.
 // ============================================================================
 
 namespace console {
 
     inline HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     inline bool initialized = false;
+
+    // Log buffer — solo se imprime, no se refresca en loop
     inline std::vector<std::string> logLines;
     inline std::mutex logMutex;
-    inline void refresh();
 
-    inline int playerCount = 0;
-    inline bool connected  = false;
-    inline uintptr_t cameraAddress = 0;
+    // Señal para que main.cpp sepa cuando imprimir offsets y arrancar UI
+    inline bool boot_complete = false;
+
+    // Needed by renderLoop in main.cpp — no-op, consola es estática
+    inline void refresh() {}
 
     // ========================================================================
-    // ANSI helpers
+    // Color palette (ANSI 24-bit)
     // ========================================================================
-    inline void col(const char* code) { printf("%s", code); }
-
-    // palette
     #define C_RESET    "\033[0m"
-    #define C_RED      "\033[38;2;224;48;64m"      // #E03040 accent
-    #define C_RED_DIM  "\033[38;2;140;28;38m"      // dimmed red
-    #define C_MILK     "\033[38;2;245;240;235m"     // milk white
-    #define C_MILK_DIM "\033[38;2;160;148;140m"     // muted milk
-    #define C_GRAY     "\033[38;2;80;66;66m"        // muted dark
-    #define C_DARK     "\033[38;2;50;18;18m"        // very dark red-tinted
+    #define C_RED      "\033[38;2;224;48;64m"
+    #define C_RED_DIM  "\033[38;2;140;28;38m"
+    #define C_MILK     "\033[38;2;245;240;235m"
+    #define C_MILK_DIM "\033[38;2;160;148;140m"
+    #define C_GRAY     "\033[38;2;90;72;72m"
+    #define C_DARK     "\033[38;2;50;18;18m"
     #define C_GREEN    "\033[38;2;80;210;120m"
     #define C_YELLOW   "\033[38;2;220;180;60m"
     #define C_BLUE     "\033[38;2;100;160;240m"
-    #define C_BG       "\033[40m"
 
     inline void cls() { printf("\033[2J\033[H"); }
 
     inline void hide_cursor() {
-        CONSOLE_CURSOR_INFO ci; GetConsoleCursorInfo(hConsole, &ci);
-        ci.bVisible = false; SetConsoleCursorInfo(hConsole, &ci);
+        CONSOLE_CURSOR_INFO ci;
+        GetConsoleCursorInfo(hConsole, &ci);
+        ci.bVisible = false;
+        SetConsoleCursorInfo(hConsole, &ci);
     }
 
     // ========================================================================
-    // Box drawing helpers  (CP65001 / UTF-8)
+    // ASCII art — ancho ~68 chars, centrado en ventana 80col
     // ========================================================================
-    //  ┌ ─ ┐ ├ ┤ └ ┘ │ ┬ ┴ ┼
-    static const int kW = 68; // total box width incl. borders
-
-    inline void hline(int len, const char* ch = "\xe2\x94\x80") {
-        for (int i = 0; i < len; i++) fputs(ch, stdout);
-    }
-
-    inline void box_top() {
-        col(C_GRAY);
-        fputs("  \xe2\x94\x8c", stdout); hline(kW - 2); fputs("\xe2\x94\x90\n", stdout);
-        col(C_RESET);
-    }
-    inline void box_bot() {
-        col(C_GRAY);
-        fputs("  \xe2\x94\x94", stdout); hline(kW - 2); fputs("\xe2\x94\x98\n", stdout);
-        col(C_RESET);
-    }
-    inline void box_sep() {
-        col(C_GRAY);
-        fputs("  \xe2\x94\x9c", stdout); hline(kW - 2, "\xe2\x94\x80"); fputs("\xe2\x94\xa4\n", stdout);
-        col(C_RESET);
-    }
-    inline void box_left()  { col(C_GRAY); fputs("  \xe2\x94\x82 ", stdout); col(C_RESET); }
-    inline void box_right() { col(C_GRAY); fputs(" \xe2\x94\x82\n", stdout); col(C_RESET); }
-
-    // Pad a string to exactly `n` chars (spaces)
-    inline void pad_to(int n, int used) {
-        int rem = n - used;
-        if (rem > 0) for (int i = 0; i < rem; i++) putchar(' ');
+    inline void draw_ascii() {
+        // margen izquierdo de 6 espacios para centrar en 80
+        const char* M = "      ";
+        printf("%s" C_RED, M);
+        printf(" __ __ _ ____  ___ ____  ___  ____  __   ____\n");
+        printf("%s" C_RED, M);
+        printf("|  \\/  | |_ _|/ __| __| | _ \\| __ )|  \\ |  __|\n");
+        printf("%s" C_RED, M);
+        printf("| |\/| | | \\__ \\___ \\| __|  |   /|  _/  > _|\n");
+        printf("%s" C_RED, M);
+        printf("|_|  |_|___|___/|____|___|  |_|\\_\\___|_|\\_\\____|\n");
+        printf(C_RESET);
     }
 
     // ========================================================================
-    // Header  (smaller, clean)
+    // Separador simple
     // ========================================================================
-    inline void draw_header() {
-        const int inner = kW - 2;
-        // title row
-        box_left();
-        col(C_RED);
-        const char* title = "MISERABLE";
-        int tlen = (int)strlen(title);
-        int pad  = (inner - tlen) / 2;
-        for (int i = 0; i < pad; i++) putchar(' ');
-        fputs(title, stdout);
-        pad_to(inner, pad + tlen);
-        col(C_RESET);
-        box_right();
-
-        // subtitle row
-        box_left();
-        col(C_GRAY);
-        const char* sub = "external cheat framework  //  roblox";
-        int slen = (int)strlen(sub);
-        int spad = (inner - slen) / 2;
-        for (int i = 0; i < spad; i++) putchar(' ');
-        fputs(sub, stdout);
-        pad_to(inner, spad + slen);
-        col(C_RESET);
-        box_right();
+    inline void sep() {
+        printf("  " C_DARK);
+        for (int i = 0; i < 64; i++) fputs("\xe2\x94\x80", stdout);
+        printf(C_RESET "\n");
     }
 
     // ========================================================================
-    // Section label inside box
+    // draw_boot — pantalla inicial: ASCII + línea de estado
+    // Se llama UNA vez al arrancar. Los logs se van agregando abajo.
     // ========================================================================
-    inline void section(const char* label) {
-        box_sep();
-        box_left();
-        col(C_RED_DIM); fputs("\xe2\x96\xb8 ", stdout);
-        col(C_MILK_DIM);
-        printf("%s", label);
-        int used = 2 + (int)strlen(label);
-        pad_to(kW - 4, used);
-        col(C_RESET);
-        box_right();
-    }
-
-    // ========================================================================
-    // Two-column data row
-    // ========================================================================
-    inline void row(const char* label, const char* value, bool ok = false) {
-        box_left();
-        col(C_GRAY); printf("  %-22s", label);
-        col(ok ? C_GREEN : C_MILK_DIM);
-        int vlen = (int)strlen(value);
-        fputs(value, stdout);
-        pad_to(kW - 4 - 24, vlen);
-        col(C_RESET);
-        box_right();
-    }
-
-    inline void row_addr(const char* label, uintptr_t addr) {
-        char buf[32];
-        if (addr) snprintf(buf, sizeof(buf), "0x%09llX", (unsigned long long)addr);
-        else      snprintf(buf, sizeof(buf), "%-11s", "--");
-        box_left();
-        col(C_GRAY);    printf("  %-22s", label);
-        col(addr ? C_MILK : C_DARK);
-        fputs(buf, stdout);
-        pad_to(kW - 4 - 24, (int)strlen(buf));
-        col(C_RESET);
-        box_right();
-    }
-
-    inline void row_offset(const char* label, uintptr_t off) {
-        char buf[32];
-        if (off) snprintf(buf, sizeof(buf), "0x%04llX", (unsigned long long)off);
-        else     snprintf(buf, sizeof(buf), "--");
-        box_left();
-        col(C_GRAY);   printf("  %-22s", label);
-        col(off ? C_RED_DIM : C_DARK);
-        fputs(buf, stdout);
-        pad_to(kW - 4 - 24, (int)strlen(buf));
-        col(C_RESET);
-        box_right();
-    }
-
-    // ========================================================================
-    // Empty row (breathing room)
-    // ========================================================================
-    inline void empty_row() {
-        box_left();
-        pad_to(kW - 4, 0);
-        box_right();
-    }
-
-    // ========================================================================
-    // Full render
-    // ========================================================================
-    inline void render(bool clearFirst = true) {
-        if (clearFirst) cls();
+    inline void draw_boot() {
+        cls();
         printf("\n");
-
-        box_top();
-        draw_header();
-
-        // ---- STATUS ----
-        section("Status");
-        {
-            bool conn = global::camera.Address != 0;
-            row("Connection", conn ? "active" : "waiting", conn);
-            char gb[32]; snprintf(gb, sizeof(gb), "%llu", (unsigned long long)global::GameID);
-            row("GameID", global::GameID ? gb : "--");
-            char pb[8]; snprintf(pb, sizeof(pb), "%d", playerCount);
-            row("Players", pb);
-        }
-
-        // ---- CAMERA ----
-        section("Camera");
-        row_addr  ("Address",      global::camera.Address);
-        row_offset("CameraSubject",offset::camera::CameraSubject);
-        row_offset("FieldOfView",  offset::camera::FieldOfView);
-
-        // ---- PLAYER ----
-        section("Player");
-        row_addr  ("LocalPlayer",  global::LocalPlayer.player.Address);
-        row_addr  ("Character",    global::LocalPlayer.character.Address);
-        row_addr  ("HRootPart",    global::LocalPlayer.HumanoidRootPart.Address);
-        row_offset("ModelInstance",offset::player::ModelInstance);
-        row_offset("DisplayName",  offset::player::DisplayName);
-
-        // ---- SCENE ----
-        section("Scene");
-        row_addr  ("Model",        global::model.Address);
-        row_addr  ("Workspace",    global::workspace.Address);
-        row_addr  ("Render",       global::render.Address);
-        row_addr  ("View",         global::view.Address);
-        row_addr  ("Light",        global::light.Address);
-        row_offset("Brightness",   offset::light::Brightness);
-        row_offset("FogEnd",       offset::light::FogEnd);
-
-        // ---- FRAMEWORK ----
-        section("Framework");
-        row_offset("FakeModel",    offset::fakemodel::Pointer);
-        row_offset("Render ptr",   offset::render::Pointer);
-        row_offset("Task ptr",     offset::task::Pointer);
-
-        // ---- LOGS ----
-        section("Logs");
-        {
-            std::lock_guard<std::mutex> lock(logMutex);
-            if (logLines.empty()) {
-                box_left();
-                col(C_DARK); fputs("  no events yet", stdout);
-                pad_to(kW - 4, 16); col(C_RESET); box_right();
-            } else {
-                for (const auto& line : logLines) {
-                    box_left();
-                    // line already has ANSI color codes
-                    printf(" %s", line.c_str());
-                    // reset and close — column alignment not guaranteed with colored strings
-                    col(C_RESET); fputs("\n", stdout);
-                }
-            }
-        }
-
-        box_bot();
-
-        // footer hints
+        draw_ascii();
         printf("\n");
-        col(C_DARK); printf("  INS "); col(C_GRAY); printf("toggle overlay");
-        col(C_DARK); printf("   END "); col(C_GRAY); printf("exit\n");
-        col(C_RESET);
+        sep();
+        printf("  " C_DARK "external  //  roblox" C_RESET "\n");
+        sep();
+        printf("\n");
     }
 
     // ========================================================================
-    // Logging
+    // print_log_line — imprime la línea directamente, no refresca todo
     // ========================================================================
-    inline void log(const std::string& msg) {
-        std::lock_guard<std::mutex> lock(logMutex);
-        logLines.push_back(msg);
-        if (logLines.size() > 10) logLines.erase(logLines.begin());
-    }
-
-    inline void log_formatted(const char* prefix, const char* color, const char* fmt, va_list args) {
-        char buf[1024]; vsnprintf(buf, sizeof(buf), fmt, args);
+    inline void print_log_line(const char* color, const char* prefix, const char* msg) {
         SYSTEMTIME lt; GetLocalTime(&lt);
-        char ts[16]; snprintf(ts, sizeof(ts), "%02d:%02d:%02d", lt.wHour, lt.wMinute, lt.wSecond);
-        std::string out = std::string(C_DARK) + ts + C_RESET " " + color + prefix + C_RESET " " + C_MILK_DIM + buf + C_RESET;
-        log(out);
-        if (initialized) refresh();
+        printf("  " C_DARK "%02d:%02d:%02d" C_RESET "  %s%-4s" C_RESET "  " C_MILK_DIM "%s" C_RESET "\n",
+            lt.wHour, lt.wMinute, lt.wSecond,
+            color, prefix,
+            msg);
+    }
+
+    // ========================================================================
+    // print_offsets — se llama SOLO al terminar el boot, muestra tabla limpia
+    // ========================================================================
+    inline void print_offsets() {
+        printf("\n");
+        sep();
+        printf("  " C_RED_DIM "offsets" C_RESET "\n");
+        sep();
+
+        auto row = [](const char* label, uintptr_t val) {
+            if (val)
+                printf("  " C_GRAY "%-24s" C_RESET C_RED_DIM "0x%04llX" C_RESET "\n",
+                    label, (unsigned long long)val);
+            else
+                printf("  " C_GRAY "%-24s" C_RESET C_DARK "--" C_RESET "\n", label);
+        };
+
+        row("fakemodel::Pointer",   offset::fakemodel::Pointer);
+        row("render::Pointer",      offset::render::Pointer);
+        row("task::Pointer",        offset::task::Pointer);
+        row("camera::CameraSubject",offset::camera::CameraSubject);
+        row("camera::FieldOfView",  offset::camera::FieldOfView);
+        row("player::ModelInstance",offset::player::ModelInstance);
+        row("player::DisplayName",  offset::player::DisplayName);
+        row("light::Brightness",    offset::light::Brightness);
+        row("light::FogEnd",        offset::light::FogEnd);
+
+        sep();
+        printf("\n");
+    }
+
+    // ========================================================================
+    // print_ready — mensaje final antes de que la UI abra sola
+    // ========================================================================
+    inline void print_ready() {
+        printf("  " C_GREEN "ready" C_RESET "  " C_MILK_DIM "overlay activo — INS para abrir menú" C_RESET "\n\n");
+    }
+
+    // ========================================================================
+    // Logging público — imprime directamente, sin re-render de pantalla
+    // ========================================================================
+    inline void log_raw(const char* color, const char* prefix, const char* fmt, va_list args) {
+        char buf[1024];
+        vsnprintf(buf, sizeof(buf), fmt, args);
+        print_log_line(color, prefix, buf);
+        // Guardar también en buffer por si acaso
+        std::lock_guard<std::mutex> lock(logMutex);
+        logLines.push_back(std::string(prefix) + " " + buf);
+        if (logLines.size() > 64) logLines.erase(logLines.begin());
     }
 
     inline void info(const char* fmt, ...) {
         va_list a; va_start(a, fmt);
-        log_formatted("info", C_BLUE, fmt, a); va_end(a);
+        log_raw(C_BLUE, "info", fmt, a); va_end(a);
     }
     inline void success(const char* fmt, ...) {
         va_list a; va_start(a, fmt);
-        log_formatted("ok  ", C_GREEN, fmt, a); va_end(a);
+        log_raw(C_GREEN, "ok", fmt, a); va_end(a);
     }
     inline void warn(const char* fmt, ...) {
         va_list a; va_start(a, fmt);
-        log_formatted("warn", C_YELLOW, fmt, a); va_end(a);
+        log_raw(C_YELLOW, "warn", fmt, a); va_end(a);
     }
     inline void error(const char* fmt, ...) {
         va_list a; va_start(a, fmt);
-        log_formatted("fail", C_RED, fmt, a); va_end(a);
+        log_raw(C_RED, "fail", fmt, a); va_end(a);
     }
 
     // ========================================================================
-    // Refresh
-    // ========================================================================
-    inline void refresh() {
-        COORD top = { 0, 0 };
-        SetConsoleCursorPosition(hConsole, top);
-        render(false);
-    }
-
-    // ========================================================================
-    // Init / Start
+    // Init / Start — solo setup de consola, dibuja la pantalla de boot
     // ========================================================================
     inline void init() {
         if (initialized) return;
@@ -307,19 +180,22 @@ namespace console {
             SetConsoleMode(hConsole, mode);
         }
         hide_cursor();
-        // UTF-8 output
         SetConsoleOutputCP(65001);
-        // Tall buffer so scroll doesn't eat old render
+        // Buffer generoso para que no se pierda nada durante el boot
         CONSOLE_SCREEN_BUFFER_INFO csbi;
         GetConsoleScreenBufferInfo(hConsole, &csbi);
-        csbi.dwSize.Y = 800;
+        csbi.dwSize.Y = 600;
         SetConsoleScreenBufferSize(hConsole, csbi.dwSize);
         system("color 00");
         SetConsoleTitleA("miserable");
         initialized = true;
     }
 
-    inline void start() { init(); render(); }
+    // start() — llamado desde main() al arrancar
+    inline void start() {
+        init();
+        draw_boot();
+    }
 
     #undef C_RESET
     #undef C_RED
@@ -331,6 +207,5 @@ namespace console {
     #undef C_GREEN
     #undef C_YELLOW
     #undef C_BLUE
-    #undef C_BG
 
 } // namespace console

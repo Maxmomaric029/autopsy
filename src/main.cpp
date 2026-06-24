@@ -125,27 +125,12 @@ static LONG WINAPI VectoredHandler(PEXCEPTION_POINTERS ep)
 // ========================================================================
 static void renderLoop()
 {
-    double lastConsoleRefresh = 0.0;
-
     for (;;)
     {
-        OutputDebugStringA("[RENDER] begin\n");
         screen->begin();
-
-        OutputDebugStringA("[RENDER] visual\n");
         screen->visual();
-
-        OutputDebugStringA("[RENDER] menu\n");
         screen->menu();
-
-        OutputDebugStringA("[RENDER] end\n");
         screen->end();
-
-        double now = ImGui::GetTime();
-        if (now - lastConsoleRefresh >= 2.0) {
-            lastConsoleRefresh = now;
-            console::refresh();
-        }
     }
 }
 
@@ -344,6 +329,11 @@ std::int32_t main(std::int32_t argc, char** argv[])
     } else {
         console::error("NO SE PUDO RESOLVER EL DATAMODEL (ver datamodel_debug.txt)");
     }
+
+    // Mostrar offsets una vez al final del boot y lanzar UI
+    console::print_offsets();
+    console::print_ready();
+    console::boot_complete = true;
 
 
 
