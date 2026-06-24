@@ -11,7 +11,10 @@ namespace sdk {
     // Writes to datamodel_debug.txt so we can trace failures.
     // ------------------------------------------------------------------
     static bool dm_is_valid(uint64_t addr) {
-        return addr != 0 && addr != 0xFFFFFFFFFFFFFFFF;
+        // Un puntero real en x64 siempre es > 0x10000 (encima del null page).
+        // Valores como 0x2B son basura (contadores, flags) — rechazarlos
+        // permite que Path A falle limpio y caiga a Path B/C.
+        return addr > 0x10000 && addr != 0xFFFFFFFFFFFFFFFF;
     }
 
     uint64_t resolve_datamodel() {

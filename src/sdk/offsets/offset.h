@@ -626,9 +626,20 @@ inline void init() {
     if (!mgr.is_loaded()) return;
 
     // TRY: endpoint class/field name matches C++ (case-insensitive)
-#define TRY(ns, field) do { auto v = mgr.get_offset(#ns, #field); if (v) offset::ns::field = v; } while(0)
+// TRY: tries namespace/field first, then falls back to the flat "offsets/field" key
+// This handles PascalCase splits like LocalPlayer -> local/player not matching player/localplayer
+#define TRY(ns, field) do { \
+    auto v = mgr.get_offset(#ns, #field); \
+    if (!v) v = mgr.get_offset("offsets", #field); \
+    if (v) offset::ns::field = v; \
+} while(0)
     // MAP: endpoint class/field name differs from C++
-#define MAP(ec, ef, ns, fld) do { auto v = mgr.get_offset(#ec, #ef); if (v) offset::ns::fld = v; } while(0)
+    // Also tries flat "offsets/ef" fallback in case PascalCase split misrouted the key
+#define MAP(ec, ef, ns, fld) do { \
+    auto v = mgr.get_offset(#ec, #ef); \
+    if (!v) v = mgr.get_offset("offsets", #ef); \
+    if (v) offset::ns::fld = v; \
+} while(0)
 
     // ===== FakeDataModel (C++: fakemodel) =====
     MAP(FakeDataModel, Pointer, fakemodel, Pointer);
@@ -1015,7 +1026,8 @@ inline void init() {
     TRY(player, LocaleId);
     TRY(player, MaxZoomDistance);
     TRY(player, MinZoomDistance);
-    MAP(Player, Character, player, ModelInstance);
+    // Site usa "ModelInstance" no "Character" — MAP(Player,Character) nunca encontraria nada
+    flat("ModelInstance", offset::player::ModelInstance);
     TRY(player, mouse);
     TRY(player, NameDisplayDistance);
     TRY(player, team);
@@ -1114,7 +1126,13 @@ inline void init() {
     flat("JobStart",                offset::task::JobStart);
     flat("JobEnd",                  offset::task::JobEnd);
 
-    // Field/instance offsets that won't split correctly
+    // DataModel path B/C: nombres que el site usa distinto al campo C++
+    // job::RealDataModel: site lo llama "RenderJobRealDataModel" no "RealDataModel"
+    flat("RenderJobRealDataModel",  offset::job::RealDataModel);
+    // datamodel::ToRenderView1: site lo llama "DataModelToRenderView1"
+    flat("DataModelToRenderView1",  offset::datamodel::ToRenderView1);
+
+    // Field/instance offsets que no splitean bien
     flat("Name",                    offset::instance::name);
     flat("NameSize",                offset::misc::StringLength);
     flat("TextLabelText",           offset::gui::text);
@@ -1124,12 +1142,25 @@ inline void init() {
     flat("GuiSize",                 offset::gui::Size);
     flat("GuiRotation",             offset::gui::Rotation);
 
-    // Workspace/world offsets
+    // Workspace/world
     flat("World",                   offset::workspace::world);
     flat("PartSize",                offset::primitive::Size);
     flat("Velocity",                offset::primitive::AssemblyLinearVelocity);
     flat("Primitive",               offset::basepart::primitive);
     flat("Children",                offset::instance::ChildrenStart);
-}
 
-}
+    // workspace::CurrentCamera: site lo llama "Camera" no "CurrentCamera"
+    flat("Camera",                  offset::workspace::CurrentCamera);
+    // datamodel::PrimitiveCount: site lo llama "DataModelPrimitiveCount"
+    flat("DataModelPrimitiveCount", offset::datamodel::PrimitiveCount);
+
+    // Player: el site usa PlayerMouse/CameraMaxZoomDistance/CameraMinZoomDistance
+    flat("PlayerMouse",             offset::player::mouse);
+    flat("CameraMaxZoomDistance",   offset::player::MaxZoomDistance);
+    flat("CameraMinZoomDistance",   offset::player::MinZoomDistance);
+    // ModelInstance ya se setea arriba antes de los TRY/MAP, pero doble seguro
+    flat("ModelInstance",           offset::player::ModelInstance);
+
+} // end init()
+
+} // end namespace offset
