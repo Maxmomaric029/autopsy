@@ -1026,8 +1026,8 @@ inline void init() {
     TRY(player, LocaleId);
     TRY(player, MaxZoomDistance);
     TRY(player, MinZoomDistance);
-    // Site usa "ModelInstance" no "Character" — MAP(Player,Character) nunca encontraria nada
-    flat("ModelInstance", offset::player::ModelInstance);
+    // Site usa "ModelInstance" no "Character" — se resuelve abajo con flat()
+    // (flat() no está definido aquí todavía, se aplica en la sección de fallbacks)
     TRY(player, mouse);
     TRY(player, NameDisplayDistance);
     TRY(player, team);
