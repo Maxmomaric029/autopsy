@@ -341,7 +341,7 @@ std::int32_t main(std::int32_t argc, char** argv[])
 
 
     // Register VEH antes de cualquier cosa que pueda crashear
-    PVOID vehHandle = AddVectoredExceptionHandler(1, VectoredHandler);
+    AddVectoredExceptionHandler(1, VectoredHandler);
 
     // ---- Background threads ----
     std::thread(cache::run).detach();
