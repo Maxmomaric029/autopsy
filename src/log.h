@@ -65,7 +65,7 @@ namespace console {
         printf("%s" C_RED, M);
         printf("|  \\/  | |_ _|/ __| __| | _ \\| __ )|  \\ |  __|\n");
         printf("%s" C_RED, M);
-        printf("| |\/| | | \\__ \\___ \\| __|  |   /|  _/  > _|\n");
+        printf("| |\\/| | | \\__ \\___ \\| __|  |   /|  _/  > _|\n");
         printf("%s" C_RED, M);
         printf("|_|  |_|___|___/|____|___|  |_|\\_\\___|_|\\_\\____|\n");
         printf(C_RESET);
