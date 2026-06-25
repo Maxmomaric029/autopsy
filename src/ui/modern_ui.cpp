@@ -33,6 +33,8 @@
 namespace keyhook {
     static std::atomic<bool> g_insertPressed{ false };
     static HHOOK g_hook = nullptr;
+    static HANDLE g_thread = nullptr;
+    static DWORD g_threadId = 0;
 
     static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
         if (nCode == HC_ACTION) {
@@ -43,12 +45,31 @@ namespace keyhook {
         return CallNextHookEx(g_hook, nCode, wParam, lParam);
     }
 
+    static DWORD WINAPI HookThread(LPVOID) {
+        // Instalar el hook desde este thread — WH_KEYBOARD_LL requiere
+        // que el thread que lo instala tenga un msg loop activo
+        g_hook = SetWindowsHookExA(WH_KEYBOARD_LL, LowLevelKeyboardProc,
+            GetModuleHandleA(nullptr), 0);
+
+        // Msg loop dedicado — mantiene el hook vivo y procesa sus callbacks
+        MSG msg;
+        while (GetMessage(&msg, nullptr, 0, 0)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+
+        if (g_hook) { UnhookWindowsHookEx(g_hook); g_hook = nullptr; }
+        return 0;
+    }
+
     static void install() {
-        g_hook = SetWindowsHookExA(WH_KEYBOARD_LL, LowLevelKeyboardProc, GetModuleHandleA(nullptr), 0);
+        g_thread = CreateThread(nullptr, 0, HookThread, nullptr, 0, &g_threadId);
     }
 
     static void uninstall() {
-        if (g_hook) { UnhookWindowsHookEx(g_hook); g_hook = nullptr; }
+        if (g_threadId) PostThreadMessage(g_threadId, WM_QUIT, 0, 0);
+        if (g_thread) { WaitForSingleObject(g_thread, 1000); CloseHandle(g_thread); g_thread = nullptr; }
+        g_threadId = 0;
     }
 
     // Consume el press — devuelve true una sola vez por pulsacion
