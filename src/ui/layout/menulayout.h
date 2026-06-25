@@ -229,31 +229,26 @@ namespace layout {
         dl->AddRectFilled(tbMin + ImVec2(0.f, kTopH - 1.f), tbMax,
             IM_COL32(255, 255, 255, 15), 0.f);
 
-        // Section name
-        ImGui::PushFont(font::label());
-        const float labelSize = 13.f;
-        const char* sectionName = icon::tabLabels[section];
-        dl->AddText(font::label(), labelSize,
-            tbMin + ImVec2(20.f, (kTopH - labelSize) * 0.5f),
-            theme::col_text(), sectionName);
-        ImGui::PopFont();
-
-        // Badge pill
-        const char* badge = icon::tabBadges[section];
-        float badgeW = ImGui::CalcTextSize(badge).x + 12.f;
-        float badgeH = 18.f;
-        float badgeX = tbMin.x + 20.f + ImGui::CalcTextSize(sectionName).x + 10.f;
-        float badgeY = tbMin.y + (kTopH - badgeH) * 0.5f;
-        dl->AddRectFilled({ badgeX, badgeY }, { badgeX + badgeW, badgeY + badgeH },
-            IM_COL32(224, 48, 64, (int)(255 * 0.14f)), 5.f);
-        dl->AddRect({ badgeX, badgeY }, { badgeX + badgeW, badgeY + badgeH },
-            IM_COL32(224, 48, 64, (int)(255 * 0.20f)), 5.f, 0, 1.f);
-        ImGui::PushFont(font::mono());
-        dl->AddText(font::mono(), 10.f,
-            { badgeX + (badgeW - ImGui::CalcTextSize(badge).x) * 0.5f,
-              badgeY + (badgeH - 10.f) * 0.5f },
-            theme::col_accent(), badge);
-        ImGui::PopFont();
+        // Logo en vez de texto de sección
+        if (g_sidebar_logo) {
+            float logoH = kTopH - 20.f;
+            float aspect = (g_sidebar_logoW > 0 && g_sidebar_logoH > 0)
+                ? (float)g_sidebar_logoW / (float)g_sidebar_logoH : 1.f;
+            float logoW = logoH * aspect;
+            float logoX = tbMin.x + 20.f;
+            float logoY = tbMin.y + (kTopH - logoH) * 0.5f;
+            dl->AddImageRounded(g_sidebar_logo,
+                { logoX, logoY }, { logoX + logoW, logoY + logoH },
+                ImVec2(0, 0), ImVec2(1, 1),
+                IM_COL32(255, 255, 255, 210), 4.f);
+        } else {
+            // Fallback: nombre del proyecto
+            ImGui::PushFont(font::label());
+            dl->AddText(font::label(), 13.f,
+                tbMin + ImVec2(20.f, (kTopH - 13.f) * 0.5f),
+                theme::col_accent(), "miserable");
+            ImGui::PopFont();
+        }
 
         // FPS pill (right side) — cached, no duplicate calc
         {

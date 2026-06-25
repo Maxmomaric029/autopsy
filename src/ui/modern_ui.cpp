@@ -4,6 +4,7 @@
 #include <chrono>
 #include <ShlObj.h>
 #include <thread>
+#include <vector>
 #include "global.h"
 #include "../config.h"
 
@@ -28,37 +29,81 @@
 #include "ui/pages/pages.h"
 
 // ========================================================================
-// Low-level keyboard hook — detecta Insert sin depender del foco
+// Input detection — 3 capas: RegisterHotKey + RawInput + polling
 // ========================================================================
 namespace keyhook {
     static std::atomic<bool> g_insertPressed{ false };
-    static HHOOK g_hook = nullptr;
     static HANDLE g_thread = nullptr;
-    static DWORD g_threadId = 0;
+    static DWORD  g_threadId = 0;
+    static constexpr int HOTKEY_ID = 0xBEEF;
+    static HWND   g_rawInputWnd = nullptr;
 
-    static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
-        if (nCode == HC_ACTION) {
-            KBDLLHOOKSTRUCT* kb = (KBDLLHOOKSTRUCT*)lParam;
-            if (kb->vkCode == VK_INSERT && (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN))
-                g_insertPressed.store(true);
+    static LRESULT CALLBACK RawInputProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+        if (msg == WM_INPUT) {
+            UINT size = 0;
+            GetRawInputData((HRAWINPUT)lp, RID_INPUT, nullptr, &size, sizeof(RAWINPUTHEADER));
+            if (size > 0) {
+                std::vector<BYTE> buf(size);
+                if (GetRawInputData((HRAWINPUT)lp, RID_INPUT, buf.data(), &size, sizeof(RAWINPUTHEADER)) == size) {
+                    RAWINPUT* raw = (RAWINPUT*)buf.data();
+                    if (raw->header.dwType == RIM_TYPEKEYBOARD &&
+                        raw->data.keyboard.VKey == VK_INSERT &&
+                        raw->data.keyboard.Message == WM_KEYDOWN)
+                        g_insertPressed.store(true);
+                }
+            }
+            return 0;
         }
-        return CallNextHookEx(g_hook, nCode, wParam, lParam);
+        return DefWindowProcA(hwnd, msg, wp, lp);
     }
 
     static DWORD WINAPI HookThread(LPVOID) {
-        // Instalar el hook desde este thread — WH_KEYBOARD_LL requiere
-        // que el thread que lo instala tenga un msg loop activo
-        g_hook = SetWindowsHookExA(WH_KEYBOARD_LL, LowLevelKeyboardProc,
-            GetModuleHandleA(nullptr), 0);
+        // Capa 1: RegisterHotKey
+        bool hotkey_ok = RegisterHotKey(nullptr, HOTKEY_ID, 0, VK_INSERT) != 0;
 
-        // Msg loop dedicado — mantiene el hook vivo y procesa sus callbacks
-        MSG msg;
-        while (GetMessage(&msg, nullptr, 0, 0)) {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
+        // Capa 2: Raw Input con ventana mensaje oculta
+        WNDCLASSEXA wc = {};
+        wc.cbSize        = sizeof(wc);
+        wc.lpfnWndProc   = RawInputProc;
+        wc.hInstance     = GetModuleHandleA(nullptr);
+        wc.lpszClassName = "msrbl_ri";
+        RegisterClassExA(&wc);
+        g_rawInputWnd = CreateWindowExA(0, wc.lpszClassName, nullptr, 0,
+            0, 0, 0, 0, HWND_MESSAGE, nullptr, wc.hInstance, nullptr);
+        if (g_rawInputWnd) {
+            RAWINPUTDEVICE rid{};
+            rid.usUsagePage = 0x01;
+            rid.usUsage     = 0x06;
+            rid.dwFlags     = RIDEV_INPUTSINK;
+            rid.hwndTarget  = g_rawInputWnd;
+            RegisterRawInputDevices(&rid, 1, sizeof(rid));
         }
 
-        if (g_hook) { UnhookWindowsHookEx(g_hook); g_hook = nullptr; }
+        // Capa 3: polling de seguridad solo si RegisterHotKey y RawInput fallaron
+        bool wasDown = false;
+        MSG msg;
+        while (true) {
+            // Bloquea hasta que llegue un mensaje — 0% CPU en espera
+            DWORD ret = MsgWaitForMultipleObjects(0, nullptr, FALSE, 100, QS_ALLINPUT);
+            if (ret == WAIT_FAILED) break;
+            while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
+                if (msg.message == WM_QUIT) goto done;
+                if (hotkey_ok && msg.message == WM_HOTKEY && msg.wParam == HOTKEY_ID)
+                    g_insertPressed.store(true);
+                TranslateMessage(&msg);
+                DispatchMessageA(&msg);
+            }
+            // Fallback polling solo cada 100ms (el timeout de MsgWait)
+            if (!hotkey_ok && !g_rawInputWnd) {
+                bool isDown = (GetAsyncKeyState(VK_INSERT) & 0x8000) != 0;
+                if (isDown && !wasDown) g_insertPressed.store(true);
+                wasDown = isDown;
+            }
+        }
+        done:
+        if (hotkey_ok) UnregisterHotKey(nullptr, HOTKEY_ID);
+        if (g_rawInputWnd) { DestroyWindow(g_rawInputWnd); g_rawInputWnd = nullptr; }
+        UnregisterClassA("msrbl_ri", GetModuleHandleA(nullptr));
         return 0;
     }
 
@@ -67,12 +112,11 @@ namespace keyhook {
     }
 
     static void uninstall() {
-        if (g_threadId) PostThreadMessage(g_threadId, WM_QUIT, 0, 0);
+        if (g_threadId) PostThreadMessageA(g_threadId, WM_QUIT, 0, 0);
         if (g_thread) { WaitForSingleObject(g_thread, 1000); CloseHandle(g_thread); g_thread = nullptr; }
         g_threadId = 0;
     }
 
-    // Consume el press — devuelve true una sola vez por pulsacion
     static bool consume() {
         return g_insertPressed.exchange(false);
     }
@@ -321,63 +365,32 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
     MarkStep("D—ImGui NewFrame done");
 
     // ---- Menu toggle ----
-    uint32_t targetPid = drive->processid();
-    HWND fg = GetForegroundWindow();
-    DWORD fgPid = 0;
-    GetWindowThreadProcessId(fg, &fgPid);
-
+    // Sin restriccion de foco — WS_EX_TRANSPARENT impide que la ventana
+    // sea foreground, asi que fgPid/fg checks siempre fallarian.
+    // GetAsyncKeyState & 1 detecta el flanco de bajada correctamente
+    // porque el proceso tiene el hook thread procesando mensajes.
     static double lastToggle = -1.0;
-    static bool lastMenuKeyDown = false;
     double now = ImGui::GetTime();
     int menuVk = menukey(global::setting::Menu_Key);
     if (menuVk != 0) {
-        // Para Insert usamos el hook global (GetAsyncKeyState no funciona sin foco)
-        // Para otras teclas mantenemos GetAsyncKeyState como fallback
-        bool menuKeyEdge;
-        if (menuVk == VK_INSERT) {
-            menuKeyEdge = keyhook::consume();
-            // Fallback: si el hook no captura, intentar GetAsyncKeyState tambien
-            if (!menuKeyEdge) {
-                bool kd = (GetAsyncKeyState(VK_INSERT) & 0x8000) != 0;
-                menuKeyEdge = kd && !lastMenuKeyDown;
-                lastMenuKeyDown = kd;
-            } else {
-                lastMenuKeyDown = false;
-            }
-        } else {
-            bool menuKeyDown = (GetAsyncKeyState(menuVk) & 0x8000) != 0;
-            menuKeyEdge = menuKeyDown && !lastMenuKeyDown;
-            lastMenuKeyDown = menuKeyDown;
-        }
-
-        if (menuKeyEdge && now - lastToggle >= .18) {
+        bool fired = keyhook::consume();
+        // Leer GetAsyncKeyState siempre para consumir el bit acumulado del OS,
+        // pero solo usarlo como fallback si el hook no capturó el evento.
+        // Si fired ya es true, descartar asyncFired para evitar doble-toggle.
+        bool asyncFired = (GetAsyncKeyState(menuVk) & 1) != 0;
+        if (!fired) fired = asyncFired; // fallback: hook miss
+        if (fired && now - lastToggle >= .18) {
             MarkStep("E—TOGGLE FIRING");
-
             lastToggle = now;
             Toggle();
-
             MarkStep("F—Toggle() done");
-
-            // Sound
             sound::play(m_open ? sound::id::menu_open : sound::id::menu_close);
             MarkStep("G—sound::play done");
-
-            // TEMP: skip SetWindowLong/SetWindowPos to test if that's the crash
-            // Only change window style when menu CLOSES (removing transparent on open might cause DWM issue)
-            // Re-enable gradually:
-            // Step 1: Skip SetWindowLong entirely to test (uncomment below)
-            // Step 2: Add SetWindowLong back
-            // Step 3: Add SetWindowPos back
-
             MarkStep("H—SetWindowLong start");
-            // WS_EX_TRANSPARENT solo cuando el menú está cerrado (modo HUD).
-            // Cuando el menú está abierto, se quita para poder clickear la UI.
-            // WS_EX_NOACTIVATE (en graphic.cpp) evita que el overlay robe foco del teclado.
             LONG exStyle = WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_LAYERED;
             if (!m_open) exStyle |= WS_EX_TRANSPARENT;
             SetWindowLong(overlayWindow, GWL_EXSTYLE, exStyle);
             MarkStep("I—SetWindowLong done");
-
             MarkStep("J—SetWindowPos start");
             SetWindowPos(overlayWindow, NULL, 0, 0, 0, 0,
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
@@ -462,9 +475,9 @@ void ModernUI::RenderMenu() {
 
     // ---- Menu animation ----
     const float menuEase = anim::ease_out_quint(menuT);
-    const float contentRaw = anim::saturate(menuT * 1.15f - 0.15f);
-    const float contentEase = anim::ease_out_quint(contentRaw);
-    const float menuAlpha = anim::ease_out_cubic(menuT);
+    // Usar el mismo ease para contenido — evita que texto y panel se desincronicen
+    const float contentEase = menuEase;
+    const float menuAlpha = menuEase;
     const ImVec2 menuOffset = { 0.f, (1.f - menuEase) * 18.f };
 
     // ---- Menu position (draggable) ----
@@ -1019,6 +1032,6 @@ void ModernUI::RenderESP() {
 // EndFrame — Render + Present
 // ========================================================================
 void ModernUI::EndFrame(IDXGISwapChain* swapChain) {
-    if (!swapChain) return;
-    ImGui::Render();
+    // ImGui::Render() se llama en graphic::end(), no aqui
+    // No hacer nada — evitar doble Render() que corrompe el draw data
 }

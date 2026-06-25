@@ -14,34 +14,34 @@
 namespace page {
 
     // ========================================================================
-    // Tab 0 — AIMBOT
+    // Tab 0 — Aimbot
     // ========================================================================
     inline void aimbot(float contentW, float contentH) {
         const float halfLeft = (contentW - theme::space::md) * 0.5f;
 
-        // ---- Left card: AIMBOT ----
+        // ---- Left card: Aimbot ----
         if (w::card::begin("##ab_main", { halfLeft, contentH }, "Aimbot")) {
-            w::toggle("Master Enable", &global::aim::Enabled);
+            w::toggle("Master enable", &global::aim::Enabled);
             ImGui::SameLine(ImGui::GetContentRegionMax().x -
                 w::bindwidth(global::aim::Aimbot_Key, w::ImKeyBindMode::Hold) - 4.f);
             w::bind("##ab_bind", &global::aim::Aimbot_Key, (w::ImKeyBindMode*)&global::aim::Aimbot_Mode);
 
-            w::gap(theme::space::sm);
+            w::gap(theme::space::md);
             w::labelsection("Targeting");
             w::pill_toolbar("##aim_type", {"Memory","Mouse","Camera"}, &global::aim::Aimbot_type);
             w::gap(theme::space::xs);
             w::pill_toolbar("##aim_prio", {"Crosshair","Distance"}, &global::aim::TargetPriority);
             w::gap(theme::space::xs);
             w::pill_toolbar("##aim_part", {"Head","Torso","L.Torso"}, &global::aim::HitPart);
-            w::gap(theme::space::xs);
-            w::toggle("Knocked Check", &global::aim::KnockedCheck);
-            w::toggle("Visible Check", &global::aim::VisibleCheck);
-            w::toggle("Sticky Aim", &global::aim::AimbotSticky);
-            w::sliderint("Hit Chance", &global::aim::HitChance, 0, 100);
-
             w::gap(theme::space::sm);
+            w::toggle("Knocked check", &global::aim::KnockedCheck);
+            w::toggle("Visible check", &global::aim::VisibleCheck);
+            w::toggle("Sticky aim", &global::aim::AimbotSticky);
+            w::sliderint("Hit chance", &global::aim::HitChance, 0, 100);
+
+            w::gap(theme::space::md);
             w::labelsection("Smoothing");
-            w::toggle("Advanced Smooth", &global::aim::SmoothAdvanced);
+            w::toggle("Advanced smooth", &global::aim::SmoothAdvanced);
             if (global::aim::Aimbot_type == 0 || global::aim::Aimbot_type == 1) {
                 if (global::aim::SmoothAdvanced) {
                     w::sliderfloat("Smooth X", &global::aim::mouse::Smoothing_X, 0.f, 12.f);
@@ -67,41 +67,41 @@ namespace page {
                 }
             }
 
-            w::gap(theme::space::sm);
-            w::labelsection("Field of View");
-            w::togglecolor("Draw Aimbot FOV", &global::aim::DrawFov, "##ab_fovc", global::aim::FovColor);
-            w::sliderfloat("FOV Size", &global::aim::FovSize, 1.f, 500.f);
+            w::gap(theme::space::md);
+            w::labelsection("Field of view");
+            w::togglecolor("Draw aimbot FOV", &global::aim::DrawFov, "##ab_fovc", global::aim::FovColor);
+            w::sliderfloat("FOV size", &global::aim::FovSize, 1.f, 500.f);
             w::toggle("Spin FOV", &global::aim::FovSpin);
             if (global::aim::FovSpin)
-                w::sliderint("Spin Speed", &global::aim::FovSpinSpeed, 1, 5);
+                w::sliderint("Spin speed", &global::aim::FovSpinSpeed, 1, 5);
         }
         w::card::end();
 
         ImGui::SameLine(0.f, theme::space::md);
 
-        // ---- Right card: SILENT AIM ----
-        if (w::card::begin("##si_main", { halfLeft, contentH }, "Silent Aim")) {
-            w::toggle("Master Enable", &global::silent::Enabled);
+        // ---- Right card: Silent aim ----
+        if (w::card::begin("##si_main", { halfLeft, contentH }, "Silent aim")) {
+            w::toggle("Master enable", &global::silent::Enabled);
             ImGui::SameLine(ImGui::GetContentRegionMax().x -
                 w::bindwidth(global::silent::Silent_Key, w::ImKeyBindMode::Hold) - 4.f);
             w::bind("##si_bind", &global::silent::Silent_Key, (w::ImKeyBindMode*)&global::silent::Silent_Mode);
 
-            w::gap(theme::space::sm);
+            w::gap(theme::space::md);
             w::labelsection("Targeting");
             w::pill_toolbar("##si_prio", {"Crosshair","Distance"}, &global::silent::TargetPriority);
             w::gap(theme::space::xs);
             w::pill_toolbar("##si_part", {"Head","Torso","L.Torso"}, &global::silent::AimPart);
-            w::gap(theme::space::xs);
-            w::toggle("Knocked Check", &global::silent::KnockedCheck);
-            w::toggle("Visible Check", &global::silent::VisibleCheck);
-            w::toggle("Sticky Aim", &global::silent::StickyAim);
-            w::toggle("Spoof Mouse", &global::silent::SpoofMouse);
-
             w::gap(theme::space::sm);
+            w::toggle("Knocked check", &global::silent::KnockedCheck);
+            w::toggle("Visible check", &global::silent::VisibleCheck);
+            w::toggle("Sticky aim", &global::silent::StickyAim);
+            w::toggle("Spoof mouse", &global::silent::SpoofMouse);
+
+            w::gap(theme::space::md);
             w::labelsection("Prediction");
             w::toggle("Prediction", &global::silent::Prediction);
             if (global::silent::Prediction) {
-                w::toggle("Auto Prediction", &global::silent::AutoPrediction);
+                w::toggle("Auto prediction", &global::silent::AutoPrediction);
                 if (!global::silent::AutoPrediction) {
                     w::sliderfloat("Pred X", &global::silent::PredictionX, 0.f, 0.5f);
                     w::sliderfloat("Pred Y", &global::silent::PredictionY, 0.f, 0.5f);
@@ -109,63 +109,63 @@ namespace page {
                 }
             }
 
-            w::gap(theme::space::sm);
-            w::labelsection("Field of View");
-            w::togglecolor("Draw Silent FOV", &global::silent::DrawFov, "##si_fovc", global::silent::FovColor);
+            w::gap(theme::space::md);
+            w::labelsection("Field of view");
+            w::togglecolor("Draw silent FOV", &global::silent::DrawFov, "##si_fovc", global::silent::FovColor);
         }
         w::card::end();
     }
 
     // ========================================================================
-    // Tab 1 — VISUALS
+    // Tab 1 — Visuals
     // ========================================================================
     inline void visuals(float contentW, float contentH) {
         const float leftW = (contentW - theme::kRightPanelW - theme::space::md);
         const float halfLeft = (leftW - theme::space::md) * 0.5f;
 
-        // ---- Left card: ESP TOGGLES ----
-        if (w::card::begin("##esp_toggles", { halfLeft, contentH }, "ESP Toggles")) {
-            w::toggle("Master Enable", &global::esp::Enabled);
-            w::gap(theme::space::sm);
+        // ---- Left card: ESP toggles ----
+        if (w::card::begin("##esp_toggles", { halfLeft, contentH }, "ESP")) {
+            w::toggle("Master enable", &global::esp::Enabled);
+            w::gap(theme::space::md);
 
             w::labelsection("Box");
             w::toggle("Box ESP", &global::esp::Box);
             if (global::esp::Box) {
                 w::pill_toolbar("##box_type", {"Bounding","Corner"}, &global::esp::Box_Type);
                 w::gap(theme::space::xs);
-                w::toggle("Box Fill", &global::esp::Box_Fill);
+                w::toggle("Box fill", &global::esp::Box_Fill);
                 if (global::esp::Box_Fill)
                     w::dualcolor("##boxfill_top", global::esp::color::BoxFill_Top,
                         "##boxfill_bot", global::esp::color::BoxFill_Bottom);
-                w::toggle("Gradient Fill", &global::esp::Box_Fill_Gradient);
+                w::toggle("Gradient fill", &global::esp::Box_Fill_Gradient);
             }
 
-            w::gap(theme::space::sm);
+            w::gap(theme::space::md);
             w::labelsection("Health");
-            w::toggle("Health Bar", &global::esp::Healthbar);
+            w::toggle("Health bar", &global::esp::Healthbar);
             if (global::esp::Healthbar) {
                 w::pill_toolbar("##hb_type", {"Static","Gradient"}, &global::esp::Healthbar_Type);
-                w::sliderint("Bar Gap", &global::esp::gap, 1, 5);
-                w::sliderint("Bar Thickness", &global::esp::Thickness, 1, 5);
+                w::sliderint("Bar gap", &global::esp::gap, 1, 5);
+                w::sliderint("Bar thickness", &global::esp::Thickness, 1, 5);
             }
-            w::toggle("Health Text", &global::esp::Health);
+            w::toggle("Health text", &global::esp::Health);
 
-            w::gap(theme::space::sm);
+            w::gap(theme::space::md);
             w::labelsection("Labels");
             w::toggle("Name", &global::esp::name);
             if (global::esp::name)
-                w::combo("Name Format", &global::esp::Name_Type,
+                w::combo("Name format", &global::esp::Name_Type,
                     {"Name","Display","Both"});
             w::toggle("Distance", &global::esp::Distance);
-            w::toggle("Rig Type", &global::esp::Rig_Type);
+            w::toggle("Rig type", &global::esp::Rig_Type);
             w::toggle("Tool", &global::esp::tool);
 
-            w::gap(theme::space::sm);
+            w::gap(theme::space::md);
             w::labelsection("3D");
             w::toggle("Skeleton", &global::esp::Skeleton);
             w::toggle("Trails", &global::esp::Trails);
-            w::toggle("Chinese Hats", &global::esp::Chinese_Hat);
-            w::toggle("Aim Lines", &global::esp::aimline);
+            w::toggle("Chinese hats", &global::esp::Chinese_Hat);
+            w::toggle("Aim lines", &global::esp::aimline);
             w::toggle("Chams", &global::esp::Chams);
             if (global::esp::Chams)
                 w::dualcolor("##chams_fill", global::esp::color::Chams,
@@ -175,30 +175,30 @@ namespace page {
 
         ImGui::SameLine(0.f, theme::space::md);
 
-        // ---- Right card: OPTIONS + COLORS ----
+        // ---- Right card: Options + colors ----
         if (w::card::begin("##vis_opts", { halfLeft, contentH }, "Options")) {
             w::labelsection("General");
-            w::toggle("Exclude Team", &global::setting::Team_Check);
-            w::toggle("Exclude Client", &global::setting::Client_Check);
+            w::toggle("Exclude team", &global::setting::Team_Check);
+            w::toggle("Exclude client", &global::setting::Client_Check);
 
-            w::gap(theme::space::sm);
+            w::gap(theme::space::md);
             w::labelsection("Rendering");
-            w::sliderfloat("Render Distance", &global::esp::Render_Distance, 0.f, 1000.f);
-            w::toggle("Visible Check", &global::esp::VisibleCheck);
+            w::sliderfloat("Render distance", &global::esp::Render_Distance, 0.f, 1000.f);
+            w::toggle("Visible check", &global::esp::VisibleCheck);
 
-            w::gap(theme::space::sm);
+            w::gap(theme::space::md);
             w::labelsection("Colors");
             ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Box");
             w::color4("##box_col", global::esp::color::Box);
             ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Visible");
             w::color4("##vis_col", global::esp::color::Visible);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Not Visible");
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Not visible");
             w::color4("##nvis_col", global::esp::color::NotVisible);
             ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Skeleton");
             w::color4("##skel_col", global::esp::color::Skeleton);
             ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Trails");
             w::color4("##trail_col", global::esp::color::Trails);
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Aim Line");
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Aim line");
             w::color4("##aimline_col", global::esp::color::aimline);
             ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Name");
             w::color4("##name_col", global::esp::color::name);
@@ -209,24 +209,23 @@ namespace page {
     }
 
     // ========================================================================
-    // Tab 2 — WORLD
+    // Tab 2 — World
     // ========================================================================
     inline void world(float contentW, float contentH) {
-        // Single wide card
         if (w::card::begin("##wld", { contentW, contentH }, "World")) {
             w::labelsection("Skybox");
-            w::toggle("Skybox Changer", &global::world::Skybox);
+            w::toggle("Skybox changer", &global::world::Skybox);
             if (global::world::Skybox) {
                 w::combo("Preset", &global::world::Skybox_Type, {
-                    "Miserable", "Space", "Pink Sky", "Minecraft", "Night Cloudy",
-                    "Sparkling Night", "Winterness", "Dark Crimson", "Nebula",
-                    "Tropical", "Green Sky" });
+                    "Miserable", "Space", "Pink sky", "Minecraft", "Night cloudy",
+                    "Sparkling night", "Winterness", "Dark crimson", "Nebula",
+                    "Tropical", "Green sky" });
                 w::toggle("Rotation", &global::world::Rotate);
                 if (global::world::Rotate)
-                    w::sliderfloat("Rotate Speed", &global::world::Skybox_Rotate_Speed, 0.f, 5.f);
+                    w::sliderfloat("Rotate speed", &global::world::Skybox_Rotate_Speed, 0.f, 5.f);
             }
 
-            w::gap(theme::space::md);
+            w::gap(theme::space::lg);
             w::labelsection("Lighting");
             w::togglecolor("Atmosphere", &global::world::Ambience,
                 "##atmc", global::world::color::Ambience);
@@ -234,7 +233,7 @@ namespace page {
             if (global::world::Fog) {
                 ImGui::SameLine(ImGui::GetContentRegionMax().x - 22.f);
                 w::color4("##fogc", global::world::color::Fog);
-                w::sliderfloat("Fog Distance", &global::world::Fog_Distance, 0.f, 1000.f);
+                w::sliderfloat("Fog distance", &global::world::Fog_Distance, 0.f, 1000.f);
             }
             w::toggle("Brightness", &global::world::Brightness);
             if (global::world::Brightness)
@@ -243,7 +242,7 @@ namespace page {
             if (global::world::Exposure)
                 w::sliderfloat("Exposure", &global::world::ExposureI, -3.f, 3.f);
 
-            w::gap(theme::space::md);
+            w::gap(theme::space::lg);
             w::labelsection("Camera");
             w::toggle("Custom FOV", &global::world::FOV);
             if (global::world::FOV)
@@ -253,26 +252,26 @@ namespace page {
     }
 
     // ========================================================================
-    // Tab 3 — MISC
+    // Tab 3 — Misc
     // ========================================================================
     inline void misc(float contentW, float contentH) {
         const float halfW = (contentW - theme::space::md) * 0.5f;
 
-        // ---- Left: EXPLOITS ----
+        // ---- Left: Exploits ----
         if (w::card::begin("##exploits", { halfW, contentH }, "Exploits")) {
             w::toggle("Fly", &global::misc::fly);
             ImGui::SameLine(ImGui::GetContentRegionMax().x -
                 w::bindwidth(global::misc::Fly_Key, w::ImKeyBindMode::Hold) - 4.f);
             w::bind("##fly_bind", &global::misc::Fly_Key, (w::ImKeyBindMode*)&global::misc::Fly_Mode);
             if (global::misc::fly)
-                w::sliderfloat("Fly Speed", &global::misc::Fly_Speed, 0.f, 200.f);
+                w::sliderfloat("Fly speed", &global::misc::Fly_Speed, 0.f, 200.f);
 
-            w::gap(theme::space::sm);
+            w::gap(theme::space::md);
             w::labelsection("Adjustments");
             w::toggle("Walkspeed", &global::misc::walkspeed);
             if (global::misc::walkspeed)
                 w::sliderfloat("Walkspeed", &global::misc::Walkspeed_Speed, 1.f, 500.f);
-            w::toggle("Hitbox Expander", &global::misc::hitbox);
+            w::toggle("Hitbox expander", &global::misc::hitbox);
             if (global::misc::hitbox) {
                 w::sliderfloat("Size X", &global::misc::Hitbox_Size_X, 1.f, 50.f);
                 w::sliderfloat("Size Y", &global::misc::Hitbox_Size_Y, 1.f, 50.f);
@@ -283,7 +282,7 @@ namespace page {
 
         ImGui::SameLine(0.f, theme::space::md);
 
-        // ---- Right: CONFIG ----
+        // ---- Right: Config ----
         if (w::card::begin("##cfg", { halfW, contentH }, "Config")) {
             static std::vector<std::string> configs;
             static int configIdx = -1;
@@ -291,7 +290,7 @@ namespace page {
 
             config::refresh(configs);
 
-            w::labelsection("Saved Configs");
+            w::labelsection("Saved configs");
             if (configs.empty()) {
                 w::gap(theme::space::sm);
                 ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()),
@@ -304,7 +303,7 @@ namespace page {
                     configIdx = -1;
             }
 
-            w::gap(theme::space::sm);
+            w::gap(theme::space::md);
             if (configIdx >= 0 && configIdx < (int)configs.size()) {
                 if (w::accent_button("Load", -1.f, 24.f))
                     config::load(configs[configIdx]);
@@ -318,8 +317,8 @@ namespace page {
                 }
             }
 
-            w::gap(theme::space::sm);
-            w::labelsection("Create New");
+            w::gap(theme::space::md);
+            w::labelsection("Create new");
             ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
             ImGui::InputText("##newcfg", newNameBuf, sizeof(newNameBuf));
             ImGui::PopItemWidth();
@@ -334,40 +333,40 @@ namespace page {
     }
 
     // ========================================================================
-    // Tab 4 — SETTINGS
+    // Tab 4 — Settings
     // ========================================================================
     inline void settings(float contentW, float contentH) {
         const float leftW = (contentW - theme::space::md) * 0.5f;
 
-        // ---- Left: GENERAL ----
+        // ---- Left: General ----
         if (w::card::begin("##s_gen", { leftW, contentH }, "General")) {
             w::labelsection("Menu");
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Menu Key");
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Menu key");
             ImGui::SameLine(ImGui::GetContentRegionMax().x - 60.f);
             w::keyselect("##menukey", &global::setting::Menu_Key);
 
-            w::gap(theme::space::sm);
+            w::gap(theme::space::md);
             w::labelsection("Display");
             w::toggle("Compact UI", &global::setting::Compact_UI);
             w::pill_toolbar("##perf", {"60fps","144fps","Unlocked"}, &global::setting::Performance_Mode);
             w::gap(theme::space::xs);
             w::toggle("Streamproof", &global::setting::Streamproof);
 
-            w::gap(theme::space::sm);
+            w::gap(theme::space::md);
             w::labelsection("Sound");
-            w::toggle("Sound Effects", &global::setting::Sound_Enabled);
+            w::toggle("Sound effects", &global::setting::Sound_Enabled);
             if (global::setting::Sound_Enabled)
                 w::sliderfloat("Volume", &global::setting::Sound_Volume, 0.f, 1.f);
 
-            w::gap(theme::space::sm);
+            w::gap(theme::space::md);
             w::labelsection("Overlay");
             w::toggle("Watermark", &global::overlay::watermark);
-            w::toggle("Hotkeys Panel", &global::overlay::hotkey);
+            w::toggle("Hotkeys panel", &global::overlay::hotkey);
             if (global::overlay::hotkey) {
                 w::toggle("  Aimbot", &global::overlay::Hotkey_Aimbot);
                 w::toggle("  Silent", &global::overlay::Hotkey_Silent);
                 w::toggle("  Fly", &global::overlay::Hotkey_Fly);
-                w::toggle("  Blade Spam", &global::overlay::Hotkey_BladeBallSpam);
+                w::toggle("  Blade spam", &global::overlay::Hotkey_BladeBallSpam);
                 w::toggle("  Walkspeed", &global::overlay::Hotkey_Walkspeed);
                 w::toggle("  Hitbox", &global::overlay::Hotkey_HitboxExpander);
             }
@@ -378,15 +377,15 @@ namespace page {
                 w::sliderfloat("Size", &global::overlay::Radar_Size, 130.f, 280.f);
                 w::toggle("Rotate with cam", &global::overlay::Radar_Rotate);
             }
-            w::toggle("Aim Warning", &global::overlay::AimWarning);
+            w::toggle("Aim warning", &global::overlay::AimWarning);
             if (global::overlay::AimWarning)
-                w::sliderfloat("Detection Range", &global::overlay::AimView_MaxLength, 50.f, 1000.f);
+                w::sliderfloat("Detection range", &global::overlay::AimView_MaxLength, 50.f, 1000.f);
         }
         w::card::end();
 
         ImGui::SameLine(0.f, theme::space::md);
 
-        // ---- Right: ACCOUNT ----
+        // ---- Right: Account ----
         if (w::card::begin("##s_about", { leftW, contentH }, "Account")) {
             w::labelsection("User");
 
@@ -434,7 +433,7 @@ namespace page {
 
             ImGui::SetCursorScreenPos(pillPos + ImVec2(0.f, pillH + 8.f));
 
-            w::gap(theme::space::sm);
+            w::gap(theme::space::md);
             w::labelsection("Keybinds");
             ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(theme::col_muted()), "Aimbot");
             ImGui::SameLine(ImGui::GetContentRegionMax().x - 80.f);
@@ -453,18 +452,18 @@ namespace page {
     }
 
     // ========================================================================
-    // Tab 5 — PF (Phantom Forces)
+    // Tab 5 — Phantom Forces
     // ========================================================================
     inline void pf(float contentW, float contentH) {
         const float leftW = (contentW - theme::space::md) * 0.5f;
 
-        // ---- Left: SILENT AIM ----
-        if (w::card::begin("##pf_silent", { leftW, contentH }, "Silent Aim")) {
-            w::toggle("Enable PF Mode", &global::pf::Enabled);
+        // ---- Left: Silent aim ----
+        if (w::card::begin("##pf_silent", { leftW, contentH }, "Silent aim")) {
+            w::toggle("Enable PF mode", &global::pf::Enabled);
+            w::gap(theme::space::md);
+            w::labelsection("Silent aim");
+            w::toggle("Silent aim", &global::pf::SilentAim);
             w::gap(theme::space::sm);
-            w::labelsection("Silent Aim");
-            w::toggle("Silent Aim", &global::pf::SilentAim);
-            w::gap(theme::space::xs);
             ImGui::TextWrapped("Auto-aims at closest target on left-click.");
             ImGui::TextWrapped("Camera returns to original position on release.");
         }
@@ -475,16 +474,16 @@ namespace page {
         // ---- Right: ESP ----
         if (w::card::begin("##pf_esp", { leftW, contentH }, "ESP")) {
             w::toggle("ESP", &global::pf::Esp);
-            w::gap(theme::space::sm);
+            w::gap(theme::space::md);
 
             w::labelsection("Render");
-            w::toggle("Bounding Box", &global::pf::Box);
+            w::toggle("Bounding box", &global::pf::Box);
             w::gap(theme::space::xs);
             w::toggle("Skeleton", &global::pf::Skeleton);
             w::gap(theme::space::xs);
-            w::toggle("Health Bar", &global::pf::HealthBar);
+            w::toggle("Health bar", &global::pf::HealthBar);
 
-            w::gap(theme::space::sm);
+            w::gap(theme::space::md);
             w::labelsection("Colors");
             w::color4("##pf_box_col", global::pf::BoxColor);
             w::color4("##pf_skel_col", global::pf::SkeletonColor);

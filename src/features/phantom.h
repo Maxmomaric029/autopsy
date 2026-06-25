@@ -128,10 +128,42 @@ inline void cacheplayer(std::vector<sdk::player>& actor, const sdk::vector3& Loc
 }
 
 inline void rescancache(std::vector<sdk::player>& actor, const sdk::vector3& LocalPos, const std::string& LocalName) {
-    std::thread([&actor, &LocalPos, &LocalName]() {
+    // Spawn una sola vez — el thread vive para siempre, pero se auto-pausa
+    // (sleep largo, sin hacer cacheplayer) cuando GameID ya no es PF, para
+    // no gastar CPU/RAM recorriendo el workspace de OTRO juego cada 30s.
+    static std::atomic<bool> s_running{ false };
+    if (s_running.exchange(true)) return; // ya hay un thread corriendo
+
+    // Nota: ya no capturamos LocalPos/LocalName por valor congelados al
+    // momento del spawn — los releemos en vivo desde global:: cada vuelta,
+    // para no quedarnos pegados a la posición/nombre de cuando entraste a PF.
+    std::thread([]() {
         while (true) {
-            cacheplayer(actor, LocalPos, LocalName);
+            if (global::GameID != global::pf::PlaceId) {
+                // No estamos en PF: no hacemos cacheplayer, solo dormimos
+                // y volvemos a chequear. Barato: una comparación cada 2s.
+                std::this_thread::sleep_for(std::chrono::seconds(2));
+                continue;
+            }
+
+            sdk::vector3 CurrentPos{};
+            std::string CurrentName;
+            {
+                std::lock_guard<std::mutex> Lock(cache::Mutex);
+                if (global::LocalPlayer.HumanoidRootPart.Address) {
+                    sdk::part Root(global::LocalPlayer.HumanoidRootPart.Address);
+                    CurrentPos = Root.partposition();
+                }
+                CurrentName = global::LocalPlayer.name;
+            }
+
+            std::vector<sdk::player> Scanned;
+            cacheplayer(Scanned, CurrentPos, CurrentName);
+            {
+                std::lock_guard<std::mutex> Lock(cache::Mutex);
+                global::Player_Cache = std::move(Scanned);
+            }
             std::this_thread::sleep_for(std::chrono::seconds(30));
         }
-        }).detach();
+    }).detach();
 }

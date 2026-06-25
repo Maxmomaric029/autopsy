@@ -174,7 +174,7 @@ namespace aim {
         float bottom = -FLT_MAX;
         int valid = 0;
 
-        HWND Window = FindWindowA(0, "Roblox");
+        HWND Window = robloxHwnd(); // cached, no FindWindowA naked
         RECT ClientRect{};
         if (!Window || !GetClientRect(Window, &ClientRect))
             return false;
@@ -494,27 +494,44 @@ namespace aim {
             Cam.rotation(FinalMatrix);
         }
         else if (global::aim::Aimbot_type == 1) {
-            // Case 1: Mouse Aim — raw mouse, no smoothing division
+            // Case 1: Mouse Aim — delta en coordenadas de cliente, pero MOUSEEVENTF_MOVE
+            // es relativo en espacio de pantalla. Si la ventana no está en (0,0)
+            // el delta queda bien igual porque es DIFERENCIA de posición — no absoluto.
+            // El problema era ScreenToClient que convierte el cursor antes de calcular
+            // el delta, lo cual es correcto. El bug estaba en que se aplicaba
+            // Sensitivity*1.4 hardcoded. Ahora se aplica solo Sensitivity, más predecible.
             POINT CursorPos;
             if (!GetCursorPos(&CursorPos)) return;
             ScreenToClient(robloxHwnd(), &CursorPos);
 
             float Sensitivity = global::aim::mouse::Mouse_Sensitivty;
 
-            float MoveX = (AimPositionS.x - CursorPos.x) * Sensitivity * 1.4f;
-            float MoveY = (AimPositionS.y - CursorPos.y) * Sensitivity * 1.4f;
+            float DeltaX = AimPositionS.x - (float)CursorPos.x;
+            float DeltaY = AimPositionS.y - (float)CursorPos.y;
+
+            if (global::aim::SmoothAdvanced) {
+                float sx = ImClamp(global::aim::mouse::Smoothing_X, 0.01f, 12.f);
+                float sy = ImClamp(global::aim::mouse::Smoothing_Y, 0.01f, 12.f);
+                DeltaX = DeltaX / sx;
+                DeltaY = DeltaY / sy;
+            } else {
+                float s = ImClamp(global::aim::mouse::Smoothing_X, 0.01f, 12.f);
+                DeltaX = DeltaX / s;
+                DeltaY = DeltaY / s;
+            }
+
+            float MoveX = DeltaX * Sensitivity;
+            float MoveY = DeltaY * Sensitivity;
 
             if (global::aim::Shake) {
                 MoveX += ((float)rand() / RAND_MAX * 2 - 1) * global::aim::ShakeX;
                 MoveY += ((float)rand() / RAND_MAX * 2 - 1) * global::aim::ShakeY;
             }
 
-            if (MoveX < -120.f) MoveX = -120.f;
-            if (MoveX > 120.f) MoveX = 120.f;
-            if (MoveY < -120.f) MoveY = -120.f;
-            if (MoveY > 120.f) MoveY = 120.f;
+            MoveX = ImClamp(MoveX, -120.f, 120.f);
+            MoveY = ImClamp(MoveY, -120.f, 120.f);
 
-            if (abs(MoveX) >= 1.f || abs(MoveY) >= 1.f) {
+            if (fabsf(MoveX) >= 0.5f || fabsf(MoveY) >= 0.5f) {
                 INPUT Input = {};
                 Input.type = INPUT_MOUSE;
                 Input.mi.dx = (LONG)MoveX;

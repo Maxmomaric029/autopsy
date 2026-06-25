@@ -214,17 +214,19 @@ namespace esp {
         ImDrawList* dl = ImGui::GetBackgroundDrawList();
         dl->Flags |= ImDrawListFlags_AntiAliasedLines | ImDrawListFlags_AntiAliasedFill;
 
-        // ── Snapshot (rate-limited) ────────────────────────────────────
-        static double lastSnapshotTime = 0.0;
+        // ── Snapshot (sincronizado con el cache — no gastar tiempo copiando si no cambió) ────
+        static double lastSnapshotTime = -1.0;
         static std::vector<sdk::player> Snapshot;
-        static std::vector<sdk::player> SnapshotSwap;
         double now = ImGui::GetTime();
-        if (now - lastSnapshotTime > 0.033) {
+        // El cache actualiza cada ~150ms — no tiene sentido snapshottear más rápido.
+        // Copiar el vector bajo lock y soltar inmediatamente minimiza contención.
+        if (now - lastSnapshotTime > 0.12) {
+            std::vector<sdk::player> tmp;
             {
                 std::lock_guard<std::mutex> lock(cache::Mutex);
-                SnapshotSwap = global::Player_Cache;
+                tmp = global::Player_Cache;
             }
-            Snapshot.swap(SnapshotSwap);
+            Snapshot = std::move(tmp);
             lastSnapshotTime = now;
         }
 

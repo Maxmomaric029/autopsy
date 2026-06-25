@@ -448,10 +448,23 @@ namespace cache {
         console::connected = (global::camera.Address != 0);
         console::playerCount = (int)global::Player_Cache.size();
         if (global::GameID == 292439477) {
-            std::vector<sdk::player> players;
-            cacheplayer(players, Local_Position, LocalPlayer.name);
-            rescancache(players, Local_Position, LocalPlayer.name);
+            // El rescan de Phantom Forces ahora vive en su propio thread (phantom.h),
+            // que escribe directo a global::Player_Cache cada 30s con su propio lock.
+            // Aqui solo nos encargamos de arrancarlo (rescancache es idempotente gracias
+            // al guard atomico) y, si todavia no hay nada cacheado (primer arranque,
+            // antes de que el thread haga su primer pase), hacemos un scan sincrono
+            // una sola vez para no dejar el ESP/aimbot vacios mientras tanto.
+            static std::vector<sdk::player> dummy_actor_param; // solo para firma; el thread no la usa
+            rescancache(dummy_actor_param, Local_Position, LocalPlayer.name);
+
+            bool cacheEmpty;
             {
+                std::lock_guard<std::mutex> lock(Mutex);
+                cacheEmpty = global::Player_Cache.empty();
+            }
+            if (cacheEmpty) {
+                std::vector<sdk::player> players;
+                cacheplayer(players, Local_Position, LocalPlayer.name);
                 std::lock_guard<std::mutex> lock(Mutex);
                 global::Player_Cache = std::move(players);
             }
