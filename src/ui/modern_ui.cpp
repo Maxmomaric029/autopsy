@@ -28,8 +28,36 @@
 #include "ui/pages/pages.h"
 
 // ========================================================================
-// Step marker helper — writes to Desktop\crash_step.txt (no CRT)
+// Low-level keyboard hook — detecta Insert sin depender del foco
 // ========================================================================
+namespace keyhook {
+    static std::atomic<bool> g_insertPressed{ false };
+    static HHOOK g_hook = nullptr;
+
+    static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
+        if (nCode == HC_ACTION) {
+            KBDLLHOOKSTRUCT* kb = (KBDLLHOOKSTRUCT*)lParam;
+            if (kb->vkCode == VK_INSERT && (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN))
+                g_insertPressed.store(true);
+        }
+        return CallNextHookEx(g_hook, nCode, wParam, lParam);
+    }
+
+    static void install() {
+        g_hook = SetWindowsHookExA(WH_KEYBOARD_LL, LowLevelKeyboardProc, GetModuleHandleA(nullptr), 0);
+    }
+
+    static void uninstall() {
+        if (g_hook) { UnhookWindowsHookEx(g_hook); g_hook = nullptr; }
+    }
+
+    // Consume el press — devuelve true una sola vez por pulsacion
+    static bool consume() {
+        return g_insertPressed.exchange(false);
+    }
+} // namespace keyhook
+
+
 static void MarkStep(const char* step)
 {
     char path[MAX_PATH];
