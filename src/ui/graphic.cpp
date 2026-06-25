@@ -272,14 +272,20 @@ bool graphic::window() {
     RegisterClassExA(&Detail->WindowClass);
 
     Detail->Window = CreateWindowExA(
-        WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_LAYERED | WS_EX_NOACTIVATE,
+        WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED,
         Detail->WindowClass.lpszClassName, "miserable.lol", WS_POPUP,
         0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN),
         0, 0, Detail->WindowClass.hInstance, 0);
 
     if (!Detail->Window) return false;
 
+    // Transparent + noactivate se ponen despues del primer toggle
+    // Por ahora la ventana puede recibir foco para el hook de teclado
     SetLayeredWindowAttributes(Detail->Window, RGB(0, 0, 0), 255, LWA_ALPHA);
+
+    // Dar foco al overlay para que GetAsyncKeyState funcione desde el primer frame
+    SetForegroundWindow(Detail->Window);
+    SetFocus(Detail->Window);
 
     MARGINS margins = { -1, -1, -1, -1 };
     HRESULT dwmResult = DwmExtendFrameIntoClientArea(Detail->Window, &margins);

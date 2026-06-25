@@ -315,6 +315,14 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
         bool menuKeyEdge;
         if (menuVk == VK_INSERT) {
             menuKeyEdge = keyhook::consume();
+            // Fallback: si el hook no captura, intentar GetAsyncKeyState tambien
+            if (!menuKeyEdge) {
+                bool kd = (GetAsyncKeyState(VK_INSERT) & 0x8000) != 0;
+                menuKeyEdge = kd && !lastMenuKeyDown;
+                lastMenuKeyDown = kd;
+            } else {
+                lastMenuKeyDown = false;
+            }
         } else {
             bool menuKeyDown = (GetAsyncKeyState(menuVk) & 0x8000) != 0;
             menuKeyEdge = menuKeyDown && !lastMenuKeyDown;
