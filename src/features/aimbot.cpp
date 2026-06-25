@@ -14,6 +14,7 @@
 #include "../sdk/offsets/offset.h"
 #include "../features/wallcheck.h"
 #include "imgui/addons/imgui_addons.h"
+#include "imgui_internal.h"
 
 namespace aim {
     std::string CurrentLockedName = "";
