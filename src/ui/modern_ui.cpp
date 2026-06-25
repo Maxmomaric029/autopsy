@@ -156,12 +156,16 @@ bool ModernUI::Create(HWND window, ID3D11Device* device, ID3D11DeviceContext* co
     // ---- Init avatar (async download from Roblox) ----
     avatar::init(device);
 
+    // ---- Low-level keyboard hook ----
+    keyhook::install();
+
     m_initialized = true;
     return true;
 }
 
 void ModernUI::Destroy() {
     if (!m_initialized) return;
+    keyhook::uninstall();
     sound::shutdown();
     avatar::shutdown();
     free_logos();
