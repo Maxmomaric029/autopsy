@@ -363,27 +363,31 @@ std::int32_t main(std::int32_t argc, char** argv[])
         }
     }
 
+    console::info("Iniciando ventana overlay...");
     if (!screen->window())
     {
+        console::error("screen->window() fallo");
+        Sleep(5000);
         return 1;
     }
 
+    console::info("Iniciando device D3D11...");
     if (!screen->device())
     {
+        console::error("screen->device() fallo");
+        Sleep(5000);
         return 1;
     }
 
+    console::info("Iniciando ImGui...");
     if (!screen->imgui())
     {
+        console::error("screen->imgui() fallo");
+        Sleep(5000);
         return 1;
     }
-    // Register VEH early — catches crashes on ALL threads (including cache/aim/etc.)
-    PVOID vehHandle = AddVectoredExceptionHandler(1, VectoredHandler);
-    if (vehHandle) {
-        OutputDebugStringA("[VEH] VEH registered successfully\n");
-    } else {
-        OutputDebugStringA("[VEH] VEH REGISTRATION FAILED!\n");
-    }
+
+    console::success("Overlay listo.");
 
     renderLoop();
     return 0;
