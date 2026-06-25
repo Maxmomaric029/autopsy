@@ -281,6 +281,28 @@ void ModernUI::BeginFrame(HWND overlayWindow) {
         bool menuKeyDown = (GetAsyncKeyState(menuVk) & 0x8000) != 0;
         bool menuKeyEdge = menuKeyDown && !lastMenuKeyDown;
         lastMenuKeyDown = menuKeyDown;
+
+        // Debug temporal — escribe al Desktop cada vez que se detecta la tecla
+        if (menuKeyDown) {
+            static double lastDbg = -99.0;
+            if (now - lastDbg > 0.5) {
+                lastDbg = now;
+                char dbgPath[MAX_PATH];
+                if (SHGetFolderPathA(NULL, CSIDL_DESKTOPDIRECTORY, NULL, 0, dbgPath) == S_OK) {
+                    strcat_s(dbgPath, "\\insert_debug.txt");
+                    HANDLE hf = CreateFileA(dbgPath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+                    if (hf != INVALID_HANDLE_VALUE) {
+                        char msg[256];
+                        int len = wsprintfA(msg,
+                            "menuVk=%d fgPid=%lu targetPid=%lu myPid=%lu edge=%d now=%.3f\r\n",
+                            menuVk, fgPid, targetPid, GetCurrentProcessId(), (int)menuKeyEdge, now);
+                        DWORD n; WriteFile(hf, msg, len, &n, NULL);
+                        CloseHandle(hf);
+                    }
+                }
+            }
+        }
+
         if (menuKeyEdge && now - lastToggle >= .18) {
             MarkStep("E—TOGGLE FIRING");
 
