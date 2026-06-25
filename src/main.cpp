@@ -235,6 +235,9 @@ namespace
 
 std::int32_t main(std::int32_t argc, char** argv[])
 {
+    // VEH lo primero — antes de cualquier otra cosa
+    AddVectoredExceptionHandler(1, VectoredHandler);
+
     // Start console UI thread immediately so logs are printed to the screen
     console::start();
 
@@ -337,21 +340,28 @@ std::int32_t main(std::int32_t argc, char** argv[])
 
 
 
+    // Register VEH antes de cualquier cosa que pueda crashear
+    PVOID vehHandle = AddVectoredExceptionHandler(1, VectoredHandler);
+
     // ---- Background threads ----
-    // Threads still exist for feature responsiveness.
     std::thread(cache::run).detach();
     std::thread([]() {
-        world::run();  // spawns skybox, atmosphere, fog, brightness, exposure, fov
-        misc::run();   // spawns fly, walkspeed, hitbox
+        world::run();
+        misc::run();
     }).detach();
     std::thread(aim::run).detach();
     std::thread(silent::run).detach();
     std::thread(ball::run).detach();
 
-    auto workspacetoworld = drive->read<uintptr_t>(global::workspace.Address + offset::workspace::world);
-    static float originalGravity = drive->read<float>(workspacetoworld + offset::world::Gravity);
-    if (originalGravity <= 0.f || originalGravity > 9999.f) originalGravity = 196.2f;
-    drive->write<float>(workspacetoworld + offset::world::GravityOverride, originalGravity * 4.f);
+    // Gravity override — solo si workspace valido
+    if (global::workspace.Address) {
+        auto workspacetoworld = drive->read<uintptr_t>(global::workspace.Address + offset::workspace::world);
+        if (workspacetoworld) {
+            static float originalGravity = drive->read<float>(workspacetoworld + offset::world::Gravity);
+            if (originalGravity <= 0.f || originalGravity > 9999.f) originalGravity = 196.2f;
+            drive->write<float>(workspacetoworld + offset::world::GravityOverride, originalGravity * 4.f);
+        }
+    }
 
     if (!screen->window())
     {
