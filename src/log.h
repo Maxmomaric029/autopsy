@@ -23,6 +23,11 @@ namespace console {
     // Señal para que main.cpp sepa cuando imprimir offsets y arrancar UI
     inline bool boot_complete = false;
 
+    // Variables de estado usadas por cache.cpp
+    inline int playerCount = 0;
+    inline bool connected  = false;
+    inline uintptr_t cameraAddress = 0;
+
     // Needed by renderLoop in main.cpp — no-op, consola es estática
     inline void refresh() {}
 
